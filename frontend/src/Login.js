@@ -1,41 +1,78 @@
+import React, { useState } from "react";
+import { api, setSession } from "./api";
+
 export default function Login({ onOk, onGoRegister }) {
+  const [username, setU] = useState("");
+  const [password, setP] = useState("");
+  const [err, setErr] = useState("");
+
+  const submit = async () => {
+    setErr("");
+    try {
+      const r = await api.login(username, password);
+      setSession(r.session);
+      onOk();
+    } catch (e) {
+      setErr(e.message || "Login failed");
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100">
-      <div className="w-full max-w-md bg-white shadow-lg rounded-xl p-8">
-        <h1 className="text-2xl font-bold text-slate-800 mb-2">
-          NPD Banking
-        </h1>
-        <p className="text-sm text-slate-500 mb-6">
-          Corporate UI – Transfers & Notifications (LAB)
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-2xl border bg-white p-7 shadow-sm">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="h-10 w-10 rounded-xl bg-blue-600 text-white grid place-items-center font-bold">B</div>
+          <div>
+            <div className="text-base font-semibold text-slate-900">NPD Banking</div>
+            <div className="text-xs text-slate-500">Postgres • Redis Session • WebSocket Notify</div>
+          </div>
+        </div>
+
+        <h2 className="text-xl font-semibold text-slate-900">Sign in</h2>
+        <p className="text-sm text-slate-500 mt-1 mb-5">
+          Use your account to access balance, transfers and notifications.
         </p>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           <input
-            className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Username"
+            value={username}
+            onChange={(e) => setU(e.target.value)}
           />
           <input
-            type="password"
-            className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setP(e.target.value)}
           />
         </div>
 
-        <div className="mt-6 flex gap-3">
-          <button className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+        <div className="mt-5 flex gap-3">
+          <button
+            onClick={submit}
+            className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+          >
             Sign in
           </button>
           <button
             onClick={onGoRegister}
-            className="flex-1 border border-blue-600 text-blue-600 py-2 rounded-lg hover:bg-blue-50"
+            className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             Create
           </button>
         </div>
 
-        <p className="text-xs text-slate-400 mt-4">
+        {err && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {err}
+          </div>
+        )}
+
+        <div className="mt-5 text-xs text-slate-400">
           © Banking Demo Lab • Postgres + Redis
-        </p>
+        </div>
       </div>
     </div>
   );
