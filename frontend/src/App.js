@@ -1,27 +1,34 @@
-import React, { useEffect, useState } from "react";
-import { getSession, clearSession } from "./api";
+import React, { useState } from "react";
+import Layout from "./ui/Layout";
 import Login from "./Login";
 import Register from "./Register";
 import Dashboard from "./Dashboard";
+import { getSession } from "./api";
 
 export default function App() {
   const [page, setPage] = useState(getSession() ? "dashboard" : "login");
 
-  useEffect(() => {
-    if (!getSession()) setPage("login");
-  }, []);
-
-  const logout = () => {
-    clearSession();
-    setPage("login");
-  };
+  const right = (
+    <div className="text-xs text-slate-500">
+      Environment: <span className="font-semibold text-slate-700">LAB</span>
+    </div>
+  );
 
   return (
-    <div style={{ fontFamily: "system-ui", maxWidth: 720, margin: "40px auto" }}>
-      <h2>Banking Demo (Postgres + Redis Session)</h2>
-      {page === "login" && <Login onOk={() => setPage("dashboard")} onGoRegister={() => setPage("register")} />}
-      {page === "register" && <Register onGoLogin={() => setPage("login")} />}
-      {page === "dashboard" && <Dashboard onLogout={logout} />}
-    </div>
+    <Layout title="NPD Banking" subtitle="Corporate UI • Transfers & Notifications" right={right}>
+      {page === "login" && (
+        <div className="mx-auto max-w-xl">
+          <Login onOk={() => setPage("dashboard")} onGoRegister={() => setPage("register")} />
+        </div>
+      )}
+      {page === "register" && (
+        <div className="mx-auto max-w-xl">
+          <Register onGoLogin={() => setPage("login")} />
+        </div>
+      )}
+      {page === "dashboard" && (
+        <Dashboard onLogout={() => setPage("login")} />
+      )}
+    </Layout>
   );
 }
