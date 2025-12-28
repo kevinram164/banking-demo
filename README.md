@@ -17,7 +17,7 @@ The application focuses on core banking features rather than UI complexity, maki
 - Designed to run in Docker and easily migrate to Kubernetes
 
 3. High-Level Architecture:
-
+```
 +-------------+        HTTP / WebSocket        +------------------+
 |   Frontend  |  <--------------------------> |    Backend API   |
 |  (React)    |                                |   (FastAPI)      |
@@ -35,6 +35,7 @@ The application focuses on core banking features rather than UI complexity, maki
         |          |  Users, Balances, Transfers     | |
         |          |  Transaction history            | |
         |          +--------------------------------+  |
+```
 
 4. Component Breakdown
 4.1 Frontend (React)
