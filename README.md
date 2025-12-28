@@ -37,6 +37,27 @@ The application focuses on core banking features rather than UI complexity, maki
         |          +--------------------------------+  |
 ```
 
+```mermaid
+flowchart LR
+  U[User Browser] -->|HTTP :3000| FE[Nginx<br/>Serve React build]
+  FE -->|REST API<br/>http://localhost:8000| BE[FastAPI Backend]
+
+  U -->|WebSocket<br/>ws://localhost:8000/ws?session=...| BE
+
+  BE -->|SQL transactions<br/>:5432| PG[(PostgreSQL<br/>users / transfers / notifications)]
+  BE -->|Session store<br/>presence TTL<br/>:6379| RD[(Redis<br/>session + presence)]
+
+  BE -->|Publish notify user_id| RD
+  RD -->|Pub/Sub subscribe<br/>notify user_id| BE
+
+  subgraph DockerCompose[Docker Compose Network]
+    FE
+    BE
+    PG
+    RD
+  end
+```
+
 4. Component Breakdown
 4.1 Frontend (React)
 
