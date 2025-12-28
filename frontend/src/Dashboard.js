@@ -7,10 +7,11 @@ export default function Dashboard({ onLogout }) {
   const [amount, setAmount] = useState(1000);
   const [noti, setNoti] = useState([]);
 
-  const wsUrl = useMemo(() => {
-    const session = getSession();
-    return `ws://localhost:8000/ws?session=${encodeURIComponent(session)}`;
-  }, []);
+  const session = getSession();
+  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+  const wsUrl = `${scheme}://${window.location.host}/ws?session=${encodeURIComponent(session)}`;
+  
+  const ws = new WebSocket(wsUrl);
 
   const refresh = async () => {
     const m = await api.me();
