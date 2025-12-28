@@ -1,22 +1,18 @@
 import React from "react";
 
-export default function Card({ title, desc, children, footer }) {
+export default function Card({ title, desc, right, children }) {
   return (
-    <div className="rounded-2xl border bg-white shadow-sm">
-      <div className="p-6">
-        {(title || desc) && (
-          <div className="mb-5">
-            {title && <h3 className="text-base font-semibold">{title}</h3>}
-            {desc && <p className="mt-1 text-sm text-slate-500">{desc}</p>}
+    <div className="rounded-2xl border bg-white p-5 shadow-sm">
+      {(title || desc || right) && (
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            {title && <div className="text-sm font-semibold text-slate-900">{title}</div>}
+            {desc && <div className="mt-1 text-xs text-slate-500">{desc}</div>}
           </div>
-        )}
-        {children}
-      </div>
-      {footer && (
-        <div className="border-t bg-slate-50 px-6 py-3 text-sm text-slate-600">
-          {footer}
+          {right}
         </div>
       )}
+      {children}
     </div>
   );
 }

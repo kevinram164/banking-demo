@@ -1,15 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { api, clearSession, getSession } from "./api";
+import Layout from "./ui/Layout";
 import Card from "./ui/Card";
+import { api, getSession, clearSession } from "./api";
 
 export default function Dashboard({ onLogout }) {
   const [me, setMe] = useState(null);
   const [toUser, setToUser] = useState("");
   const [amount, setAmount] = useState("");
-  const [txMsg, setTxMsg] = useState("");
-  const [txErr, setTxErr] = useState("");
   const [notifs, setNotifs] = useState([]);
   const [wsStatus, setWsStatus] = useState("disconnected");
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
 
   const session = getSession();
 
@@ -29,11 +30,11 @@ export default function Dashboard({ onLogout }) {
     load().catch(console.error);
 
     if (!session) return;
-    let ws;
+    let ws = null;
+
     try {
       ws = new WebSocket(wsUrl);
-    } catch (e) {
-      console.error(e);
+    } catch {
       return;
     }
 
@@ -42,12 +43,9 @@ export default function Dashboard({ onLogout }) {
     ws.onerror = () => setWsStatus("error");
     ws.onmessage = (ev) => {
       try {
-        const msg = JSON.parse(ev.data);
-        // prepend
-        setNotifs((prev) => [msg, ...prev].slice(0, 50));
-      } catch {
-        // ignore
-      }
+        const data = JSON.parse(ev.data);
+        setNotifs((prev) => [data, ...prev].slice(0, 50));
+      } catch {}
     };
 
     return () => {
@@ -56,15 +54,14 @@ export default function Dashboard({ onLogout }) {
   }, [wsUrl, session]);
 
   const doTransfer = async () => {
-    setTxErr(""); setTxMsg("");
+    setErr(""); setMsg("");
     try {
       const r = await api.transfer(toUser, amount);
-      setTxMsg(`Transfer success: ${r.amount} to ${r.to_username}`);
-      setAmount("");
-      setToUser("");
+      setMsg(`Transfer success: ${r.amount} to ${r.to_username}`);
+      setToUser(""); setAmount("");
       await load();
     } catch (e) {
-      setTxErr(e.message);
+      setErr(e.message);
     }
   };
 
@@ -73,96 +70,85 @@ export default function Dashboard({ onLogout }) {
     onLogout?.();
   };
 
+  const wsBadge =
+    wsStatus === "connected"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : wsStatus === "error"
+      ? "bg-red-50 text-red-700 border-red-200"
+      : "bg-slate-50 text-slate-600 border-slate-200";
+
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="lg:col-span-2 space-y-6">
-        <Card
-          title="Account overview"
-          desc="Balance and transfer operations."
-          footer={
-            <div className="flex items-center justify-between">
-              <span className="text-xs">
-                Realtime channel:{" "}
-                <span className={`font-semibold ${wsStatus === "connected" ? "text-emerald-700" : "text-slate-500"}`}>
-                  {wsStatus}
-                </span>
+    <Layout user={me?.username} env="LAB" onLogout={logout}>
+      <div className="space-y-6">
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card
+            title="Account"
+            desc="User & available balance"
+            right={
+              <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${wsBadge}`}>
+                Realtime: {wsStatus}
               </span>
-              <button onClick={logout} className="text-xs font-semibold text-blue-700 hover:underline">
-                Sign out
-              </button>
-            </div>
-          }
-        >
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <div className="text-xs text-slate-500">User</div>
-              <div className="text-lg font-semibold">{me?.username || "-"}</div>
-            </div>
-            <div className="rounded-2xl bg-blue-50 px-5 py-4">
-              <div className="text-xs text-blue-700">Available balance</div>
-              <div className="mt-1 text-2xl font-bold text-blue-900">
-                {me?.balance ?? 0}
+            }
+          >
+            <div className="space-y-3">
+              <div>
+                <div className="text-xs text-slate-500">User</div>
+                <div className="text-sm font-semibold text-slate-900">{me?.username || "-"}</div>
+              </div>
+              <div className="rounded-2xl bg-blue-50 p-4">
+                <div className="text-xs text-blue-700">Available balance</div>
+                <div className="mt-1 text-2xl font-bold text-blue-900">
+                  {(me?.balance ?? 0).toLocaleString()} ₫
+                </div>
               </div>
             </div>
-          </div>
+          </Card>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="md:col-span-2">
-              <label className="text-xs font-medium text-slate-600">Recipient username</label>
+          <Card title="Transfer" desc="Send money to another user">
+            <div className="space-y-3">
               <input
-                className="mt-1 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Recipient username (e.g. hieuny)"
                 value={toUser}
                 onChange={(e) => setToUser(e.target.value)}
-                placeholder="e.g. hieuny"
               />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600">Amount</label>
               <input
-                className="mt-1 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Amount (e.g. 1000)"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="1000"
               />
-            </div>
-          </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={doTransfer}
+                  className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                  Transfer
+                </button>
+                <button
+                  onClick={() => load().catch(()=>{})}
+                  className="rounded-xl border px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Refresh
+                </button>
+              </div>
 
-          <div className="mt-4 flex gap-3">
-            <button
-              type="button"
-              onClick={doTransfer}
-              className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              Transfer
-            </button>
-            <button
-              type="button"
-              onClick={load}
-              className="rounded-xl border px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Refresh
-            </button>
-          </div>
-
-          {txMsg && (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              {txMsg}
+              {msg && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{msg}</div>}
+              {err && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>}
             </div>
-          )}
-          {txErr && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {txErr}
-            </div>
-          )}
-        </Card>
-      </div>
+          </Card>
 
-      <div className="space-y-6">
-        <Card
-          title="Notifications"
-          desc="Incoming transfer notifications in realtime (WebSocket)."
-          footer={`${notifs.length} items`}
-        >
+          <Card title="Demo notes" desc="What to explain in interview">
+            <ul className="list-disc pl-5 text-sm text-slate-700 space-y-2">
+              <li>Session stored in <b>Redis</b> → backend stateless</li>
+              <li>Balance & transfers stored in <b>Postgres</b></li>
+              <li>Realtime notify via <b>WebSocket</b> (Ingress supports WS)</li>
+              <li>Scale pods: notify works cross-pod using Redis pub/sub (next step)</li>
+            </ul>
+          </Card>
+        </div>
+
+        <Card title="Notifications" desc="Incoming transfer notifications (WebSocket)">
           <div className="space-y-3">
             {notifs.length === 0 && (
               <div className="rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -171,23 +157,21 @@ export default function Dashboard({ onLogout }) {
             )}
 
             {notifs.map((n, idx) => (
-              <div key={idx} className="rounded-xl border px-4 py-3">
+              <div key={n.id ?? idx} className="rounded-xl border px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-slate-800">
-                    {n.type || "notification"}
-                  </div>
+                  <div className="text-sm font-semibold text-slate-900">notification</div>
                   <div className="text-xs text-slate-500">
-                    {n.ts ? new Date(n.ts).toLocaleString() : ""}
+                    {n.created_at ? new Date(n.created_at).toLocaleString() : ""}
                   </div>
                 </div>
-                <div className="mt-1 text-sm text-slate-600">
-                  {n.msg || (n.from_username ? `From ${n.from_username}: +${n.amount}` : JSON.stringify(n))}
+                <div className="mt-1 text-sm text-slate-700">
+                  {n.message ?? JSON.stringify(n)}
                 </div>
               </div>
             ))}
           </div>
         </Card>
       </div>
-    </div>
+    </Layout>
   );
 }
