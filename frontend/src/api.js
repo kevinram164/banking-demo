@@ -1,4 +1,4 @@
-const API = "http://localhost:8000";
+const API = "";
 
 export function setSession(session) {
   localStorage.setItem("session", session);
@@ -12,7 +12,7 @@ export function clearSession() {
 
 async function req(path, { method="GET", body } = {}) {
   const session = getSession();
-  const res = await fetch(API + path, {
+  const res = await fetch("/api/register", {
     method,
     headers: {
       "Content-Type": "application/json",
