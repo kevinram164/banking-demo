@@ -1,18 +1,20 @@
-// Không hardcode host: gọi cùng origin
-const API = "";
+const API = ""; // dùng cùng origin
 
 export function setSession(session) {
   localStorage.setItem("session", session);
 }
+
 export function getSession() {
   return localStorage.getItem("session");
 }
+
 export function clearSession() {
   localStorage.removeItem("session");
 }
 
 async function req(path, { method = "GET", body } = {}) {
   const session = getSession();
+
   const res = await fetch(API + path, {
     method,
     headers: {
@@ -29,15 +31,24 @@ async function req(path, { method = "GET", body } = {}) {
 
 export const api = {
   register: (username, password) =>
-    req("/api/register", { method: "POST", body: { username, password } }),
+    req("/api/register", {
+      method: "POST",
+      body: { username, password }
+    }),
 
   login: (username, password) =>
-    req("/api/login", { method: "POST", body: { username, password } }),
+    req("/api/login", {
+      method: "POST",
+      body: { username, password }
+    }),
 
   me: () => req("/api/me"),
 
   transfer: (to_username, amount) =>
-    req("/api/transfer", { method: "POST", body: { to_username, amount: Number(amount) } }),
+    req("/api/transfer", {
+      method: "POST",
+      body: { to_username, amount: Number(amount) }
+    }),
 
   notifications: () => req("/api/notifications")
 };
