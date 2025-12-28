@@ -1,30 +1,21 @@
-import React from "react";
-
-export default function Layout({ title, subtitle, right, children }) {
+export default function Layout({ children }) {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      {/* Top bar */}
-      <div className="border-b bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
-              B
-            </div>
-            <div>
-              <div className="text-sm font-semibold">{title}</div>
-              {subtitle && <div className="text-xs text-slate-500">{subtitle}</div>}
-            </div>
-          </div>
-          <div>{right}</div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-slate-100">
+      <header className="bg-slate-900 text-white px-6 py-4 flex justify-between">
+        <h1 className="font-semibold">NPD Banking</h1>
+        <span className="text-sm text-slate-300">LAB Environment</span>
+      </header>
 
-      {/* Content */}
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        {children}
-        <div className="mt-10 text-center text-xs text-slate-400">
-          © Banking Demo Lab • Postgres + Redis
-        </div>
+      <div className="flex">
+        <aside className="w-56 bg-white shadow h-[calc(100vh-64px)] p-4">
+          <ul className="space-y-3 text-slate-700">
+            <li className="font-medium">Dashboard</li>
+            <li>Transfers</li>
+            <li>Notifications</li>
+          </ul>
+        </aside>
+
+        <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
   );
