@@ -74,3 +74,12 @@ PostgreSQL is the system of record for:
 - Transfer transactions
 - Notification history
 All critical financial data is persisted in PostgreSQL to ensure consistency and durability.
+
+5. How to run :
+- Clone source code
+- Run by docker compose:
+```
+cd banking-demo
+docker compose up -d --build
+docker compose ps -a
+```
