@@ -1,4 +1,5 @@
 services:
+  # PostgreSQL for application data
   postgres:
     image: postgres:16
     container_name: banking-postgres
@@ -17,6 +18,25 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # PostgreSQL for Kong
+  kong-db:
+    image: postgres:16
+    container_name: kong-db
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kongpass
+      POSTGRES_DB: kong
+    ports:
+      - "5433:5432"
+    volumes:
+      - kongdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: banking-redis
@@ -29,20 +49,151 @@ services:
       retries: 5
     restart: unless-stopped
 
-  backend:
-    build: ./backend
-    container_name: banking-backend
-    env_file:
-      - ./backend/.env
+  # Kong migrations
+  kong-migrations:
+    image: kong:3.4
+    container_name: kong-migrations
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+      KONG_PG_DATABASE: kong
+    command: kong migrations bootstrap
+    depends_on:
+      kong-db:
+        condition: service_healthy
+    restart: "no"
+
+  # Kong API Gateway
+  kong:
+    image: kong:3.4
+    container_name: kong-gateway
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+      KONG_PG_DATABASE: kong
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
     ports:
-      - "8000:8000"
+      - "8000:8000"  # Proxy port
+      - "8443:8443"  # Proxy SSL port
+      - "8001:8001"  # Admin API
+      - "8444:8444"  # Admin API SSL
+    volumes:
+      - ./kong/kong.yml:/kong/kong.yml:ro
+    depends_on:
+      kong-migrations:
+        condition: service_completed_successfully
+      auth-service:
+        condition: service_started
+      account-service:
+        condition: service_started
+      transfer-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: auth-service
+    environment:
+      DATABASE_URL: postgresql://banking:bankingpass@postgres:5432/banking
+      REDIS_URL: redis://redis:6379/0
+      SESSION_TTL_SECONDS: 86400
+      CORS_ORIGINS: http://localhost:3000
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Account Service
+  account-service:
+    build:
+      context: .
+      dockerfile: services/account-service/Dockerfile
+    container_name: account-service
+    environment:
+      DATABASE_URL: postgresql://banking:bankingpass@postgres:5432/banking
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Transfer Service
+  transfer-service:
+    build:
+      context: .
+      dockerfile: services/transfer-service/Dockerfile
+    container_name: transfer-service
+    environment:
+      DATABASE_URL: postgresql://banking:bankingpass@postgres:5432/banking
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Notification Service
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    container_name: notification-service
+    environment:
+      DATABASE_URL: postgresql://banking:bankingpass@postgres:5432/banking
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -55,8 +206,9 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - backend
+      - kong
     restart: unless-stopped
 
 volumes:
   pgdata:
+  kongdata:

@@ -169,39 +169,6 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
 
     return {"ok": True, "from": sender.username, "to": receiver.username, "amount": body.amount}
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for monitoring and load balancers"""
-    try:
-        # Check Redis connection
-        redis_status = "ok"
-        if redis:
-            try:
-                await redis.ping()
-            except Exception:
-                redis_status = "error"
-        else:
-            redis_status = "error"
-        
-        # Check database connection
-        db_status = "ok"
-        db = SessionLocal()
-        try:
-            db.execute(select(1))
-        except Exception:
-            db_status = "error"
-        finally:
-            db.close()
-        
-        if db_status == "ok" and redis_status == "ok":
-            return {"status": "healthy", "database": db_status, "redis": redis_status}
-        else:
-            raise HTTPException(503, detail={"status": "unhealthy", "database": db_status, "redis": redis_status})
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(503, detail=f"Health check failed: {str(e)}")
-
 @app.get("/api/notifications")
 async def list_notifications(x_session: str | None = Header(default=None), db: Session = Depends(get_db)):
     user_id = await get_user_id_from_session(x_session)
