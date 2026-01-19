@@ -5,13 +5,9 @@ services:
   - name: auth-service
     url: http://auth-service:8001
     routes:
-      - name: auth-register-route
+      - name: auth-route
         paths:
-          - /api/auth/register
-        strip_path: true
-      - name: auth-login-route
-        paths:
-          - /api/auth/login
+          - /api/auth
         strip_path: true
     plugins:
       - name: cors
@@ -37,13 +33,9 @@ services:
   - name: account-service
     url: http://account-service:8002
     routes:
-      - name: account-me-route
+      - name: account-route
         paths:
-          - /api/account/me
-        strip_path: true
-      - name: account-balance-route
-        paths:
-          - /api/account/balance
+          - /api/account
         strip_path: true
     plugins:
       - name: cors
@@ -71,7 +63,7 @@ services:
     routes:
       - name: transfer-route
         paths:
-          - /api/transfer/transfer
+          - /api/transfer
         strip_path: true
     plugins:
       - name: cors
@@ -99,7 +91,7 @@ services:
     routes:
       - name: notification-route
         paths:
-          - /api/notifications/notifications
+          - /api/notifications
         strip_path: true
       - name: notification-ws-route
         paths:
