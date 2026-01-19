@@ -18,6 +18,25 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # PostgreSQL for Kong
+  kong-db:
+    image: postgres:16
+    container_name: kong-db
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kongpass
+      POSTGRES_DB: kong
+    ports:
+      - "5433:5432"
+    volumes:
+      - kongdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: banking-redis
@@ -30,19 +49,38 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Kong API Gateway (using declarative config mode - no database needed)
+  # Kong migrations
+  kong-migrations:
+    image: kong:3.4
+    container_name: kong-migrations
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+      KONG_PG_DATABASE: kong
+    command: kong migrations bootstrap
+    depends_on:
+      kong-db:
+        condition: service_healthy
+    restart: "no"
+
+  # Kong API Gateway
   kong:
     image: kong:3.4
     container_name: kong-gateway
     environment:
-      KONG_DATABASE: "off"  # Use declarative config mode (no database)
-      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+      KONG_PG_DATABASE: kong
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_ADMIN_LISTEN: 0.0.0.0:8001
-      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
     ports:
       - "8000:8000"  # Proxy port
       - "8443:8443"  # Proxy SSL port
@@ -51,6 +89,8 @@ services:
     volumes:
       - ./kong/kong.yml:/kong/kong.yml:ro
     depends_on:
+      kong-migrations:
+        condition: service_completed_successfully
       auth-service:
         condition: service_started
       account-service:
@@ -64,7 +104,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
-      start_period: 30s
+      start_period: 60s
     restart: unless-stopped
 
   # Auth Service
@@ -170,4 +210,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  pgdata:
+  pgdata:  kongdata:
