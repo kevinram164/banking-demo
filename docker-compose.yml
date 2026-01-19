@@ -210,4 +210,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  pgdata:  kongdata:
+  pgdata:  
+  kongdata:
