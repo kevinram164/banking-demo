@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, selectinload
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from redis.asyncio import Redis
@@ -129,17 +129,11 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
     if body.amount <= 0:
         raise HTTPException(400, "Amount must be > 0")
 
-    # Use SELECT FOR UPDATE to prevent race conditions
-    # Lock sender and receiver rows to ensure atomic balance updates
-    sender = db.execute(
-        select(User).where(User.id == user_id).with_for_update()
-    ).scalar_one_or_none()
+    sender = db.get(User, user_id)
     if not sender:
         raise HTTPException(404, "Sender not found")
 
-    receiver = db.execute(
-        select(User).where(User.username == body.to_username).with_for_update()
-    ).scalar_one_or_none()
+    receiver = db.execute(select(User).where(User.username == body.to_username)).scalar_one_or_none()
     if not receiver:
         raise HTTPException(404, "Receiver not found")
 
@@ -149,7 +143,7 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
     if sender.balance < body.amount:
         raise HTTPException(400, "Insufficient balance")
 
-    # Update balances + save transfer + notifications within transaction
+    # update balances + save transfer + notifications
     sender.balance -= body.amount
     receiver.balance += body.amount
 
@@ -164,7 +158,7 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
 
     db.commit()
 
-    # Realtime push via redis pubsub (after commit to ensure data consistency)
+    # realtime push via redis pubsub
     await publish_notify(receiver.id, msg_receiver)
 
     return {"ok": True, "from": sender.username, "to": receiver.username, "amount": body.amount}
