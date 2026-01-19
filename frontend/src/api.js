@@ -31,24 +31,24 @@ async function req(path, { method = "GET", body } = {}) {
 
 export const api = {
   register: (username, password) =>
-    req("/api/register", {
+    req("/api/auth/register", {
       method: "POST",
       body: { username, password }
     }),
 
   login: (username, password) =>
-    req("/api/login", {
+    req("/api/auth/login", {
       method: "POST",
       body: { username, password }
     }),
 
-  me: () => req("/api/me"),
+  me: () => req("/api/account/me"),
 
   transfer: (to_username, amount) =>
-    req("/api/transfer", {
+    req("/api/transfer/transfer", {
       method: "POST",
       body: { to_username, amount: Number(amount) }
     }),
 
-  notifications: () => req("/api/notifications")
+  notifications: () => req("/api/notifications/notifications")
 };
