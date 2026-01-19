@@ -55,9 +55,27 @@ export default function Dashboard({ onLogout }) {
 
   const doTransfer = async () => {
     setErr(""); setMsg("");
+    
+    // Input validation
+    if (!toUser || !toUser.trim()) {
+      setErr("Please enter recipient username");
+      return;
+    }
+    
+    const amountNum = Number(amount);
+    if (!amount || isNaN(amountNum) || amountNum <= 0) {
+      setErr("Please enter a valid amount greater than 0");
+      return;
+    }
+    
+    if (!Number.isInteger(amountNum)) {
+      setErr("Amount must be a whole number");
+      return;
+    }
+    
     try {
-      const r = await api.transfer(toUser, amount);
-      setMsg(`Transfer success: ${r.amount} to ${r.to_username}`);
+      const r = await api.transfer(toUser.trim(), amountNum);
+      setMsg(`Transfer success: ${r.amount} to ${r.to}`);
       setToUser(""); setAmount("");
       await load();
     } catch (e) {

@@ -1,4 +1,5 @@
 import os, uuid, asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -18,7 +19,19 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 SESSION_TTL = int(os.getenv("SESSION_TTL_SECONDS", "86400"))
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
-app = FastAPI()
+redis: Redis | None = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    global redis
+    redis = Redis.from_url(REDIS_URL, decode_responses=True)
+    yield
+    # Shutdown
+    if redis:
+        await redis.close()
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[x.strip() for x in CORS_ORIGINS],
@@ -26,19 +39,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-redis: Redis | None = None
-
-@app.on_event("startup")
-async def _startup():
-    global redis
-    redis = Redis.from_url(REDIS_URL, decode_responses=True)
-
-@app.on_event("shutdown")
-async def _shutdown():
-    global redis
-    if redis:
-        await redis.close()
 
 def get_db():
     db = SessionLocal()
@@ -129,11 +129,17 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
     if body.amount <= 0:
         raise HTTPException(400, "Amount must be > 0")
 
-    sender = db.get(User, user_id)
+    # Use SELECT FOR UPDATE to prevent race conditions
+    # Lock sender and receiver rows to ensure atomic balance updates
+    sender = db.execute(
+        select(User).where(User.id == user_id).with_for_update()
+    ).scalar_one_or_none()
     if not sender:
         raise HTTPException(404, "Sender not found")
 
-    receiver = db.execute(select(User).where(User.username == body.to_username)).scalar_one_or_none()
+    receiver = db.execute(
+        select(User).where(User.username == body.to_username).with_for_update()
+    ).scalar_one_or_none()
     if not receiver:
         raise HTTPException(404, "Receiver not found")
 
@@ -143,7 +149,7 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
     if sender.balance < body.amount:
         raise HTTPException(400, "Insufficient balance")
 
-    # update balances + save transfer + notifications
+    # Update balances + save transfer + notifications within transaction
     sender.balance -= body.amount
     receiver.balance += body.amount
 
@@ -158,10 +164,43 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
 
     db.commit()
 
-    # realtime push via redis pubsub
+    # Realtime push via redis pubsub (after commit to ensure data consistency)
     await publish_notify(receiver.id, msg_receiver)
 
     return {"ok": True, "from": sender.username, "to": receiver.username, "amount": body.amount}
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring and load balancers"""
+    try:
+        # Check Redis connection
+        redis_status = "ok"
+        if redis:
+            try:
+                await redis.ping()
+            except Exception:
+                redis_status = "error"
+        else:
+            redis_status = "error"
+        
+        # Check database connection
+        db_status = "ok"
+        db = SessionLocal()
+        try:
+            db.execute(select(1))
+        except Exception:
+            db_status = "error"
+        finally:
+            db.close()
+        
+        if db_status == "ok" and redis_status == "ok":
+            return {"status": "healthy", "database": db_status, "redis": redis_status}
+        else:
+            raise HTTPException(503, detail={"status": "unhealthy", "database": db_status, "redis": redis_status})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(503, detail=f"Health check failed: {str(e)}")
 
 @app.get("/api/notifications")
 async def list_notifications(x_session: str | None = Header(default=None), db: Session = Depends(get_db)):
