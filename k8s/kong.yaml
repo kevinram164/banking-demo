@@ -16,9 +16,16 @@ spec:
       labels:
         app: kong
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: kong
           image: kong:3.4
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           env:
             - name: KONG_DATABASE
               value: "off"
@@ -45,6 +52,13 @@ spec:
             - name: kong-config
               mountPath: /kong
               readOnly: true
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
           readinessProbe:
             exec:
               command: ["kong", "health"]

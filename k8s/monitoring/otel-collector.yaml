@@ -16,9 +16,16 @@ spec:
       labels:
         app: otel-collector
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: otel-collector
           image: otel/opentelemetry-collector-contrib:0.101.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           args:
             - --config=/etc/otel/config.yaml
           ports:
@@ -26,6 +33,13 @@ spec:
               name: otlp-grpc
             - containerPort: 4318
               name: otlp-http
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
           volumeMounts:
             - name: config
               mountPath: /etc/otel

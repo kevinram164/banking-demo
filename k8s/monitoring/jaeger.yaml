@@ -17,9 +17,16 @@ spec:
       labels:
         app: jaeger
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: jaeger
           image: jaegertracing/all-in-one:1.56
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           env:
             - name: COLLECTOR_OTLP_ENABLED
               value: "true"
@@ -34,6 +41,9 @@ spec:
             requests:
               memory: "128Mi"
               cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
 ---
 apiVersion: v1
 kind: Service

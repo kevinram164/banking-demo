@@ -22,10 +22,17 @@ spec:
       labels:
         app: prometheus
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: prometheus
       containers:
         - name: prometheus
           image: prom/prometheus:v2.52.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           args:
             - --config.file=/etc/prometheus/prometheus.yml
             - --storage.tsdb.path=/prometheus

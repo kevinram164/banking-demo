@@ -46,6 +46,7 @@ Dự án banking-demo đã được gắn **metrics** (Prometheus) và **tracing
 | `k8s/monitoring/grafana-dashboard-provider.yaml` | Provisioning dashboards |
 | `k8s/monitoring/grafana-dashboard-banking.yaml` | Dashboard mẫu Banking Services |
 | `k8s/monitoring/grafana.yaml` | Deployment + Service Grafana |
+| `k8s/monitoring/ingress.yaml` | Ingress Grafana, Jaeger, Prometheus (host: grafana/jaeger/prometheus.banking.local) |
 
 ## Code instrumentation
 
@@ -84,6 +85,7 @@ kubectl apply -f k8s/monitoring/grafana-datasources.yaml
 kubectl apply -f k8s/monitoring/grafana-dashboard-provider.yaml
 kubectl apply -f k8s/monitoring/grafana-dashboard-banking.yaml
 kubectl apply -f k8s/monitoring/grafana.yaml
+kubectl apply -f k8s/monitoring/ingress.yaml
 ```
 
 Hoặc apply cả thư mục:
@@ -94,26 +96,23 @@ kubectl apply -f k8s/monitoring/
 
 3. **Biến môi trường cho app:** Các Deployment trong `banking` đã có `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.monitoring.svc.cluster.local:4317`. Rebuild và redeploy image app nếu bạn vừa thêm instrumentation.
 
-## Truy cập UI
+## Truy cập UI (qua Ingress)
 
-- **Grafana:**  
-  ```bash
-  kubectl -n monitoring port-forward svc/grafana 3000:3000
-  ```
-  Mở http://localhost:3000 — Login: `admin` / `admin`.  
-  Vào **Explore** → chọn datasource **Prometheus** hoặc **Jaeger** để xem metrics/traces.
+Sau khi apply **k8s/monitoring/ingress.yaml** và thêm host (xem [K8S_DEPLOY.md](K8S_DEPLOY.md)), truy cập qua Ingress:
 
-- **Prometheus:**  
-  ```bash
-  kubectl -n monitoring port-forward svc/prometheus 9090:9090
-  ```
-  Mở http://localhost:9090 — Query ví dụ: `rate(http_requests_total[5m])`.
+| UI        | URL | Ghi chú |
+|-----------|-----|--------|
+| **Grafana**   | http://grafana.banking.local | Login: `admin` / `admin`. Explore → Prometheus hoặc Jaeger. |
+| **Prometheus**| http://prometheus.banking.local | Query: `rate(http_requests_total[5m])`. |
+| **Jaeger**    | http://jaeger.banking.local | Chọn service (auth-service, …) và tìm trace. |
 
-- **Jaeger:**  
-  ```bash
-  kubectl -n monitoring port-forward svc/jaeger 16686:16686
-  ```
-  Mở http://localhost:16686 — Chọn service (auth-service, account-service, …) và tìm trace.
+Thêm vào `/etc/hosts` (thay `<INGRESS_IP>` bằng IP Ingress, ví dụ `minikube ip`):
+
+```
+<INGRESS_IP> grafana.banking.local jaeger.banking.local prometheus.banking.local
+```
+
+Nếu không dùng Ingress, có thể dùng port-forward: `kubectl -n monitoring port-forward svc/grafana 3000:3000` rồi mở http://localhost:3000 (tương tự cho prometheus:9090, jaeger:16686).
 
 ## Chạy với Docker Compose (optional)
 

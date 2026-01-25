@@ -30,7 +30,11 @@ Hướng dẫn deploy ứng dụng banking-demo (đã chạy Docker Compose) lê
 
 ## Bước 1: Build image (từ thư mục gốc project)
 
-Build từ **context gốc** (`banking-demo/`) vì các Dockerfile cần thư mục `common/`:
+Build từ **context gốc** (`banking-demo/`) vì các Dockerfile cần thư mục `common/`.
+
+**Dùng GitLab Registry (khuyến nghị khi deploy K8s cluster thật):** xem **[GITLAB_REGISTRY.md](GITLAB_REGISTRY.md)** — có script build + push từng service lên `registry.gitlab.com/kiettt164/banking-demo-payment/<service>:<tag>`.
+
+**Build local (Minikube/Kind):**
 
 ```bash
 cd banking-demo
@@ -73,13 +77,21 @@ kind load docker-image banking-demo/notification-service:latest --name <tên-clu
 kind load docker-image banking-demo/frontend:latest --name <tên-cluster>
 ```
 
-### Cách C: Cluster thật / registry
+### Cách C: GitLab Container Registry (cluster thật)
 
-Push image lên registry rồi trong từng file Deployment đổi:
+Image đã cấu hình sẵn cho **registry.gitlab.com/kiettt164/banking-demo-payment** (mỗi service một image). Xem chi tiết build/push trong **[GITLAB_REGISTRY.md](GITLAB_REGISTRY.md)**.
 
-- `image: banking-demo/auth-service:latest` → `image: <registry>/banking-demo/auth-service:latest`
-- Đặt `imagePullPolicy: Always` (hoặc bỏ, mặc định là Always khi tag là `latest`).
-- Tạo Secret `kubernetes.io/dockerconfigjson` nếu registry private.
+Sau khi push image lên GitLab, nếu repo **private** thì tạo Secret trong namespace `banking` trước khi apply:
+
+```bash
+kubectl create secret docker-registry gitlab-registry \
+  --namespace=banking \
+  --docker-server=registry.gitlab.com \
+  --docker-username=<USERNAME> \
+  --docker-password=<TOKEN>
+```
+
+Nếu repo **public** và không dùng secret: xóa đoạn `imagePullSecrets` trong từng file Deployment (auth-service, account-service, transfer-service, notification-service, frontend).
 
 ---
 
@@ -111,41 +123,59 @@ kubectl apply -f k8s/
 
 ---
 
-## Bước 4: Expose ra ngoài (chọn một)
+## Bước 4: Expose ra ngoài qua Ingress
 
-### Option 1: Ingress (nên dùng)
+Dùng **một Ingress** cho app (banking) và **một Ingress** cho monitoring (Grafana, Jaeger, Prometheus). Cả web app và các UI monitoring đều truy cập qua Ingress.
 
-- **Minikube (không dùng host):**  
-  ```bash
-  minikube addons enable ingress
-  kubectl apply -f k8s/ingress-minikube.yaml
-  ```
-  Truy cập: `http://<minikube-ip>` (xem IP: `minikube ip`).  
-  Có thể cần thêm host: `echo "$(minikube ip) banking.local" | sudo tee -a /etc/hosts` rồi dùng `ingress.yaml` với host `banking.local` nếu bạn đổi sang dùng file đó.
-
-- **Cluster có Ingress (ví dụ nginx-ingress):**  
-  ```bash
-  kubectl apply -f k8s/ingress.yaml
-  ```
-  Thêm DNS hoặc `/etc/hosts`: `banking.local` → IP Ingress.  
-  Mở app: `http://banking.local`.
-
-### Option 2: NodePort (không cần Ingress)
+### Bật Ingress (Minikube)
 
 ```bash
-kubectl -n banking patch svc frontend -p '{"spec":{"type":"NodePort"}}'
-kubectl -n banking get svc frontend
-# Truy cập: http://<node-ip>:<nodeport>
+minikube addons enable ingress
 ```
 
-Lưu ý: Frontend gọi API qua relative path (`/api/`, `/ws`). Nếu user vào bằng `http://<node-ip>:30080` thì API cũng phải trên cùng host/port; trong setup hiện tại **frontend nginx proxy `/api` và `/ws` tới Kong**, nên user chỉ cần mở **một URL** (frontend). Nếu bạn expose riêng Kong bằng NodePort thì frontend vẫn proxy tới `kong:8000` **trong cluster**, không ảnh hưởng URL trên trình duyệt.
+### Apply Ingress
 
-### Option 3: Port-forward (chỉ để test nhanh)
-
+**App (frontend + API):**
 ```bash
-kubectl -n banking port-forward svc/frontend 3000:80
-# Mở http://localhost:3000
+# Có host (banking.local)
+kubectl apply -f k8s/ingress.yaml
+
+# Hoặc Minikube không host: dùng IP trực tiếp
+kubectl apply -f k8s/ingress-minikube.yaml
 ```
+
+**Monitoring (Grafana, Jaeger, Prometheus):**
+```bash
+kubectl apply -f k8s/monitoring/ingress.yaml
+```
+
+### Trỏ host về Ingress
+
+Thêm vào **/etc/hosts** (Linux/macOS) hoặc **C:\Windows\System32\drivers\etc\hosts** (Windows). Thay `<INGRESS_IP>` bằng IP Ingress (Minikube: `minikube ip`):
+
+```
+<INGRESS_IP> banking.local grafana.banking.local jaeger.banking.local prometheus.banking.local
+```
+
+Ví dụ Minikube:
+```bash
+echo "$(minikube ip) banking.local grafana.banking.local jaeger.banking.local prometheus.banking.local" | sudo tee -a /etc/hosts
+```
+
+### Truy cập (đều qua Ingress)
+
+| Mục đích    | URL |
+|------------|-----|
+| Web app    | http://banking.local |
+| Grafana    | http://grafana.banking.local (admin / admin) |
+| Jaeger     | http://jaeger.banking.local |
+| Prometheus | http://prometheus.banking.local |
+
+Nếu dùng **ingress-minikube** (không host) thì chỉ có app qua `http://<minikube-ip>`; Grafana/Jaeger/Prometheus vẫn dùng host như trên (cần thêm 3 host vào /etc/hosts trỏ về cùng IP).
+
+### NodePort / port-forward (tuỳ chọn)
+
+Nếu không dùng Ingress: NodePort cho frontend hoặc `kubectl port-forward svc/frontend 3000:80` (chỉ test nhanh).
 
 ---
 
@@ -157,6 +187,30 @@ Trong Kong (ConfigMap `kong-config`) đang cấu hình CORS origin `http://local
 kubectl apply -f k8s/kong-configmap.yaml
 kubectl -n banking rollout restart deployment/kong
 ```
+
+---
+
+## Resources và Security
+
+Tất cả Deployment đã cấu hình **resources** (requests/limits) và **securityContext**:
+
+**Resources (demo):**
+
+| Thành phần | Requests | Limits |
+|------------|----------|--------|
+| postgres | 256Mi, 100m CPU | 512Mi, 500m |
+| redis | 64Mi, 50m | 128Mi, 200m |
+| kong | 128Mi, 100m | 256Mi, 300m |
+| auth/account/transfer/notification | 128Mi, 100m | 256Mi, 300m |
+| frontend | 64Mi, 50m | 128Mi, 200m |
+| prometheus/grafana/jaeger/otel-collector | 128Mi, 50–100m | 256–512Mi, 200–500m |
+
+**Security (pod + container):**
+
+- **Pod:** `seccompProfile: type: RuntimeDefault`
+- **Container:** `allowPrivilegeEscalation: false`, `capabilities.drop: ["ALL"]`
+
+Có thể chỉnh `resources` trong từng file Deployment khi cần tăng/giảm tải. Nếu cluster bật **Pod Security Admission** (restricted), có thể cần chỉnh thêm (ví dụ `runAsNonRoot`, `runAsUser`) tùy image.
 
 ---
 

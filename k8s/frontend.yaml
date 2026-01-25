@@ -16,12 +16,28 @@ spec:
       labels:
         app: frontend
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+        - name: gitlab-registry
       containers:
         - name: frontend
-          image: banking-demo/frontend:latest
-          imagePullPolicy: IfNotPresent
+          image: registry.gitlab.com/kiettt164/banking-demo-payment/frontend:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports:
             - containerPort: 80
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
           readinessProbe:
             httpGet:
               path: /

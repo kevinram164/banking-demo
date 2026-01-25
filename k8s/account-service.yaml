@@ -16,12 +16,28 @@ spec:
       labels:
         app: account-service
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+        - name: gitlab-registry
       containers:
         - name: account-service
-          image: banking-demo/account-service:latest
-          imagePullPolicy: IfNotPresent
+          image: registry.gitlab.com/kiettt164/banking-demo-payment/account-service:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports:
             - containerPort: 8002
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
           env:
             - name: DATABASE_URL
               valueFrom:
