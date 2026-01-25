@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-config
+  namespace: banking
+data:
+  kong.yml: |
+    _format_version: "3.0"
+    _transform: true
+
+    services:
+      - name: auth-service
+        url: http://auth-service:8001
+        routes:
+          - name: auth-route
+            paths:
+              - /api/auth
+            strip_path: true
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - http://localhost:3000
+              credentials: true
+              methods:
+                - GET
+                - POST
+                - PUT
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - X-Session
+
+      - name: account-service
+        url: http://account-service:8002
+        routes:
+          - name: account-route
+            paths:
+              - /api/account
+            strip_path: true
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - http://localhost:3000
+              credentials: true
+              methods:
+                - GET
+                - POST
+                - PUT
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - X-Session
+
+      - name: transfer-service
+        url: http://transfer-service:8003
+        routes:
+          - name: transfer-route
+            paths:
+              - /api/transfer
+            strip_path: true
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - http://localhost:3000
+              credentials: true
+              methods:
+                - GET
+                - POST
+                - PUT
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - X-Session
+
+      - name: notification-service
+        url: http://notification-service:8004
+        routes:
+          - name: notification-route
+            paths:
+              - /api/notifications
+            strip_path: true
+          - name: notification-ws-route
+            paths:
+              - /ws
+            protocols:
+              - http
+              - https
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - http://localhost:3000
+              credentials: true
+              methods:
+                - GET
+                - POST
+                - PUT
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - X-Session

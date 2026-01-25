@@ -1,0 +1,63 @@
+# Ingress để expose Frontend và Kong (API) ra ngoài cluster.
+# Cần ingress controller (nginx-ingress, traefik, ...) đã cài trong cluster.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: banking-ingress
+  namespace: banking
+  annotations:
+    # Uncomment nếu dùng nginx-ingress
+    # nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    # nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx   # Đổi thành ingress class của bạn nếu khác
+  rules:
+    # Option 1: Một host, path-based
+    - host: banking.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: kong
+                port:
+                  number: 8000
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: kong
+                port:
+                  number: 8000
+  # Option 2: Nếu dùng default backend hoặc IP (minikube), bỏ 'host' và dùng rule đầu tiên không có host
+  # Ví dụ cho Minikube (không cần host):
+  # rules:
+  #   - http:
+  #       paths:
+  #         - path: /
+  #           pathType: Prefix
+  #           backend:
+  #             service:
+  #               name: frontend
+  #               port: { number: 80 }
+  #         - path: /api
+  #           pathType: Prefix
+  #           backend:
+  #             service:
+  #               name: kong
+  #               port: { number: 8000 }
+  #         - path: /ws
+  #           pathType: Prefix
+  #           backend:
+  #             service:
+  #               name: kong
+  #               port: { number: 8000 }

@@ -1,0 +1,41 @@
+# Dashboard JSON - mounted into Grafana and loaded via dashboard provider
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-banking
+  namespace: monitoring
+data:
+  banking-services.json: |
+    {
+      "title": "Banking Services",
+      "tags": ["banking"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Request rate by service",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total[5m])) by (instance)",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+        },
+        {
+          "id": 2,
+          "title": "Request latency (p99) by service",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, instance))",
+              "legendFormat": "{{instance}} p99"
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+        }
+      ],
+      "schemaVersion": 38,
+      "version": 1
+    }

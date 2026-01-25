@@ -11,6 +11,7 @@ from common.db import SessionLocal, engine, Base
 from common.models import User
 from common.auth import hash_password, verify_password
 from common.redis_utils import create_session
+from common.observability import instrument_fastapi
 
 Base.metadata.create_all(bind=engine)
 
@@ -28,6 +29,7 @@ async def lifespan(app: FastAPI):
         await redis.close()
 
 app = FastAPI(title="Auth Service", lifespan=lifespan)
+instrument_fastapi(app, "auth-service")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[x.strip() for x in CORS_ORIGINS],

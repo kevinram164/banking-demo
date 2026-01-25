@@ -10,6 +10,7 @@ from redis.asyncio import Redis
 from common.db import SessionLocal, engine, Base
 from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, publish_notify
+from common.observability import instrument_fastapi
 
 Base.metadata.create_all(bind=engine)
 
@@ -27,6 +28,7 @@ async def lifespan(app: FastAPI):
         await redis.close()
 
 app = FastAPI(title="Transfer Service", lifespan=lifespan)
+instrument_fastapi(app, "transfer-service")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[x.strip() for x in CORS_ORIGINS],
