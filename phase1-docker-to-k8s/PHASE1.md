@@ -109,7 +109,7 @@ kubectl apply -f ingress.yaml
   kubectl -n banking create secret docker-registry dockerhub-registry \
     --docker-server=https://index.docker.io/v1/ \
     --docker-username=kiettran164 \
-    --docker-password=Tech@1604
+    --docker-password=***********
   ```
 
   Các file `postgres.yaml`, `redis.yaml`, `kong.yaml` đã khai báo `imagePullSecrets: - name: dockerhub-registry`. Sau khi tạo secret, xóa pod để kéo image lại (ví dụ: `kubectl delete pod redis-0 postgres-0 -n banking`, redeploy kong nếu cần).
