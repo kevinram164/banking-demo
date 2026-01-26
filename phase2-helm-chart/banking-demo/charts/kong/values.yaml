@@ -1,104 +1,88 @@
-fullnameOverride: kong
-
-enabled: true
-
-image:
-  repository: kong
-  tag: "3.4"
-  pullPolicy: IfNotPresent
-
-imagePullSecrets: []
-
-replicas: 1
-
-# Proxy and admin ports (container)
-proxyPort: 8000
-adminPort: 8001
-proxyPortName: proxy
-adminPortName: admin
-
-# Config path inside container
-configMountPath: /kong
-configFileName: kong.yml
-configMapName: kong-config
-
-# Kong env (key-value; list of name/value)
-env:
-  KONG_DATABASE: "off"
-  KONG_DECLARATIVE_CONFIG: "/kong/kong.yml"
-  KONG_PROXY_ACCESS_LOG: "/dev/stdout"
-  KONG_ADMIN_ACCESS_LOG: "/dev/stdout"
-  KONG_PROXY_ERROR_LOG: "/dev/stderr"
-  KONG_ADMIN_ERROR_LOG: "/dev/stderr"
-  KONG_ADMIN_LISTEN: "0.0.0.0:8001"
-  KONG_PROXY_LISTEN: "0.0.0.0:8000"
-  KONG_NGINX_WORKER_PROCESSES: "1"
-
-# Backend services for kong.yml (used by configmap template)
-# Parent can override with global.corsOrigins and these backends
-backends:
-  - name: auth-service
-    url: "http://auth-service:8001"
-    routes:
-      - name: auth-route
-        paths: ["/api/auth"]
-        strip_path: true
-  - name: account-service
-    url: "http://account-service:8002"
-    routes:
-      - name: account-route
-        paths: ["/api/account"]
-        strip_path: true
-  - name: transfer-service
-    url: "http://transfer-service:8003"
-    routes:
-      - name: transfer-route
-        paths: ["/api/transfer"]
-        strip_path: true
-  - name: notification-service
-    url: "http://notification-service:8004"
-    routes:
-      - name: notification-route
-        paths: ["/api/notifications"]
-        strip_path: true
-      - name: notification-ws-route
-        paths: ["/ws"]
-        strip_path: false
-        protocols: ["http", "https"]
-
-# CORS for all backends (injected by parent global.corsOrigins)
-corsOrigins: "http://localhost:3000"
-corsCredentials: true
-corsMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-corsHeaders:
-  - Accept
-  - Accept-Version
-  - Content-Length
-  - Content-MD5
-  - Content-Type
-  - Date
-  - X-Session
-
-readinessProbe:
+# ArgoCD/Helm merge theo key kong
+kong:
+  fullnameOverride: kong
   enabled: true
-  command: ["kong", "health"]
-  initialDelaySeconds: 15
-  periodSeconds: 10
-  timeoutSeconds: 10
-
-resources:
-  requests:
-    memory: "512Mi"
-    cpu: "200m"
-  limits:
-    memory: "1Gi"
-    cpu: "1000m"
-
-securityContext:
-  pod:
-    seccompProfile:
-      type: RuntimeDefault
-  container:
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop: ["ALL"]
+  image:
+    repository: kong
+    tag: "3.4"
+    pullPolicy: IfNotPresent
+  imagePullSecrets: []
+  replicas: 1
+  proxyPort: 8000
+  adminPort: 8001
+  proxyPortName: proxy
+  adminPortName: admin
+  configMountPath: /kong
+  configFileName: kong.yml
+  configMapName: kong-config
+  env:
+    KONG_DATABASE: "off"
+    KONG_DECLARATIVE_CONFIG: "/kong/kong.yml"
+    KONG_PROXY_ACCESS_LOG: "/dev/stdout"
+    KONG_ADMIN_ACCESS_LOG: "/dev/stdout"
+    KONG_PROXY_ERROR_LOG: "/dev/stderr"
+    KONG_ADMIN_ERROR_LOG: "/dev/stderr"
+    KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+    KONG_PROXY_LISTEN: "0.0.0.0:8000"
+    KONG_NGINX_WORKER_PROCESSES: "1"
+  backends:
+    - name: auth-service
+      url: "http://auth-service:8001"
+      routes:
+        - name: auth-route
+          paths: ["/api/auth"]
+          strip_path: true
+    - name: account-service
+      url: "http://account-service:8002"
+      routes:
+        - name: account-route
+          paths: ["/api/account"]
+          strip_path: true
+    - name: transfer-service
+      url: "http://transfer-service:8003"
+      routes:
+        - name: transfer-route
+          paths: ["/api/transfer"]
+          strip_path: true
+    - name: notification-service
+      url: "http://notification-service:8004"
+      routes:
+        - name: notification-route
+          paths: ["/api/notifications"]
+          strip_path: true
+        - name: notification-ws-route
+          paths: ["/ws"]
+          strip_path: false
+          protocols: ["http", "https"]
+  corsOrigins: "http://localhost:3000"
+  corsCredentials: true
+  corsMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  corsHeaders:
+    - Accept
+    - Accept-Version
+    - Content-Length
+    - Content-MD5
+    - Content-Type
+    - Date
+    - X-Session
+  readinessProbe:
+    enabled: true
+    command: ["kong", "health"]
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 10
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "200m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+  securityContext:
+    pod:
+      seccompProfile:
+        type: RuntimeDefault
+    container:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

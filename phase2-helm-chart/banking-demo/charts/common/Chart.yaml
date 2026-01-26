@@ -1,0 +1,5 @@
+apiVersion: v2
+name: common
+description: Cấu hình dùng chung (global, namespace, secret, ingress) cho banking-demo.
+type: application
+version: 0.1.0

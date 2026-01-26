@@ -22,10 +22,17 @@ spec:
     helm:
       releaseName: banking-demo
       valueFiles:
-        - values.yaml
-        # Override theo môi trường: bỏ comment và dùng file tương ứng
-        # - values-production.yaml
-        # - values-staging.yaml
+        # Chỉ dùng values trong charts/ — không dùng values.yaml gốc
+        - charts/common/values.yaml
+        - charts/postgres/values.yaml
+        - charts/redis/values.yaml
+        - charts/kong/values.yaml
+        - charts/auth-service/values.yaml
+        - charts/account-service/values.yaml
+        - charts/transfer-service/values.yaml
+        - charts/notification-service/values.yaml
+        - charts/frontend/values.yaml
+      # Cập nhật image / cấu hình: sửa trong charts/<service>/values.yaml hoặc charts/common/values.yaml
       # Override nhanh bằng parameters (tương đương --set), ví dụ:
       # parameters:
       #   - name: ingress.enabled

@@ -1,64 +1,49 @@
-# Postgres subchart - override from parent via banking-demo postgres: key
-fullnameOverride: postgres
-
-enabled: true
-
-image:
-  repository: postgres
-  tag: "16"
-  pullPolicy: IfNotPresent
-
-imagePullSecrets: []
-
-replicas: 1
-
-# Service/container port
-service:
-  port: 5432
-  portName: postgres
-  clusterIP: None
-
-# Secret (created by parent) - key names in secret
-secretRef:
-  name: ""   # set by parent global.secretName
-  keys:
-    user: POSTGRES_USER
-    password: POSTGRES_PASSWORD
-    db: POSTGRES_DB
-
-# Storage
-storage:
-  storageClassName: nfs-client
-  size: 1Gi
-  volumeName: pgdata
-  mountPath: /var/lib/postgresql/data
-
-# Readiness probe - pg_isready -U <user>
-readinessProbe:
+# ArgoCD/Helm merge theo key postgres
+postgres:
+  fullnameOverride: postgres
   enabled: true
-  user: banking
-  initialDelaySeconds: 5
-  periodSeconds: 10
-  timeoutSeconds: 5
-
-resources:
-  requests:
-    memory: "256Mi"
-    cpu: "100m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
-
-securityContext:
-  pod:
-    seccompProfile:
-      type: RuntimeDefault
-    fsGroup: 999
-  container:
-    allowPrivilegeEscalation: false
-
-# Helm hook for deploy order (optional, set from parent if needed)
-hook:
-  preInstall: true
-  preUpgrade: true
-  weight: "-5"
+  image:
+    repository: postgres
+    tag: "16"
+    pullPolicy: IfNotPresent
+  imagePullSecrets: []
+  replicas: 1
+  service:
+    port: 5432
+    portName: postgres
+    clusterIP: None
+  secretRef:
+    name: banking-db-secret
+    keys:
+      user: POSTGRES_USER
+      password: POSTGRES_PASSWORD
+      db: POSTGRES_DB
+  storage:
+    storageClassName: nfs-client
+    size: 1Gi
+    volumeName: pgdata
+    mountPath: /var/lib/postgresql/data
+  readinessProbe:
+    enabled: true
+    user: banking
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  securityContext:
+    pod:
+      seccompProfile:
+        type: RuntimeDefault
+      fsGroup: 999
+    container:
+      allowPrivilegeEscalation: false
+  hook:
+    preInstall: true
+    preUpgrade: true
+    weight: "-5"

@@ -18,19 +18,23 @@ phase2-helm-chart/
 │   ├── project.yaml                   # ArgoCD Project (gom nhóm, giới hạn repo/namespace)
 │   ├── application.yaml               # Application đơn — deploy cả chart một lần
 │   ├── application-set.yaml           # ApplicationSet — nhiều môi trường (staging/prod)
-│   ├── application-set-per-service.yaml # ApplicationSet — deploy riêng từng service
 │   └── ARGOCD.md                      # File này
 └── banking-demo/
     ├── Chart.yaml
-    ├── values.yaml                    # Mặc định
-    ├── values-production.yaml         # Override production
-    ├── values-staging.yaml            # Override staging
-    ├── values-infra-only.yaml         # Chỉ infra (namespace, secret, postgres, redis)
-    ├── values-kong-only.yaml          # Chỉ Kong
-    ├── values-auth-only.yaml          # Chỉ auth-service
-    ├── values-*-only.yaml             # Các phần còn lại (account, transfer, notification, frontend, ingress)
+    ├── values.yaml                    # Không chứa cấu hình (chỉ comment); mọi giá trị trong charts/
     ├── templates/
     └── charts/
+        ├── common/                    # global, namespace, secret, ingress
+        │   ├── Chart.yaml
+        │   └── values.yaml
+        ├── postgres/
+        ├── redis/
+        ├── kong/
+        ├── auth-service/
+        ├── account-service/
+        ├── transfer-service/
+        ├── notification-service/
+        └── frontend/
 ```
 
 ---
@@ -74,19 +78,7 @@ Mở `argocd/application.yaml`, sửa:
 
 - **spec.source.repoURL**: URL repo Git chứa project (vd: `https://github.com/your-org/banking-demo.git`).
 - **spec.source.targetRevision**: Branch hoặc tag (vd: `main`, `master`, `v1.0`).
-- **spec.source.helm.valueFiles** (tùy chọn):
-  - Chỉ `values.yaml`: dùng mặc định.
-  - Thêm `values-production.yaml`: dùng override production (đặt trong `banking-demo/`).
-
-Ví dụ dùng production overrides:
-
-```yaml
-helm:
-  releaseName: banking-demo
-  valueFiles:
-    - values.yaml
-    - values-production.yaml
-```
+- **spec.source.helm.valueFiles**: Danh sách trong `application.yaml` trỏ tới **charts/** (common + từng service). Không dùng file values ở thư mục gốc chart.
 
 ### Bước 2: Áp dụng Application
 
@@ -112,60 +104,21 @@ Sync mặc định là **automated** (prune + selfHeal). Sau mỗi lần push l�
 
 ## 4. Nhiều môi trường với ApplicationSet (tùy chọn)
 
-Để cùng một repo deploy **staging** và **production** (mỗi env một namespace, một value file):
+Để cùng một repo deploy **staging** và **production** (mỗi env một namespace):
 
 1. Cài [ApplicationSet controller](https://argo-cd.readthedocs.io/en/stable/user-guide/application-set/) (có sẵn trên bản ArgoCD mới).
-2. Sửa `argocd/application-set.yaml`: đổi `repoURL`, `targetRevision`, và danh sách `elements` (env, namespace, valueFile) cho đúng.
+2. Sửa `argocd/application-set.yaml`: đổi `repoURL`, `targetRevision`, và danh sách `elements` (env, namespace) cho đúng.
 3. Áp dụng:
 
    ```bash
    kubectl apply -f phase2-helm-chart/argocd/application-set.yaml -n argocd
    ```
 
-Sẽ tạo ra hai Application: `banking-demo-staging`, `banking-demo-production`, tương ứng hai namespace và hai bộ values.
+Sẽ tạo ra hai Application: `banking-demo-staging`, `banking-demo-production`. Cả hai dùng cùng bộ values từ **charts/**; chỉ khác namespace. Muốn override theo env có thể thêm file values trong repo rồi khai báo trong `valueFiles` tương ứng.
 
 ---
 
-## 4a. Deploy riêng từng service (một Application một phần)
-
-Khi muốn **sync/rollout từng phần độc lập** (ví dụ chỉ đổi auth-service mà không đụng postgres): dùng **cùng chart**, **nhiều Application**, mỗi Application có **releaseName** và **valueFiles** khác nhau — chỉ bật đúng một (hoặc một nhóm) component.
-
-### Value files “chỉ một phần”
-
-Trong `banking-demo/` có các file chỉ bật một phần, phần còn lại `enabled: false`:
-
-| File | Phần được deploy |
-|------|-------------------|
-| `values-infra-only.yaml` | namespace, secret, postgres, redis |
-| `values-kong-only.yaml` | Kong |
-| `values-auth-only.yaml` | auth-service |
-| `values-account-only.yaml` | account-service |
-| `values-transfer-only.yaml` | transfer-service |
-| `values-notification-only.yaml` | notification-service |
-| `values-frontend-only.yaml` | frontend |
-| `values-ingress-only.yaml` | ingress |
-
-### ApplicationSet “per-service”
-
-File **`application-set-per-service.yaml`** tạo **8 Application** (mỗi phần một app):
-
-- `banking-demo-infra`, `banking-demo-kong`, `banking-demo-auth`, `banking-demo-account`, …
-- Mỗi app: `releaseName` riêng, `valueFiles: [values.yaml, values-xxx-only.yaml]`, cùng `path` chart.
-- Cùng namespace `banking` (có thể đổi trong template nếu cần).
-
-**Áp dụng (sau khi đã có Project và sửa repoURL/targetRevision):**
-
-```bash
-kubectl apply -f argocd/application-set-per-service.yaml -n argocd
-```
-
-**Thứ tự deploy đề xuất** (vì dependency): deploy/sync **infra** trước (namespace, secret, postgres, redis), rồi **kong**, rồi các microservice (auth → account → transfer → notification), cuối cùng **frontend** và **ingress**. Trong UI có thể sync lần lượt hoặc để automated; app nào chưa đủ dependency sẽ lỗi đến khi infra đã sẵn sàng.
-
-**Chỉ cần một vài service:** Sửa `application-set-per-service.yaml`, xóa bớt phần trong `generators.list.elements` (ví dụ chỉ giữ infra, kong, auth). Hoặc tạo Application thủ công từng cái với `releaseName` và `valueFiles` tương ứng.
-
----
-
-## 4b. Dùng ArgoCD Project
+## 4a. Dùng ArgoCD Project
 
 **Project** (AppProject) dùng để:
 
@@ -190,7 +143,7 @@ Sửa `project.yaml`: thay `https://github.com/YOUR_ORG/banking-demo.git` bằng
 
 ### Khai báo Application thuộc Project
 
-Trong **application.yaml**, **application-set.yaml**, **application-set-per-service.yaml** đặt:
+Trong **application.yaml** và **application-set.yaml** đặt:
 
 ```yaml
 spec:
@@ -205,13 +158,26 @@ Nếu **chưa** tạo Project, đổi thành `project: default` để Applicatio
 
 ### 5.1. Values theo môi trường
 
-- **values.yaml**: Mặc định (dev/local).
-- **values-staging.yaml**: Override cho staging (ít replica, ít tài nguyên, domain staging).
-- **values-production.yaml**: Override cho production (replica/resources lớn hơn, domain production).
+Toàn bộ values nằm trong **charts/** (common + từng service). Phân biệt staging/production chủ yếu qua **namespace** và (nếu cần) thêm file override trong repo rồi khai báo trong `valueFiles` theo từng Application/ApplicationSet.
 
-Tất cả nằm trong `banking-demo/` để ArgoCD đọc được (valueFiles relative to chart path).
+### 5.2. Values: chỉ dùng charts/ — cập nhật image với ArgoCD
 
-### 5.2. Mật khẩu / Secret nhạy cảm
+**ArgoCD không dùng `values.yaml` ở folder gốc chart.** Toàn bộ cấu hình nằm trong **charts/**:
+
+- **`charts/common/values.yaml`**: `global`, `namespace`, `secret`, `ingress` (cấu hình dùng chung).
+- **`charts/<service>/values.yaml`**: từng component với một top-level key (`postgres:`, `redis:`, `kong:`, `auth-service:`, …).
+
+**Cập nhật image (hoặc cấu hình theo service):**
+
+- **Sửa trong `charts/<service>/values.yaml`**, ví dụ:
+  - `charts/auth-service/values.yaml` → `auth-service.image.repository`, `auth-service.image.tag`
+  - `charts/account-service/values.yaml` → `account-service.image.tag`
+- Đổi namespace, secret, ingress → sửa **`charts/common/values.yaml`**.
+- Push lên Git → ArgoCD sync → cluster dùng cấu hình mới.
+
+**Cấu trúc file trong `charts/<service>/`:** Mỗi file có **một top-level key** trùng tên component (vd `auth-service:`, `postgres:`) vì template đọc `index .Values "auth-service"`. File `charts/common/values.yaml` chứa các key `global:`, `namespace:`, `secret:`, `ingress:`.
+
+### 5.3. Mật khẩu / Secret nhạy cảm
 
 - **Không** commit mật khẩu production vào Git. Có thể:
   - Dùng **ArgoCD Helm parameters** (values inject từ Secret hoặc env của ArgoCD).
@@ -234,22 +200,22 @@ source:
 
 (Secret `banking-demo-secrets` tạo tay hoặc từ tool quản lý secret.)
 
-### 5.3. Branch / tag rõ ràng
+### 5.4. Branch / tag rõ ràng
 
 - **targetRevision**: Dùng branch cố định (vd: `main`) cho auto-deploy khi push; hoặc tag (vd: `v1.2.0`) để deploy đúng version và tránh vỡ.
 
-### 5.4. Sync policy
+### 5.5. Sync policy
 
 - **automated.prune: true**: Xóa resource trên cluster khi không còn trong chart (an toàn nếu chart là nguồn chân lý duy nhất).
 - **automated.selfHeal: true**: Tự sửa drift (khi có người/kịch bản sửa tay trên cluster).
 - Nếu muốn duyệt deploy thủ công: bỏ `syncPolicy.automated`, sync bằng tay qua UI hoặc `argocd app sync`.
 
-### 5.5. Namespace
+### 5.6. Namespace
 
 - **CreateNamespace=true** trong syncOptions: ArgoCD tự tạo namespace đích nếu chưa có (vd: `banking`).
 - Chart của banking-demo cũng có thể tạo namespace (trong templates); cần thống nhất một nơi (khuyến nghị: để ArgoCD tạo namespace đích, chart vẫn có thể giữ template namespace với `namespace.enabled`).
 
-### 5.6. Thứ tự cài (Helm hooks)
+### 5.7. Thứ tự cài (Helm hooks)
 
 Chart banking-demo dùng Helm hooks (namespace, secret, postgres/redis trước). ArgoCD khi sync sẽ chạy Helm upgrade/install, đảm bảo thứ tự hooks được tôn trọng.
 
@@ -269,10 +235,9 @@ Chart banking-demo dùng Helm hooks (namespace, secret, postgres/redis trước)
 
 ## 7. Tóm tắt
 
-- Đặt **chart + values** trong Git; ArgoCD **Application** trỏ tới path chart và valueFiles.
-- **Một app cả chart:** dùng `application.yaml` (releaseName `banking-demo`, valueFiles mặc định hoặc production/staging).
-- **Deploy riêng từng service:** dùng `application-set-per-service.yaml` (nhiều app, mỗi app một value file `values-*-only.yaml`); sync infra trước rồi Kong, rồi services, frontend, ingress.
-- **Nhiều môi trường (staging/prod):** dùng `application-set.yaml` với namespace và value file khác nhau.
+- Đặt **chart + values** trong Git; ArgoCD **Application** trỏ tới path chart và valueFiles (chỉ trong **charts/**).
+- **Một app cả chart:** dùng `application.yaml` (releaseName `banking-demo`, valueFiles từ charts/).
+- **Nhiều môi trường (staging/prod):** dùng `application-set.yaml` với namespace khác nhau; cùng bộ values từ charts/.
 - **ArgoCD Project:** áp dụng `project.yaml` rồi đặt `spec.project: banking-demo` trong mọi Application/ApplicationSet để gom nhóm và giới hạn repo/namespace.
 - Repo private thì cấu hình credential trong ArgoCD; mật khẩu production không commit vào Git.
 - Bật **automated sync** (prune + selfHeal) nếu bạn muốn cluster luôn khớp với Git.

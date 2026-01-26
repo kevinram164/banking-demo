@@ -1,0 +1,38 @@
+# Cấu hình dùng chung — global, namespace, secret, ingress (merge qua ArgoCD valueFiles)
+global:
+  namespace: banking
+  secretName: banking-db-secret
+  corsOrigins: "http://localhost:3000"
+  imagePullSecrets:
+    dockerhub: dockerhub-registry
+    gitlab: gitlab-registry
+
+namespace:
+  enabled: true
+
+secret:
+  enabled: true
+  postgresUser: banking
+  postgresPassword: bankingpass
+  postgresDb: banking
+  databaseUrl: "postgresql://banking:bankingpass@postgres:5432/banking"
+  redisUrl: "redis://redis:6379/0"
+
+ingress:
+  enabled: true
+  className: haproxy
+  host: npd-banking.co
+  name: banking-ingress
+  paths:
+    - path: /
+      pathType: Prefix
+      serviceName: frontend
+      servicePort: 80
+    - path: /api
+      pathType: Prefix
+      serviceName: kong
+      servicePort: 8000
+    - path: /ws
+      pathType: Prefix
+      serviceName: kong
+      servicePort: 8000

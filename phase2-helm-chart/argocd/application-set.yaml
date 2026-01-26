@@ -1,4 +1,5 @@
-# ApplicationSet: deploy banking-demo theo nhiều môi trường (dev, staging, prod) từ một định nghĩa.
+# ApplicationSet: deploy banking-demo theo nhiều môi trường (staging, production) từ một định nghĩa.
+# Cùng values từ charts/; chỉ khác namespace. Override theo env có thể thêm sau (vd file trong charts/).
 # Cần cài ArgoCD ApplicationSet controller: https://argo-cd.readthedocs.io/en/stable/user-guide/application-set/
 #
 # Áp dụng: kubectl apply -f application-set.yaml -n argocd
@@ -14,10 +15,8 @@ spec:
         elements:
           - env: staging
             namespace: banking-staging
-            valueFile: values-staging.yaml
           - env: production
             namespace: banking
-            valueFile: values-production.yaml
   template:
     metadata:
       name: 'banking-demo-{{env}}'
@@ -30,8 +29,15 @@ spec:
         helm:
           releaseName: 'banking-demo-{{env}}'
           valueFiles:
-            - values.yaml
-            - '{{valueFile}}'
+            - charts/common/values.yaml
+            - charts/postgres/values.yaml
+            - charts/redis/values.yaml
+            - charts/kong/values.yaml
+            - charts/auth-service/values.yaml
+            - charts/account-service/values.yaml
+            - charts/transfer-service/values.yaml
+            - charts/notification-service/values.yaml
+            - charts/frontend/values.yaml
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{namespace}}'
