@@ -1,0 +1,51 @@
+fullnameOverride: redis
+
+enabled: true
+
+image:
+  repository: redis
+  tag: 7-alpine
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicas: 1
+
+service:
+  port: 6379
+  portName: redis
+  clusterIP: None
+
+storage:
+  storageClassName: nfs-client
+  size: 256Mi
+  volumeName: redis-data
+  mountPath: /data
+
+readinessProbe:
+  enabled: true
+  command: ["redis-cli", "ping"]
+  initialDelaySeconds: 3
+  periodSeconds: 10
+  timeoutSeconds: 1
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "200m"
+
+securityContext:
+  pod:
+    seccompProfile:
+      type: RuntimeDefault
+    fsGroup: 999
+  container:
+    allowPrivilegeEscalation: false
+
+hook:
+  preInstall: true
+  preUpgrade: true
+  weight: "-5"

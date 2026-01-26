@@ -1,0 +1,18 @@
+{{- $svc := index .Values "transfer-service" }}
+{{- if $svc.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "banking-demo.transfer-service.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "banking-demo.transfer-service.fullname" . }}
+    {{- include "banking-demo.transfer-service.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "banking-demo.transfer-service.selectorLabels" . | nindent 4 }}
+  ports:
+    - port: {{ $svc.service.port }}
+      targetPort: {{ $svc.service.port }}
+      name: {{ $svc.service.portName }}
+{{- end }}

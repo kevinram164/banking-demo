@@ -1,0 +1,26 @@
+# Staging overrides — dùng với ArgoCD: valueFiles: [ "values.yaml", "values-staging.yaml" ]
+# Chỉ khai báo khác với values.yaml.
+
+global:
+  corsOrigins: "https://staging-banking.example.com"
+
+ingress:
+  enabled: true
+  host: staging-banking.example.com  # Domain staging
+
+# Staging: ít tài nguyên hơn production
+postgres:
+  storage:
+    size: 2Gi
+
+auth-service:
+  replicas: 1
+
+account-service:
+  replicas: 1
+
+transfer-service:
+  replicas: 1
+
+frontend:
+  replicas: 1

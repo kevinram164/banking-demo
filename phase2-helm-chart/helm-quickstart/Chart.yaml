@@ -1,0 +1,10 @@
+apiVersion: v2
+name: quickstart-app
+description: Ví dụ Helm đơn giản — 1 Deployment + 1 Service (cho người mới).
+type: application
+version: 0.1.0
+appVersion: "1.0"
+keywords:
+  - quickstart
+  - helm
+  - demo

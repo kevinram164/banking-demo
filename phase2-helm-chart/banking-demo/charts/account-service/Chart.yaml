@@ -1,0 +1,7 @@
+apiVersion: v2
+name: account-service
+description: Account microservice for Banking Demo
+type: application
+version: 0.1.0
+appVersion: "1"
+kubeVersion: ">=1.24"

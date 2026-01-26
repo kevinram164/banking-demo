@@ -1,0 +1,39 @@
+fullnameOverride: frontend
+
+enabled: true
+
+image:
+  repository: registry.gitlab.com/kiettt164/banking-demo-payment/frontend
+  tag: v1
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicas: 1
+
+service:
+  port: 80
+  portName: http
+
+readinessProbe:
+  enabled: true
+  path: /
+  port: 80
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 1
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "200m"
+
+securityContext:
+  pod:
+    seccompProfile:
+      type: RuntimeDefault
+  container:
+    allowPrivilegeEscalation: false

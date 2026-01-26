@@ -1,0 +1,70 @@
+{{- if .Values.redis.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "banking-demo.redis.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  {{- if and .Values.redis.hook.preInstall .Values.redis.hook.preUpgrade }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: {{ .Values.redis.hook.weight | quote }}
+  {{- end }}
+  labels:
+    app: {{ include "banking-demo.redis.fullname" . }}
+    {{- include "banking-demo.redis.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "banking-demo.redis.fullname" . }}
+  replicas: {{ .Values.redis.replicas }}
+  selector:
+    matchLabels:
+      {{- include "banking-demo.redis.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "banking-demo.redis.fullname" . }}
+        {{- include "banking-demo.redis.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.redis.securityContext.pod }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.redis.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.redis.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
+          {{- with .Values.redis.securityContext.container }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.redis.service.port }}
+              name: {{ .Values.redis.service.portName }}
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          volumeMounts:
+            - name: {{ .Values.redis.storage.volumeName }}
+              mountPath: {{ .Values.redis.storage.mountPath }}
+          {{- if .Values.redis.readinessProbe.enabled }}
+          readinessProbe:
+            exec:
+              command: {{ toJson .Values.redis.readinessProbe.command }}
+            initialDelaySeconds: {{ .Values.redis.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.redis.readinessProbe.periodSeconds }}
+            {{- if .Values.redis.readinessProbe.timeoutSeconds }}
+            timeoutSeconds: {{ .Values.redis.readinessProbe.timeoutSeconds }}
+            {{- end }}
+          {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: {{ .Values.redis.storage.volumeName }}
+      spec:
+        storageClassName: {{ .Values.redis.storage.storageClassName | quote }}
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.redis.storage.size | quote }}
+{{- end }}

@@ -1,0 +1,25 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "banking-demo.postgres.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  {{- if and .Values.postgres.hook.preInstall .Values.postgres.hook.preUpgrade }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: {{ .Values.postgres.hook.weight | quote }}
+  {{- end }}
+  labels:
+    app: {{ include "banking-demo.postgres.fullname" . }}
+    {{- include "banking-demo.postgres.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: {{ .Values.postgres.service.port }}
+      targetPort: {{ .Values.postgres.service.port }}
+      name: {{ .Values.postgres.service.portName }}
+  {{- if .Values.postgres.service.clusterIP }}
+  clusterIP: {{ .Values.postgres.service.clusterIP }}
+  {{- end }}
+  selector:
+    {{- include "banking-demo.postgres.selectorLabels" . | nindent 4 }}
+{{- end }}

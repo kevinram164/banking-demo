@@ -1,0 +1,49 @@
+{{- if .Values.kong.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "banking-demo.kong.configMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "banking-demo.kong.fullname" . }}
+    {{- include "banking-demo.kong.labels" . | nindent 4 }}
+data:
+  {{ .Values.kong.configFileName }}: |
+    _format_version: "3.0"
+    _transform: true
+
+    services:
+    {{- range .Values.kong.backends }}
+      - name: {{ .name }}
+        url: {{ .url | quote }}
+        routes:
+        {{- range .routes }}
+          - name: {{ .name }}
+            paths:
+            {{- range .paths }}
+              - {{ . | quote }}
+            {{- end }}
+            strip_path: {{ .strip_path | default true }}
+            {{- if .protocols }}
+            protocols:
+            {{- range .protocols }}
+              - {{ . }}
+            {{- end }}
+            {{- end }}
+        {{- end }}
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - {{ $.Values.kong.corsOrigins | quote }}
+              credentials: {{ $.Values.kong.corsCredentials }}
+              methods:
+              {{- range $.Values.kong.corsMethods }}
+                - {{ . }}
+              {{- end }}
+              headers:
+              {{- range $.Values.kong.corsHeaders }}
+                - {{ . }}
+              {{- end }}
+    {{- end }}
+{{- end }}

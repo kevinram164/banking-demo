@@ -1,0 +1,65 @@
+{{- if .Values.kong.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "banking-demo.kong.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "banking-demo.kong.fullname" . }}
+    {{- include "banking-demo.kong.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.kong.replicas }}
+  selector:
+    matchLabels:
+      {{- include "banking-demo.kong.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "banking-demo.kong.fullname" . }}
+        {{- include "banking-demo.kong.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.kong.securityContext.pod }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.kong.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.kong.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: kong
+          image: "{{ .Values.kong.image.repository }}:{{ .Values.kong.image.tag }}"
+          imagePullPolicy: {{ .Values.kong.image.pullPolicy }}
+          {{- with .Values.kong.securityContext.container }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+          {{- range $key, $val := .Values.kong.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.kong.proxyPort }}
+              name: {{ .Values.kong.proxyPortName }}
+            - containerPort: {{ .Values.kong.adminPort }}
+              name: {{ .Values.kong.adminPortName }}
+          volumeMounts:
+            - name: kong-config
+              mountPath: {{ .Values.kong.configMountPath }}
+              readOnly: true
+          resources:
+            {{- toYaml .Values.kong.resources | nindent 12 }}
+          {{- if .Values.kong.readinessProbe.enabled }}
+          readinessProbe:
+            exec:
+              command: {{ toJson .Values.kong.readinessProbe.command }}
+            initialDelaySeconds: {{ .Values.kong.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.kong.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.kong.readinessProbe.timeoutSeconds }}
+          {{- end }}
+      volumes:
+        - name: kong-config
+          configMap:
+            name: {{ include "banking-demo.kong.configMapName" . }}
+{{- end }}

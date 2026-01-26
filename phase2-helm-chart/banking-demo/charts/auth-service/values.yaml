@@ -1,0 +1,53 @@
+fullnameOverride: auth-service
+
+enabled: true
+
+image:
+  repository: registry.gitlab.com/kiettt164/banking-demo-payment/auth-service
+  tag: v1
+  pullPolicy: Always
+
+imagePullSecrets: []
+
+replicas: 1
+
+service:
+  port: 8001
+  portName: http
+
+# Reference to parent-created secret
+secretRef:
+  name: banking-db-secret
+  keys:
+    databaseUrl: DATABASE_URL
+    redisUrl: REDIS_URL
+
+# Env set from values (CORS can be overridden by parent global.corsOrigins)
+corsOrigins: "http://localhost:3000"
+extraEnv: {}
+  # SESSION_TTL_SECONDS: "86400"
+
+readinessProbe:
+  enabled: true
+  path: /health
+  port: 8001
+  initialDelaySeconds: 10
+  periodSeconds: 15
+  timeoutSeconds: 1
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "300m"
+
+securityContext:
+  pod:
+    seccompProfile:
+      type: RuntimeDefault
+  container:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]

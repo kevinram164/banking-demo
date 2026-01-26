@@ -1,0 +1,18 @@
+# Cấu hình mặc định cho quickstart-app (Ví dụ Helm cho người mới)
+
+# Tên ứng dụng (dùng cho label và tên resource)
+name: myapp
+
+# Số bản copy chạy
+replicas: 1
+
+# Image container
+image:
+  repository: nginx
+  tag: "alpine"
+  pullPolicy: IfNotPresent
+
+# Cấu hình Service
+service:
+  port: 80
+  type: ClusterIP

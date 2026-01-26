@@ -1,0 +1,16 @@
+apiVersion: v2
+name: banking-demo
+description: Banking Demo - Helm bootstrap chart (Phase 2). Deploy namespace, infra, gateway, services, frontend and ingress from a single chart.
+type: application
+version: 0.1.0
+appVersion: "1"
+keywords:
+  - banking
+  - microservices
+  - kong
+  - postgres
+  - redis
+maintainers: []
+kubeVersion: ">=1.24"
+# Dependencies không dùng (mỗi service chỉ có Chart.yaml + values.yaml trong charts/<name>/;
+# templates dùng chung ở templates/; merge values bằng -f charts/<name>/values.yaml khi cần)

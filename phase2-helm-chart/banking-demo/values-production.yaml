@@ -1,0 +1,57 @@
+# Production overrides — dùng với ArgoCD: valueFiles: [ "values.yaml", "values-production.yaml" ]
+# Chỉ khai báo những gì khác với values.yaml; phần còn lại giữ mặc định.
+
+global:
+  namespace: banking
+  corsOrigins: "https://npd-banking.co"  # Đổi theo domain production
+
+# Ví dụ: tăng tài nguyên và replica cho production
+postgres:
+  replicas: 1
+  storage:
+    size: 5Gi
+  resources:
+    requests: { memory: "512Mi", cpu: "250m" }
+    limits:   { memory: "1Gi", cpu: "1000m" }
+
+redis:
+  storage:
+    size: 1Gi
+  resources:
+    requests: { memory: "128Mi", cpu: "100m" }
+    limits:   { memory: "256Mi", cpu: "500m" }
+
+# Production: không lưu mật khẩu trong Git — dùng External Secrets hoặc --set/Secret từ CI
+# secret:
+#   postgresPassword: ...  # Nên inject qua ArgoCD parameters hoặc External Secrets
+
+kong:
+  replicas: 1
+  resources:
+    requests: { memory: "256Mi", cpu: "100m" }
+    limits:   { memory: "512Mi", cpu: "500m" }
+
+# Microservices: có thể tăng replicas và resources
+auth-service:
+  replicas: 2
+  resources:
+    requests: { memory: "256Mi", cpu: "150m" }
+    limits:   { memory: "512Mi", cpu: "500m" }
+
+account-service:
+  replicas: 2
+
+transfer-service:
+  replicas: 2
+
+notification-service:
+  replicas: 1
+
+frontend:
+  replicas: 2
+
+ingress:
+  enabled: true
+  className: haproxy
+  host: npd-banking.co  # Domain production
+  name: banking-ingress

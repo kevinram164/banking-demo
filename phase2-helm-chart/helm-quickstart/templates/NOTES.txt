@@ -1,0 +1,9 @@
+Ví dụ Helm Quickstart đã được cài!
+
+  Release: {{ .Release.Name }}
+  App:     {{ include "quickstart-app.fullname" . }}
+  Image:   {{ .Values.image.repository }}:{{ .Values.image.tag }}
+  Replicas: {{ .Values.replicas }}
+
+Để xem Pod và Service:
+  kubectl get pods,svc -l app={{ include "quickstart-app.fullname" . }} -n {{ .Release.Namespace }}

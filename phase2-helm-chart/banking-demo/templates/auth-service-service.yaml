@@ -1,0 +1,18 @@
+{{- $svc := index .Values "auth-service" }}
+{{- if $svc.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "banking-demo.auth-service.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "banking-demo.auth-service.fullname" . }}
+    {{- include "banking-demo.auth-service.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "banking-demo.auth-service.selectorLabels" . | nindent 4 }}
+  ports:
+    - port: {{ $svc.service.port }}
+      targetPort: {{ $svc.service.port }}
+      name: {{ $svc.service.portName }}
+{{- end }}

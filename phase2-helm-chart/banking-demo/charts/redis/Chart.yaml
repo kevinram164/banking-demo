@@ -1,0 +1,7 @@
+apiVersion: v2
+name: redis
+description: Redis StatefulSet for Banking Demo
+type: application
+version: 0.1.0
+appVersion: "7"
+kubeVersion: ">=1.24"

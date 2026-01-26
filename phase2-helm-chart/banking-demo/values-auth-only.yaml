@@ -1,0 +1,22 @@
+namespace:
+  enabled: false
+secret:
+  enabled: false
+postgres:
+  enabled: false
+redis:
+  enabled: false
+kong:
+  enabled: false
+auth-service:
+  enabled: true
+account-service:
+  enabled: false
+transfer-service:
+  enabled: false
+notification-service:
+  enabled: false
+frontend:
+  enabled: false
+ingress:
+  enabled: false

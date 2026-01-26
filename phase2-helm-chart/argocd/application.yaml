@@ -1,0 +1,50 @@
+# ArgoCD Application: deploy banking-demo Helm chart từ Git (GitOps).
+# Áp dụng: kubectl apply -f application.yaml -n argocd
+# Hoặc: argocd app create -f application.yaml
+#
+# Trước khi apply: sửa spec.source.repoURL và spec.source.targetRevision cho đúng repo của bạn.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banking-demo
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/name: banking-demo
+    argocd.argoproj.io/refresh: normal
+spec:
+  project: banking-demo   # Dùng Project (áp dụng project.yaml trước). Nếu chưa có thì đổi thành default
+  source:
+    repoURL: https://github.com/YOUR_ORG/banking-demo.git  # ← Đổi thành URL repo Git của bạn
+    targetRevision: main                                    # ← Branch hoặc tag (main, master, v1.0, HEAD)
+    path: phase2-helm-chart/banking-demo
+    helm:
+      releaseName: banking-demo
+      valueFiles:
+        - values.yaml
+        # Override theo môi trường: bỏ comment và dùng file tương ứng
+        # - values-production.yaml
+        # - values-staging.yaml
+      # Override nhanh bằng parameters (tương đương --set), ví dụ:
+      # parameters:
+      #   - name: ingress.enabled
+      #     value: "true"
+      #   - name: global.namespace
+      #     value: banking
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: banking
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

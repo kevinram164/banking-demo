@@ -1,0 +1,50 @@
+fullnameOverride: notification-service
+
+enabled: true
+
+image:
+  repository: registry.gitlab.com/kiettt164/banking-demo-payment/notification-service
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets: []
+
+replicas: 1
+
+service:
+  port: 8004
+  portName: http
+
+secretRef:
+  name: banking-db-secret
+  keys:
+    databaseUrl: DATABASE_URL
+    redisUrl: REDIS_URL
+
+corsOrigins: "http://localhost:3000"
+extraEnv: {}
+
+readinessProbe:
+  enabled: true
+  path: /health
+  port: 8004
+  initialDelaySeconds: 10
+  periodSeconds: 15
+  timeoutSeconds: 1
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "300m"
+
+securityContext:
+  pod:
+    seccompProfile:
+      type: RuntimeDefault
+  container:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]

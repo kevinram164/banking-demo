@@ -1,0 +1,40 @@
+# ArgoCD Project: gom nhóm và giới hạn quyền cho các Application banking-demo.
+# Áp dụng trước khi tạo Application: kubectl apply -f project.yaml -n argocd
+#
+# Sửa spec.sourceRepos thành URL repo Git của bạn (có thể nhiều pattern).
+# Các Application dùng spec.project: banking-demo sẽ chỉ được phép dùng repo/namespace trong allow list.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: banking-demo
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: banking-demo
+spec:
+  description: "Banking Demo - Helm chart and per-service apps"
+  sourceRepos:
+    - https://github.com/YOUR_ORG/banking-demo.git   # ← Đổi thành repo của bạn (có thể thêm nhiều dòng)
+    # - 'git@github.com:YOUR_ORG/banking-demo.git'
+  destinations:
+    - namespace: banking
+      server: https://kubernetes.default.svc
+    # Thêm namespace khác nếu dùng multi-env (vd: banking-staging)
+    # - namespace: banking-staging
+    #   server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: "*"
+    - group: apps
+      kind: "*"
+    - group: batch
+      kind: "*"
+    - group: networking.k8s.io
+      kind: "*"
+  # Chỉ cho phép deploy từ repo trên, không cho phép repo khác
+  sourceNamespace: ""
+  # OrphanedResources: theo dõi resource không còn trong Git (tùy chọn)
+  orphanedResources:
+    warn: true

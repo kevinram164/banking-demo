@@ -1,0 +1,84 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "banking-demo.postgres.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  {{- if and .Values.postgres.hook.preInstall .Values.postgres.hook.preUpgrade }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: {{ .Values.postgres.hook.weight | quote }}
+  {{- end }}
+  labels:
+    app: {{ include "banking-demo.postgres.fullname" . }}
+    {{- include "banking-demo.postgres.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "banking-demo.postgres.fullname" . }}
+  replicas: {{ .Values.postgres.replicas }}
+  selector:
+    matchLabels:
+      {{- include "banking-demo.postgres.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "banking-demo.postgres.fullname" . }}
+        {{- include "banking-demo.postgres.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.postgres.securityContext.pod }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgres.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.postgres.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          imagePullPolicy: {{ .Values.postgres.image.pullPolicy }}
+          {{- with .Values.postgres.securityContext.container }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.postgres.service.port }}
+              name: {{ .Values.postgres.service.portName }}
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secretRef.name | default (include "banking-demo.secretName" .) }}
+                  key: {{ .Values.postgres.secretRef.keys.user }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secretRef.name | default (include "banking-demo.secretName" .) }}
+                  key: {{ .Values.postgres.secretRef.keys.password }}
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secretRef.name | default (include "banking-demo.secretName" .) }}
+                  key: {{ .Values.postgres.secretRef.keys.db }}
+          volumeMounts:
+            - name: {{ .Values.postgres.storage.volumeName }}
+              mountPath: {{ .Values.postgres.storage.mountPath }}
+          {{- if .Values.postgres.readinessProbe.enabled }}
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgres.readinessProbe.user | quote }}]
+            initialDelaySeconds: {{ .Values.postgres.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.postgres.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.postgres.readinessProbe.timeoutSeconds }}
+          {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: {{ .Values.postgres.storage.volumeName }}
+      spec:
+        storageClassName: {{ .Values.postgres.storage.storageClassName | quote }}
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.postgres.storage.size | quote }}
+{{- end }}
