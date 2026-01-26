@@ -38,6 +38,8 @@ spec:
         seccompProfile:
           type: RuntimeDefault
         fsGroup: 999
+      imagePullSecrets:
+        - name: dockerhub-registry
       containers:
         - name: postgres
           image: postgres:16

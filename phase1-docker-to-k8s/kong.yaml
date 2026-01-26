@@ -18,6 +18,8 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+      imagePullSecrets:
+        - name: dockerhub-registry
       containers:
         - name: kong
           image: kong:3.4
@@ -42,6 +44,8 @@ spec:
               value: 0.0.0.0:8001
             - name: KONG_PROXY_LISTEN
               value: 0.0.0.0:8000
+            - name: KONG_NGINX_WORKER_PROCESSES
+              value: "1"
           ports:
             - containerPort: 8000
               name: proxy
@@ -53,11 +57,11 @@ spec:
               readOnly: true
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: "512Mi"
+              cpu: "200m"
             limits:
-              memory: "256Mi"
-              cpu: "300m"
+              memory: "1Gi"
+              cpu: "1000m"
           readinessProbe:
             exec:
               command: ["kong", "health"]

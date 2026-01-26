@@ -1,4 +1,4 @@
-# Giai đoạn 1: Ingress cho cluster (HAProxy Ingress, path-based)
+# Giai đoạn 1: Ingress cho cluster (HAProxy Ingress) — host: npd-banking.co
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -7,7 +7,8 @@ metadata:
 spec:
   ingressClassName: haproxy
   rules:
-    - http:
+    - host: npd-banking.co
+      http:
         paths:
           - path: /
             pathType: Prefix

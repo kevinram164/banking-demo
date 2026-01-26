@@ -37,13 +37,14 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+        fsGroup: 999
+      imagePullSecrets:
+        - name: dockerhub-registry
       containers:
         - name: redis
           image: redis:7-alpine
           securityContext:
             allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
           ports:
             - containerPort: 6379
           resources:

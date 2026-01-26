@@ -2,6 +2,8 @@
 
 Giai đoạn 1 tập trung **chuyển toàn bộ stack từ Docker Compose sang Kubernetes** với manifest files trong folder này. Các giai đoạn sau (monitoring, CI/CD, v.v.) sẽ có folder và tài liệu riêng để không lẫn lộn.
 
+- **Sơ đồ kiến trúc:** xem [ARCHITECTURE.md](./ARCHITECTURE.md) (luồng traffic, thành phần, Mermaid diagram).
+
 ---
 
 ## Mục tiêu
@@ -100,6 +102,17 @@ kubectl apply -f ingress.yaml
     --docker-username=<user> \
     --docker-password=<token>
   ```
+
+- **Docker Hub rate limit (429 / ImagePullBackOff):** Image **postgres**, **redis**, **kong** lấy từ Docker Hub. Nếu cluster bị giới hạn pull (lỗi `429 Too Many Requests` / `toomanyrequests`), cần tạo secret đăng nhập Docker Hub và khai báo `imagePullSecrets` để tăng rate limit:
+
+  ```bash
+  kubectl -n banking create secret docker-registry dockerhub-registry \
+    --docker-server=https://index.docker.io/v1/ \
+    --docker-username=kiettran164 \
+    --docker-password=Tech@1604
+  ```
+
+  Các file `postgres.yaml`, `redis.yaml`, `kong.yaml` đã khai báo `imagePullSecrets: - name: dockerhub-registry`. Sau khi tạo secret, xóa pod để kéo image lại (ví dụ: `kubectl delete pod redis-0 postgres-0 -n banking`, redeploy kong nếu cần).
 
 - **Chạy với image build tại chỗ:** sửa manifest: xóa `imagePullSecrets`, đặt `imagePullPolicy: Never` và `image: <tên-image-local>`.
 
