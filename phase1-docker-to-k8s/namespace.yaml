@@ -1,0 +1,8 @@
+# Giai đoạn 1: Namespace cho banking-demo
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: banking
+  labels:
+    app.kubernetes.io/name: banking-demo
+    phase: "1"
