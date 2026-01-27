@@ -18,7 +18,7 @@ phase2-helm-chart/
 │   ├── project.yaml                   # ArgoCD Project (gom nhóm, giới hạn repo/namespace)
 │   ├── application.yaml               # Application đơn — deploy cả chart một lần
 │   ├── application-set.yaml           # ApplicationSet — nhiều môi trường (staging/prod)
-│   └── ARGOCD.md                      # File này
+│   └── ARGOCD.md                      
 └── banking-demo/
     ├── Chart.yaml
     ├── values.yaml                    # Không chứa cấu hình (chỉ comment); mọi giá trị trong charts/
