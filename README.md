@@ -96,11 +96,60 @@ PostgreSQL is the system of record for:
 - Notification history
 All critical financial data is persisted in PostgreSQL to ensure consistency and durability.
 
-5. How to run :
+5. How to run
+
 - Clone source code
 - Run by docker compose:
 ```
 cd banking-demo
 docker compose up -d --build
 docker compose ps -a
+```
+
+6. Check Redis and PostgreSQL
+
+**Docker Compose**
+
+- Redis (container `banking-redis`):
+```bash
+# Ping
+docker exec banking-redis redis-cli ping
+
+# Liệt kê keys (session, presence, ...)
+docker exec banking-redis redis-cli keys '*'
+
+# Thông tin server
+docker exec banking-redis redis-cli info server
+```
+
+**Ý nghĩa kết quả `keys '*'`:**
+- **`session:<id>`** — Phiên đăng nhập: mỗi key tương ứng một session (token) mà backend cấp khi user login. Value lưu `user_id`, có TTL (ví dụ 24h). Càng nhiều user đang đăng nhập thì càng nhiều key dạng này.
+- **`presence:<user_id>`** — Trạng thái online: user đó đang có WebSocket mở (frontend còn kết nối). Có TTL ngắn (60s), được gia hạn liên tục khi còn online. Key biến mất khi user thoát hoặc ngắt kết nối.
+
+*(Lệnh `keys '*'` liệt kê tất cả key trong DB 0; trên production nên dùng `SCAN` thay vì `keys` nếu số key lớn.)*
+
+- PostgreSQL (container `banking-postgres`, user `banking`, DB `banking`):
+```bash
+# Kết nối và list bảng
+docker exec -it banking-postgres psql -U banking -d banking -c "\dt"
+
+# Kiểm tra kết nối
+docker exec banking-postgres psql -U banking -d banking -c "SELECT 1;"
+
+# Xem users (nếu có bảng users)
+docker exec banking-postgres psql -U banking -d banking -c "SELECT id, username FROM users LIMIT 5;"
+```
+
+**Kubernetes (namespace `banking`, phase1-docker-to-k8s)**
+
+- Redis (pod `redis-0`):
+```bash
+kubectl exec -it redis-0 -n banking -- redis-cli ping
+kubectl exec -it redis-0 -n banking -- redis-cli keys '*'
+```
+
+- PostgreSQL (pod `postgres-0`):
+```bash
+kubectl exec -it postgres-0 -n banking -- psql -U banking -d banking -c "\dt"
+kubectl exec -it postgres-0 -n banking -- psql -U banking -d banking -c "SELECT 1;"
 ```
