@@ -34,8 +34,28 @@ loki:
       rules_directory: /var/loki/rules
 
 deploymentMode: SingleBinary
+
+# Scheduling: cluster của bạn có taint `ingress=only` và `control-plane`,
+# đồng thời các node worker đang thiếu RAM. Cho phép Loki pods schedule vào các node này.
+tolerations:
+  - key: "ingress"
+    operator: "Equal"
+    value: "only"
+    effect: "NoSchedule"
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"
+
 singleBinary:
   replicas: 1
+  # Giảm resource để tránh Insufficient memory (tăng dần nếu cần)
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
   persistence:
     enabled: true
     size: 10Gi
@@ -46,6 +66,25 @@ singleBinary:
     accessModes:
       - ReadWriteOnce
     mountPath: /var/loki
+
+# Cache pods (memcached) thường là nguyên nhân Pending vì RAM.
+# Các key dưới đây là phổ biến của chart grafana/loki; nếu chart của bạn không dùng thì sẽ bị ignore.
+memcached:
+  tolerations:
+    - key: "ingress"
+      operator: "Equal"
+      value: "only"
+      effect: "NoSchedule"
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
 
 # Các deployment mode khác = 0
 backend:
