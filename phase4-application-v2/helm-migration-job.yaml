@@ -1,0 +1,129 @@
+# Helm Hook Job — Migration DB cho v2 (add phone + account_number)
+# Copy file này vào: phase2-helm-chart/banking-demo/templates/db-migration-job.yaml
+# Thêm vào values.yaml: dbMigration.enabled=true
+
+{{- if .Values.dbMigration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "banking-demo.fullname" . }}-db-migration-v2
+  namespace: {{ include "banking-demo.namespace" . }}
+  annotations:
+    # Hook: chạy TRƯỚC khi upgrade/install
+    helm.sh/hook: pre-upgrade,pre-install
+    helm.sh/hook-weight: "-10"  # Chạy rất sớm (trước Secret, trước Deployment)
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    {{- include "banking-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+spec:
+  backoffLimit: 2  # Retry tối đa 2 lần nếu fail
+  activeDeadlineSeconds: 300  # Timeout 5 phút
+  template:
+    metadata:
+      labels:
+        {{- include "banking-demo.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migrate
+        image: {{ .Values.dbMigration.image | default "postgres:15-alpine" }}
+        command:
+          - /bin/sh
+          - -c
+          - |
+            set -e
+            echo "=== Phase 4 v2 Migration: Add phone + account_number ==="
+            
+            # Kết nối DB và chạy SQL
+            PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<'SQL'
+            -- Step 1: Add columns (nullable, chưa unique) - EXPAND phase
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number VARCHAR(20);
+            
+            -- Step 2: Backfill account_number cho user cũ (nếu chưa có)
+            DO $$
+            DECLARE
+              r RECORD;
+              candidate TEXT;
+              max_attempts INT := 100;
+              attempts INT;
+            BEGIN
+              FOR r IN SELECT id FROM users WHERE account_number IS NULL LOOP
+                attempts := 0;
+                LOOP
+                  candidate := lpad((floor(random()*1e12))::bigint::text, 12, '0');
+                  EXIT WHEN NOT EXISTS (SELECT 1 FROM users WHERE account_number = candidate);
+                  attempts := attempts + 1;
+                  IF attempts >= max_attempts THEN
+                    RAISE EXCEPTION 'Cannot generate unique account_number after % attempts', max_attempts;
+                  END IF;
+                END LOOP;
+                UPDATE users SET account_number = candidate WHERE id = r.id;
+                RAISE NOTICE 'Backfilled account_number for user %: %', r.id, candidate;
+              END LOOP;
+            END $$;
+            
+            -- Step 3: Add unique index (concurrently nếu có thể, nhưng trong Job thường không cần)
+            -- Lưu ý: CREATE UNIQUE INDEX CONCURRENTLY không chạy trong transaction
+            -- Nên tách ra nếu cần, hoặc dùng index thường (sẽ lock table ngắn)
+            CREATE UNIQUE INDEX IF NOT EXISTS users_account_number_uq
+            ON users(account_number)
+            WHERE account_number IS NOT NULL;
+            
+            CREATE UNIQUE INDEX IF NOT EXISTS users_phone_uq
+            ON users(phone)
+            WHERE phone IS NOT NULL;
+            
+            -- Verify: check duplicate (nếu có thì fail migration)
+            DO $$
+            DECLARE
+              dup_count INT;
+            BEGIN
+              SELECT COUNT(*) INTO dup_count
+              FROM (
+                SELECT account_number, COUNT(*) as cnt
+                FROM users
+                WHERE account_number IS NOT NULL
+                GROUP BY account_number
+                HAVING COUNT(*) > 1
+              ) duplicates;
+              
+              IF dup_count > 0 THEN
+                RAISE EXCEPTION 'Found % duplicate account_number values', dup_count;
+              END IF;
+              
+              RAISE NOTICE 'Migration verification passed: no duplicates';
+            END $$;
+            
+            SELECT 'Migration v2 completed successfully' AS status;
+            SQL
+            
+            echo "✅ Migration completed!"
+        env:
+        - name: POSTGRES_HOST
+          value: {{ .Values.postgres.serviceName | default "postgres" }}
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "banking-demo.secretName" . }}
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "banking-demo.secretName" . }}
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "banking-demo.secretName" . }}
+              key: POSTGRES_DB
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+{{- end }}

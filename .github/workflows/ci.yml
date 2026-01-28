@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend-sanity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend deps (common)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r common/requirements.txt
+
+      - name: Syntax check (v1 + v2)
+        run: |
+          python -m compileall common services phase4-application-v2/common phase4-application-v2/services
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install + build (v1)
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Install + build (v2)
+        working-directory: phase4-application-v2/frontend
+        run: |
+          npm install
+          npm run build
+
