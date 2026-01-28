@@ -56,7 +56,7 @@ grafana:
   additionalDataSources:
     - name: Loki
       type: loki
-      url: http://loki-gateway.monitoring.svc.cluster.local
+      url: http://loki.monitoring.svc.cluster.local:3100
       access: proxy
       isDefault: false
     - name: Tempo
