@@ -16,7 +16,7 @@ metadata:
 spec:
   project: banking-demo   # Dùng Project (áp dụng project.yaml trước). Nếu chưa có thì đổi thành default
   source:
-    repoURL: https://github.com/YOUR_ORG/banking-demo.git  # ← Đổi thành URL repo Git của bạn
+    repoURL: https://github.com/kevinram164/banking-demo.git  # ← Đổi thành URL repo Git của bạn
     targetRevision: main                                    # ← Branch hoặc tag (main, master, v1.0, HEAD)
     path: phase2-helm-chart/banking-demo
     helm:

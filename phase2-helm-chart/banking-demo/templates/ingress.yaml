@@ -6,6 +6,13 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "banking-demo.labels" . | nindent 4 }}
+  {{- if eq .Values.ingress.className "haproxy" }}
+  annotations:
+    # Enable WebSocket support for HAProxy Ingress
+    haproxy.org/backend-protocol: "http"
+    # HAProxy automatically detects WebSocket from Upgrade header, but ensure headers are forwarded
+    haproxy.org/forwardfor: "true"
+  {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
