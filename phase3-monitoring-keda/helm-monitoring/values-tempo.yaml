@@ -13,16 +13,13 @@ tempo:
           endpoint: 0.0.0.0:4318
   # Giữ trace trong 24h (có thể tăng)
   retention: 24h
-
-# Bật metrics-generator để Grafana "Span rate / Service graph" không lỗi `empty ring`
-metricsGenerator:
-    enabled: true
-    remoteWriteUrl: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
-
-metrics_generator:
-  enabled: true
-  remote_write:
-    - url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
+  # Metrics-generator (Span rate / Service graph).
+  # Log hiện tại báo thiếu `metrics_generator.storage.path` nên generator bị disable và gây `empty ring`.
+  metrics_generator:
+    storage:
+      path: /var/tempo/generator
+    remote_write:
+      - url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
 
 # Storage: local (filesystem) — đủ cho dev/test
 # Production nên dùng S3/GCS/MinIO
