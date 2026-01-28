@@ -289,8 +289,8 @@ jobs:
       always() &&
       needs.build-images.result == 'success' &&
       (
-        (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
-        github.event.inputs.force_push == 'true'
+        (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
+        (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.event.inputs.force_push == 'true'))
       )
     strategy:
       fail-fast: false
