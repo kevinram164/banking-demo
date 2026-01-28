@@ -1,6 +1,6 @@
 /**
  * Load test — Auth service (login)
- * Tăng RPS lên /api/auth/login để KEDA scale auth-service.
+ * Tăng RPS lên /login để KEDA scale auth-service.
  *
  * Chạy: k6 run --vus 10 --duration 2m k6-auth.js
  * Hoặc: BASE_URL=https://npd-banking.co VUS=20 DURATION=3m k6 run k6-auth.js
@@ -24,7 +24,7 @@ export const options = {
 const USER = { username: 'loadtest1', password: 'loadtest1' };
 
 export function setup() {
-  const reg = http.post(`${BASE_URL}/api/auth/register`, JSON.stringify(USER), {
+  const reg = http.post(`${BASE_URL}/register`, JSON.stringify(USER), {
     headers: { 'Content-Type': 'application/json' },
   });
   if (reg.status !== 200 && reg.status !== 409) {
@@ -34,7 +34,7 @@ export function setup() {
 }
 
 export default function () {
-  const res = http.post(`${BASE_URL}/api/auth/login`, JSON.stringify(USER), {
+  const res = http.post(`${BASE_URL}/login`, JSON.stringify(USER), {
     headers: { 'Content-Type': 'application/json' },
   });
   check(res, { 'login ok': (r) => r.status === 200 });

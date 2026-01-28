@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Chạy lần lượt các kịch bản load test (auth, account, transfer).
 # Dùng BASE_URL, VUS, DURATION từ env hoặc mặc định.
 
@@ -21,7 +21,7 @@ run_k6() {
     exit 1
   fi
   docker run --rm -i \
-    -v "$PWD:/work" -w /work \
+    -v "$(pwd):/work" -w /work \
     grafana/k6 "$@"
 }
 
