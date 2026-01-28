@@ -10,11 +10,21 @@ spec:
   generators:
     - list:
         elements:
-          - name: infra
-            release: banking-demo-infra
+          - name: namespace
+            release: banking-demo-namespace
+            wave: "-1"
+            valueFiles: "charts/common/values.yaml"
+            enabledParams: "namespace.enabled=true,secret.enabled=true"
+          - name: postgres
+            release: banking-demo-postgres
             wave: "0"
-            valueFiles: "charts/common/values.yaml,charts/postgres/values.yaml,charts/redis/values.yaml"
-            enabledParams: "postgres.enabled=true,redis.enabled=true"
+            valueFiles: "charts/common/values.yaml,charts/postgres/values.yaml"
+            enabledParams: "postgres.enabled=true"
+          - name: redis
+            release: banking-demo-redis
+            wave: "0"
+            valueFiles: "charts/common/values.yaml,charts/redis/values.yaml"
+            enabledParams: "redis.enabled=true"
           - name: kong
             release: banking-demo-kong
             wave: "1"
@@ -98,11 +108,18 @@ spec:
             - name: {{ index $parts 0 | trim }}
               value: {{ index $parts 1 | trim | quote }}
             {{- end }}
-            # Namespace và secret luôn enabled
+            # Namespace và secret chỉ enabled cho namespace application
+            {{- if eq .name "namespace" }}
             - name: namespace.enabled
               value: "true"
             - name: secret.enabled
               value: "true"
+            {{- else }}
+            - name: namespace.enabled
+              value: "false"
+            - name: secret.enabled
+              value: "false"
+            {{- end }}
       destination:
         server: https://kubernetes.default.svc
         namespace: banking
@@ -111,11 +128,11 @@ spec:
           prune: false
           selfHeal: false
         syncOptions:
-          {{- if eq .wave "0" }}
-          # Chỉ infra (wave 0) mới có CreateNamespace=true
+          {{- if eq .wave "-1" }}
+          # Chỉ namespace (wave -1) mới có CreateNamespace=true
           - CreateNamespace=true
           {{- else }}
-          # Các Applications khác không cần CreateNamespace vì namespace đã được tạo bởi infra
+          # Các Applications khác không cần CreateNamespace vì namespace đã được tạo bởi namespace.yaml
           {{- end }}
         retry:
           limit: 3

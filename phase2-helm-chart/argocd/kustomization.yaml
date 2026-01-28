@@ -8,7 +8,9 @@ namespace: argocd
 
 resources:
   - project.yaml
-  - applications/infra.yaml
+  - applications/namespace.yaml
+  - applications/postgres.yaml
+  - applications/redis.yaml
   - applications/kong.yaml
   - applications/auth-service.yaml
   - applications/account-service.yaml

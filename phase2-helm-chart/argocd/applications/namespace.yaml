@@ -1,0 +1,61 @@
+# Namespace Application: tạo namespace và secret
+# Deploy đầu tiên nhất (wave -1 để chạy trước infra)
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banking-demo-namespace
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: banking-demo
+    app.kubernetes.io/component: namespace
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"  # Deploy đầu tiên nhất (trước cả infra)
+spec:
+  project: banking-demo
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: main
+    path: phase2-helm-chart/banking-demo
+    helm:
+      releaseName: banking-demo-namespace
+      valueFiles:
+        - charts/common/values.yaml
+      parameters:
+        - name: namespace.enabled
+          value: "true"  # Tạo namespace "banking"
+        - name: secret.enabled
+          value: "true"  # Tạo secret
+        - name: postgres.enabled
+          value: "false"
+        - name: redis.enabled
+          value: "false"
+        - name: kong.enabled
+          value: "false"
+        - name: auth-service.enabled
+          value: "false"
+        - name: account-service.enabled
+          value: "false"
+        - name: transfer-service.enabled
+          value: "false"
+        - name: notification-service.enabled
+          value: "false"
+        - name: frontend.enabled
+          value: "false"
+        - name: ingress.enabled
+          value: "false"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: banking
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true  # Chỉ file này tạo namespace
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
