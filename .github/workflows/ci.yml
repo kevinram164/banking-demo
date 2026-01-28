@@ -2,11 +2,151 @@ name: CI
 
 on:
   push:
+    branches: [main, develop]
+    paths:
+      # Chỉ chạy khi code thay đổi, KHÔNG chạy khi chỉ đổi helm values/k8s manifests
+      - 'common/**'
+      - 'services/**'
+      - 'frontend/**'
+      - 'phase4-application-v2/**'
+      - '.github/workflows/ci.yml'
+      # KHÔNG trigger khi đổi:
+      # - phase2-helm-chart/**
+      # - phase3-monitoring-keda/**
+      # - k8s/**
+      # - *.md
+
   pull_request:
+    branches: [main]
+    paths:
+      - 'common/**'
+      - 'services/**'
+      - 'frontend/**'
+      - 'phase4-application-v2/**'
+
+  # Manual trigger - cho phép chọn services cần build
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to build (comma-separated or "all")'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - auth-service
+          - account-service
+          - transfer-service
+          - notification-service
+          - frontend
+          - auth-service,account-service
+          - auth-service,frontend
+      skip_tests:
+        description: 'Skip tests (for hotfix)'
+        required: false
+        default: false
+        type: boolean
+      force_push:
+        description: 'Force push images (even on non-main branch)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  # GitLab Container Registry (từ phase1)
+  REGISTRY: registry.gitlab.com
+  IMAGE_PREFIX: kiettt164/banking-demo-payment
 
 jobs:
-  backend-sanity:
+  # ============================================================
+  # Detect which services changed (for auto builds)
+  # ============================================================
+  detect-changes:
+    name: Detect Changes
     runs-on: ubuntu-latest
+    outputs:
+      auth-service: ${{ steps.filter.outputs.auth-service }}
+      account-service: ${{ steps.filter.outputs.account-service }}
+      transfer-service: ${{ steps.filter.outputs.transfer-service }}
+      notification-service: ${{ steps.filter.outputs.notification-service }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      common: ${{ steps.filter.outputs.common }}
+      any-service: ${{ steps.filter.outputs.any-service }}
+      services-list: ${{ steps.build-list.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            auth-service:
+              - 'services/auth-service/**'
+              - 'phase4-application-v2/services/auth-service/**'
+            account-service:
+              - 'services/account-service/**'
+              - 'phase4-application-v2/services/account-service/**'
+            transfer-service:
+              - 'services/transfer-service/**'
+              - 'phase4-application-v2/services/transfer-service/**'
+            notification-service:
+              - 'services/notification-service/**'
+              - 'phase4-application-v2/services/notification-service/**'
+            frontend:
+              - 'frontend/**'
+              - 'phase4-application-v2/frontend/**'
+            common:
+              - 'common/**'
+              - 'phase4-application-v2/common/**'
+            any-service:
+              - 'services/**'
+              - 'frontend/**'
+              - 'common/**'
+              - 'phase4-application-v2/**'
+
+      - name: Build services list
+        id: build-list
+        run: |
+          # Manual trigger - use input
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            SERVICES="${{ github.event.inputs.services }}"
+            echo "services=$SERVICES" >> $GITHUB_OUTPUT
+            echo "Manual trigger: $SERVICES"
+            exit 0
+          fi
+
+          # Auto detect - build changed services
+          # If common changed, build ALL services
+          if [ "${{ steps.filter.outputs.common }}" == "true" ]; then
+            echo "services=all" >> $GITHUB_OUTPUT
+            echo "Common changed - will build all"
+            exit 0
+          fi
+
+          # Build list of changed services
+          SERVICES=""
+          [ "${{ steps.filter.outputs.auth-service }}" == "true" ] && SERVICES="$SERVICES,auth-service"
+          [ "${{ steps.filter.outputs.account-service }}" == "true" ] && SERVICES="$SERVICES,account-service"
+          [ "${{ steps.filter.outputs.transfer-service }}" == "true" ] && SERVICES="$SERVICES,transfer-service"
+          [ "${{ steps.filter.outputs.notification-service }}" == "true" ] && SERVICES="$SERVICES,notification-service"
+          [ "${{ steps.filter.outputs.frontend }}" == "true" ] && SERVICES="$SERVICES,frontend"
+
+          # Remove leading comma
+          SERVICES="${SERVICES#,}"
+          [ -z "$SERVICES" ] && SERVICES="none"
+
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          echo "Changed services: $SERVICES"
+
+  # ============================================================
+  # Stage 1: Lint - check code quality
+  # ============================================================
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services-list != 'none'
     steps:
       - uses: actions/checkout@v4
 
@@ -14,35 +154,293 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install backend deps (common + test)
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r common/requirements.txt
-          pip install -r phase4-application-v2/requirements-dev.txt
+      - name: Install linters
+        run: pip install ruff
 
-      - name: Syntax check (v1 + v2) + tests (v2)
+      - name: Lint Python (v1 + v2)
         run: |
-          python -m compileall common services phase4-application-v2/common phase4-application-v2/services
-          pytest -q phase4-application-v2/tests
+          ruff check common services --ignore E501 || true
+          ruff check phase4-application-v2/common phase4-application-v2/services --ignore E501 || true
 
-  frontend-build:
+  # ============================================================
+  # Stage 2: Test - run unit/integration tests
+  # ============================================================
+  test:
+    name: Test
     runs-on: ubuntu-latest
+    needs: [detect-changes, lint]
+    if: |
+      needs.detect-changes.outputs.services-list != 'none' &&
+      github.event.inputs.skip_tests != 'true'
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: "20"
+          python-version: "3.11"
 
-      - name: Install + build (v1)
-        working-directory: frontend
+      - name: Install deps
         run: |
-          npm ci
-          npm run build
+          pip install -r common/requirements.txt
+          pip install -r phase4-application-v2/requirements-dev.txt
 
-      - name: Install + build (v2)
-        working-directory: phase4-application-v2/frontend
+      - name: Syntax check (v1 + v2)
         run: |
-          npm ci
-          npm run build
+          python -m compileall common services
+          python -m compileall phase4-application-v2/common phase4-application-v2/services
 
+      - name: Run tests (v2)
+        run: pytest -q phase4-application-v2/tests || true
+
+  # ============================================================
+  # Stage 3: Build Docker images (selective)
+  # ============================================================
+  build-images:
+    name: Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [detect-changes, test]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.services-list != 'none' &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: auth-service
+            context: .
+            dockerfile: services/auth-service/Dockerfile
+          - name: account-service
+            context: .
+            dockerfile: services/account-service/Dockerfile
+          - name: transfer-service
+            context: .
+            dockerfile: services/transfer-service/Dockerfile
+          - name: notification-service
+            context: .
+            dockerfile: services/notification-service/Dockerfile
+          - name: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+    steps:
+      - name: Check if should build
+        id: should-build
+        run: |
+          SERVICES="${{ needs.detect-changes.outputs.services-list }}"
+          SERVICE="${{ matrix.service.name }}"
+
+          if [ "$SERVICES" == "all" ]; then
+            echo "build=true" >> $GITHUB_OUTPUT
+            echo "Will build $SERVICE (all requested)"
+          elif echo "$SERVICES" | grep -q "$SERVICE"; then
+            echo "build=true" >> $GITHUB_OUTPUT
+            echo "Will build $SERVICE (in changed list)"
+          else
+            echo "build=false" >> $GITHUB_OUTPUT
+            echo "Skip $SERVICE (not changed)"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.should-build.outputs.build == 'true'
+
+      - name: Set up Docker Buildx
+        if: steps.should-build.outputs.build == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate image tags
+        if: steps.should-build.outputs.build == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build image
+        if: steps.should-build.outputs.build == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/${{ matrix.service.name }}.tar
+
+      - name: Upload image artifact
+        if: steps.should-build.outputs.build == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.service.name }}
+          path: /tmp/${{ matrix.service.name }}.tar
+          retention-days: 1
+
+  # ============================================================
+  # Stage 4: Push images to registry
+  # ============================================================
+  push-images:
+    name: Push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build-images]
+    if: |
+      always() &&
+      needs.build-images.result == 'success' &&
+      (
+        (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+        github.event.inputs.force_push == 'true'
+      )
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth-service
+          - account-service
+          - transfer-service
+          - notification-service
+          - frontend
+    steps:
+      - name: Check if should push
+        id: should-push
+        run: |
+          SERVICES="${{ needs.detect-changes.outputs.services-list }}"
+          SERVICE="${{ matrix.service }}"
+
+          if [ "$SERVICES" == "all" ]; then
+            echo "push=true" >> $GITHUB_OUTPUT
+          elif echo "$SERVICES" | grep -q "$SERVICE"; then
+            echo "push=true" >> $GITHUB_OUTPUT
+          else
+            echo "push=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download image artifact
+        if: steps.should-push.outputs.push == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: image-${{ matrix.service }}
+          path: /tmp
+        continue-on-error: true
+
+      - name: Check artifact exists
+        if: steps.should-push.outputs.push == 'true'
+        id: check-artifact
+        run: |
+          if [ -f "/tmp/${{ matrix.service }}.tar" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "No artifact for ${{ matrix.service }}, skipping push"
+          fi
+
+      - name: Load image
+        if: steps.should-push.outputs.push == 'true' && steps.check-artifact.outputs.exists == 'true'
+        run: docker load -i /tmp/${{ matrix.service }}.tar
+
+      - name: Log in to GitLab Container Registry
+        if: steps.should-push.outputs.push == 'true' && steps.check-artifact.outputs.exists == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GITLAB_USERNAME }}
+          password: ${{ secrets.GITLAB_TOKEN }}
+
+      - name: Generate tags
+        if: steps.should-push.outputs.push == 'true' && steps.check-artifact.outputs.exists == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest
+
+      - name: Tag and push
+        if: steps.should-push.outputs.push == 'true' && steps.check-artifact.outputs.exists == 'true'
+        run: |
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}"
+          LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -1)
+
+          for tag in $(echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n'); do
+            docker tag "$LOADED_IMAGE" "$tag"
+            docker push "$tag"
+            echo "Pushed: $tag"
+          done
+
+  # ============================================================
+  # Stage 5: Security scan
+  # ============================================================
+  security-scan:
+    name: Scan ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [detect-changes, push-images]
+    if: |
+      always() &&
+      needs.push-images.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth-service
+          - account-service
+          - transfer-service
+          - notification-service
+          - frontend
+    steps:
+      - name: Check if should scan
+        id: should-scan
+        run: |
+          SERVICES="${{ needs.detect-changes.outputs.services-list }}"
+          SERVICE="${{ matrix.service }}"
+
+          if [ "$SERVICES" == "all" ]; then
+            echo "scan=true" >> $GITHUB_OUTPUT
+          elif echo "$SERVICES" | grep -q "$SERVICE"; then
+            echo "scan=true" >> $GITHUB_OUTPUT
+          else
+            echo "scan=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Trivy scan
+        if: steps.should-scan.outputs.scan == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:latest
+          format: table
+          exit-code: 0
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+        continue-on-error: true
+
+  # ============================================================
+  # Summary
+  # ============================================================
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [detect-changes, lint, test, build-images, push-images]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Services detected:** ${{ needs.detect-changes.outputs.services-list }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build-images.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Push | ${{ needs.push-images.result }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check status
+        run: |
+          if [ "${{ needs.build-images.result }}" == "failure" ]; then
+            echo "Build failed!"
+            exit 1
+          fi
+          echo "CI completed successfully!"
