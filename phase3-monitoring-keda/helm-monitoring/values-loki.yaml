@@ -3,6 +3,9 @@
 # Chỉnh persistence, MinIO, hoặc object storage khác nếu cần.
 
 loki:
+  # Grafana datasource (no-auth) sẽ lỗi 401 "no org id" nếu Loki bật multi-tenancy.
+  # Với lab/dev, tắt auth để dùng đơn giản.
+  auth_enabled: false
   commonConfig:
     replication_factor: 1
   schemaConfig:
