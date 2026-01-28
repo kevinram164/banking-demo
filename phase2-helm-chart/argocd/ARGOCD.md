@@ -4,6 +4,43 @@ Hướng dẫn triển khai chart **banking-demo** bằng ArgoCD theo cách chuy
 
 ---
 
+## ⚠️ QUAN TRỌNG: Cleanup trước khi deploy
+
+**Nếu namespace "banking" cứ tạo ra là mất hoặc Application không deploy được:**
+
+```bash
+# Dùng script cleanup tự động (khuyến nghị)
+chmod +x cleanup-and-fix.sh
+./cleanup-and-fix.sh
+
+# Hoặc PowerShell
+.\cleanup-and-fix.ps1
+```
+
+Script sẽ:
+1. ✅ Xóa Application `banking-demo` cũ (nếu có) - gây conflict
+2. ✅ Xóa ApplicationSet cũ (nếu có) - có thể xóa namespace
+3. ✅ Xóa namespace "banking" nếu đang stuck
+4. ✅ Deploy lại với per-service Applications
+5. ✅ Sync theo sync waves
+
+**Hoặc cleanup thủ công:**
+
+```bash
+# Xóa Application cũ
+kubectl delete application banking-demo -n argocd --cascade=false 2>/dev/null || true
+
+# Xóa namespace stuck
+kubectl delete namespace banking --force --grace-period=0 2>/dev/null || true
+
+# Deploy lại
+kubectl apply -f project.yaml -n argocd
+kubectl apply -f applications/ -n argocd
+argocd app sync -l app.kubernetes.io/name=banking-demo
+```
+
+---
+
 ## 🚀 Quick Start (Cho người mới)
 
 Nếu bạn chưa biết ArgoCD là gì, làm theo các bước sau:
@@ -73,9 +110,6 @@ kubectl apply -f applications/ -n argocd
 chmod +x deploy-all.sh && ./deploy-all.sh
 # Windows PowerShell:
 .\deploy-all.ps1
-
-# Hoặc dùng Kustomize:
-kubectl apply -k . -n argocd
 ```
 
 **Hoặc từng bước (nếu muốn kiểm soát thứ tự):**
@@ -262,17 +296,7 @@ cd phase2-helm-chart\argocd
 **Ưu điểm:** Tự động apply project + applications, có thông báo rõ ràng  
 **Nhược điểm:** Cần quyền execute script
 
-### Cách 3: Dùng Kustomize
-
-```bash
-cd phase2-helm-chart/argocd
-kubectl apply -k . -n argocd
-```
-
-**Ưu điểm:** Một lệnh duy nhất, quản lý resources tập trung  
-**Nhược điểm:** Cần có `kustomization.yaml`
-
-### Cách 4: Dùng ApplicationSet (Tự động tạo Applications)
+### Cách 3: Dùng ApplicationSet (Tự động tạo Applications - Tùy chọn)
 
 ```bash
 cd phase2-helm-chart/argocd
@@ -284,7 +308,9 @@ kubectl apply -f application-set-all-services.yaml -n argocd
 **Ưu điểm:** Tự động tạo tất cả Applications từ một file, dễ maintain  
 **Nhược điểm:** Cần hiểu ApplicationSet syntax
 
-**Lưu ý:** ApplicationSet sẽ tự động tạo các Applications với Sync Waves đã cấu hình. Khi sync tất cả cùng lúc, ArgoCD sẽ tự động deploy theo thứ tự (infra → kong → services → frontend → ingress).
+**Lưu ý:** 
+- `application.yaml` và `application-set.yaml` đã bị xóa vì gây conflict với per-service Applications
+- ApplicationSet sẽ tự động tạo các Applications với Sync Waves đã cấu hình. Khi sync tất cả cùng lúc, ArgoCD sẽ tự động deploy theo thứ tự (namespace → postgres/redis → kong → services → frontend → ingress).
 
 ---
 
@@ -371,13 +397,27 @@ Nếu deploy không đúng thứ tự, các service sẽ lỗi vì không tìm t
 phase2-helm-chart/
 ├── argocd/
 │   ├── project.yaml                   # ArgoCD Project (gom nhóm, giới hạn repo/namespace)
-│   ├── application.yaml               # Application đơn — deploy cả chart một lần (không khuyến nghị)
-│   ├── application-set.yaml           # ApplicationSet — nhiều môi trường (staging/prod)
-│   ├── application-set-all-services.yaml # ApplicationSet — tự động tạo tất cả Applications
-│   ├── kustomization.yaml             # Kustomize — apply tất cả cùng lúc
+│   ├── application-set-all-services.yaml # ApplicationSet — tự động tạo tất cả Applications (tùy chọn)
+│   ├── cleanup-and-fix.sh             # Script cleanup và fix toàn bộ phase 2
+│   ├── cleanup-and-fix.ps1            # Script PowerShell cleanup và fix
 │   ├── deploy-all.sh                  # Script bash — apply project + applications
 │   ├── deploy-all.ps1                 # Script PowerShell — apply project + applications
 │   ├── applications/                  # Applications riêng cho từng service (KHuyẾN NGHỊ)
+│   │   ├── namespace.yaml             # Namespace và Secret (wave -1)
+│   │   ├── postgres.yaml              # PostgreSQL (wave 0)
+│   │   ├── redis.yaml                 # Redis (wave 0)
+│   │   ├── kong.yaml                  # Kong API Gateway (wave 1)
+│   │   ├── auth-service.yaml          # Auth Service (wave 2)
+│   │   ├── account-service.yaml       # Account Service (wave 2)
+│   │   ├── transfer-service.yaml      # Transfer Service (wave 2)
+│   │   ├── notification-service.yaml  # Notification Service (wave 2)
+│   │   ├── frontend.yaml              # Frontend (wave 3)
+│   │   └── ingress.yaml              # Ingress (wave 4)
+│   ├── scripts/                       # Scripts hỗ trợ (fix, check, delete)
+│   │   ├── fix-namespace-pending-deletion.sh
+│   │   ├── fix-secret-finalizers.sh
+│   │   ├── check-postgres-redis-resources.sh
+│   │   └── delete-application-large-payload.sh
 │   │   ├── namespace.yaml             # Namespace và Secret
 │   │   ├── postgres.yaml              # PostgreSQL Database
 │   │   ├── redis.yaml                 # Redis Cache
@@ -514,10 +554,7 @@ kubectl apply -f applications/ingress.yaml -n argocd
 # Cách 1: Dùng kubectl apply với thư mục
 kubectl apply -f applications/ -n argocd
 
-# Cách 2: Dùng Kustomize (nếu có kustomization.yaml)
-kubectl apply -k . -n argocd
-
-# Cách 3: Dùng script (Linux/Mac)
+# Cách 2: Dùng script (Linux/Mac)
 chmod +x deploy-all.sh
 ./deploy-all.sh
 
@@ -1015,14 +1052,61 @@ argocd app sync banking-demo-postgres
 argocd app sync banking-demo-redis
 ```
 
-**Cách 2: Xem rendered templates**
+**Cách 2: Xem rendered templates trong ArgoCD**
 
 ```bash
-# Xem templates được render như thế nào
+# Xem templates được render như thế nào trong ArgoCD
 argocd app manifests banking-demo-postgres
 
 # Kiểm tra xem có resources nào được render không
 argocd app manifests banking-demo-postgres | grep -E "kind:|name:"
+
+# Đếm số resources
+argocd app manifests banking-demo-postgres | grep -E "^kind:" | wc -l
+```
+
+**Cách 2b: Test Helm template local (giống như ArgoCD sẽ render)**
+
+```bash
+# Test postgres template (phải có --namespace để set đúng namespace)
+cd phase2-helm-chart/banking-demo
+helm template test . \
+  --values charts/common/values.yaml \
+  --values charts/postgres/values.yaml \
+  --set namespace.enabled=false \
+  --set secret.enabled=false \
+  --set redis.enabled=false \
+  --set kong.enabled=false \
+  --set auth-service.enabled=false \
+  --set account-service.enabled=false \
+  --set transfer-service.enabled=false \
+  --set notification-service.enabled=false \
+  --set frontend.enabled=false \
+  --set ingress.enabled=false \
+  --namespace banking
+
+# Kiểm tra namespace trong output (phải là "banking", không phải "default")
+helm template test . \
+  --values charts/common/values.yaml \
+  --values charts/postgres/values.yaml \
+  --set namespace.enabled=false \
+  --set secret.enabled=false \
+  --set redis.enabled=false \
+  --set kong.enabled=false \
+  --set auth-service.enabled=false \
+  --set account-service.enabled=false \
+  --set transfer-service.enabled=false \
+  --set notification-service.enabled=false \
+  --set frontend.enabled=false \
+  --set ingress.enabled=false \
+  --namespace banking | grep "namespace:"
+```
+
+**Cách 2c: Dùng debug script**
+
+```bash
+chmod +x debug-postgres-redis.sh
+./debug-postgres-redis.sh
 ```
 
 **Cách 3: Xóa và tạo lại Application**
@@ -1051,6 +1135,14 @@ argocd app get banking-demo-postgres -o yaml | grep -A 20 "helm:"
 **Kiểm tra sau khi fix:**
 
 ```bash
+# Dùng script tự động (khuyến nghị)
+chmod +x check-postgres-redis-resources.sh
+./check-postgres-redis-resources.sh
+
+# Hoặc PowerShell
+.\check-postgres-redis-resources.ps1
+
+# Hoặc thủ công
 # Kiểm tra pods
 kubectl get pods -n banking | grep -E "postgres|redis"
 
@@ -1059,7 +1151,34 @@ kubectl get statefulsets -n banking
 
 # Kiểm tra services
 kubectl get services -n banking | grep -E "postgres|redis"
+
+# Kiểm tra ArgoCD rendered manifests
+argocd app manifests banking-demo-postgres | grep -E "kind:|name:"
+argocd app manifests banking-demo-redis | grep -E "kind:|name:"
 ```
+
+**Nếu vẫn không có resources:**
+
+1. **Hard refresh Applications:**
+   ```bash
+   argocd app get banking-demo-postgres --refresh
+   argocd app get banking-demo-redis --refresh
+   ```
+
+2. **Sync lại:**
+   ```bash
+   argocd app sync banking-demo-postgres
+   argocd app sync banking-demo-redis
+   ```
+
+3. **Kiểm tra values được merge:**
+   ```bash
+   argocd app get banking-demo-postgres -o yaml | grep -A 30 "helm:"
+   ```
+
+4. **Xem chi tiết lỗi trong ArgoCD UI:**
+   - Vào Application → tab **EVENTS** hoặc **CONDITIONS**
+   - Xem có lỗi gì không
 
 **Lưu ý:**
 - Đảm bảo namespace "banking" đã được tạo trước (bởi `namespace.yaml`)

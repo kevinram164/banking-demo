@@ -2,6 +2,10 @@
 
 Thư mục này chứa các Application riêng cho từng service để dễ quản lý trong ArgoCD dashboard.
 
+**⚠️ QUAN TRỌNG:** 
+- File `application.yaml` và `application-set.yaml` đã bị xóa vì gây conflict
+- Chỉ dùng các file trong thư mục `applications/` này
+
 ## Cấu trúc
 
 Mỗi service có một file Application riêng:
