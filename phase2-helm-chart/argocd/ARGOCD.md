@@ -4,6 +4,36 @@ Hướng dẫn triển khai chart **banking-demo** bằng ArgoCD theo cách chuy
 
 ---
 
+## ⚠️ QUAN TRỌNG: ArgoCD phải connect với Git repo
+
+**Nếu ArgoCD không liên kết với repo (Settings → Repositories → "No repositories connected"):**
+
+1. **Vào ArgoCD UI → Settings → Repositories**
+2. **Click "+ CONNECT REPO"**
+3. **Điền thông tin:**
+   - Type: Git
+   - Project: banking-demo (hoặc để trống)
+   - Repository URL: `https://github.com/kevinram164/banking-demo.git`
+   - Username/Password: (nếu repo private)
+4. **Click "CONNECT"**
+
+**Hoặc đảm bảo AppProject có repo trong sourceRepos:**
+
+```bash
+# Kiểm tra AppProject
+kubectl get appproject banking-demo -n argocd -o yaml | grep sourceRepos
+
+# Nếu repo không có, thêm vào:
+kubectl patch appproject banking-demo -n argocd --type merge \
+  -p '{"spec":{"sourceRepos":["https://github.com/kevinram164/banking-demo.git"]}}'
+```
+
+**Lưu ý:** Nếu các services khác deploy được nhưng postgres/redis không, có thể:
+- Các services đã được deploy từ trước khi repo bị disconnect
+- Cần connect repo và sync lại tất cả Applications
+
+---
+
 ## ⚠️ QUAN TRỌNG: Fix toàn bộ nếu postgres/redis không deploy được
 
 **Nếu postgres và redis vẫn không được tạo:**
@@ -1209,28 +1239,62 @@ argocd app manifests banking-demo-postgres | grep -E "kind:|name:"
 argocd app manifests banking-demo-redis | grep -E "kind:|name:"
 ```
 
-**Nếu vẫn không có resources:**
+**Nếu vẫn không có resources (Application Synced nhưng không có resources):**
 
-1. **Hard refresh Applications:**
-   ```bash
-   argocd app get banking-demo-postgres --refresh
-   argocd app get banking-demo-redis --refresh
-   ```
+**Cách 1: Xóa và tạo lại Applications (Khuyến nghị)**
 
-2. **Sync lại:**
-   ```bash
-   argocd app sync banking-demo-postgres
-   argocd app sync banking-demo-redis
-   ```
+```bash
+# Script tự động xóa và tạo lại
+chmod +x fix-postgres-redis-no-resources-v2.sh
+./fix-postgres-redis-no-resources-v2.sh
+```
 
-3. **Kiểm tra values được merge:**
-   ```bash
-   argocd app get banking-demo-postgres -o yaml | grep -A 30 "helm:"
-   ```
+**Cách 2: Hard refresh và sync thủ công**
 
-4. **Xem chi tiết lỗi trong ArgoCD UI:**
+```bash
+# Hard refresh bằng kubectl (không cần ArgoCD CLI)
+kubectl patch application banking-demo-postgres -n argocd --type merge \
+  -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'
+kubectl annotate application banking-demo-postgres -n argocd argocd.argoproj.io/refresh- 2>/dev/null || true
+
+kubectl patch application banking-demo-redis -n argocd --type merge \
+  -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'
+kubectl annotate application banking-demo-redis -n argocd argocd.argoproj.io/refresh- 2>/dev/null || true
+
+# Đợi ArgoCD refresh (10-15 giây)
+sleep 15
+
+# Sync lại trong ArgoCD UI hoặc đợi auto sync
+```
+
+**Cách 3: Debug chi tiết**
+
+```bash
+# Script debug để tìm nguyên nhân
+chmod +x debug-argocd-render.sh
+./debug-argocd-render.sh
+```
+
+**Cách 4: Kiểm tra ArgoCD controller logs**
+
+```bash
+# Xem logs của ArgoCD controller
+ARGOCD_POD=$(kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-application-controller -o jsonpath='{.items[0].metadata.name}')
+kubectl logs -n argocd $ARGOCD_POD --tail=100 | grep -i -E "postgres|redis|error"
+```
+
+**Cách 5: Kiểm tra values được merge**
+
+```bash
+# Xem Application spec và status
+kubectl get application banking-demo-postgres -n argocd -o yaml | grep -A 50 "spec:"
+kubectl get application banking-demo-postgres -n argocd -o yaml | grep -A 30 "status:"
+```
+
+**Cách 6: Xem chi tiết lỗi trong ArgoCD UI:**
    - Vào Application → tab **EVENTS** hoặc **CONDITIONS**
    - Xem có lỗi gì không
+   - Xem tab **MANIFESTS** để kiểm tra ArgoCD có render được không
 
 **Lưu ý:**
 - Đảm bảo namespace "banking" đã được tạo trước (bởi `namespace.yaml`)
