@@ -30,9 +30,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: banking
   syncPolicy:
-    automated:
-      prune: false      # Không tự động xóa resources khi không còn trong Git
-      selfHeal: false   # Không tự động sync khi có thay đổi trong cluster
+    # Tắt automated sync → chỉ sync thủ công để tránh rollout tất cả services khi có thay đổi
+    automated: null
     syncOptions:
       - CreateNamespace=true  # Tự động tạo namespace nếu chưa có
     retry:
