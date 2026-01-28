@@ -17,7 +17,9 @@ notification-service:
       databaseUrl: DATABASE_URL
       redisUrl: REDIS_URL
   corsOrigins: "http://localhost:3000"
-  extraEnv: {}
+  # OpenTelemetry tracing → gửi traces về otel-collector → Tempo
+  extraEnv:
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4317"
   readinessProbe:
     enabled: true
     path: /health
