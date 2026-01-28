@@ -86,6 +86,17 @@ memcached:
       cpu: 200m
       memory: 256Mi
 
+# Tắt cache để giảm pod/RAM và tránh lỗi DNS SRV khi chunks-cache Pending.
+# (Đặt cả 2 kiểu key để tương thích nhiều phiên bản chart)
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+memcachedChunks:
+  enabled: false
+memcachedResults:
+  enabled: false
+
 # Các deployment mode khác = 0
 backend:
   replicas: 0
