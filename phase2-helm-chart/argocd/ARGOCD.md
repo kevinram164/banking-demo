@@ -8,8 +8,25 @@ Hướng dẫn triển khai chart **banking-demo** bằng ArgoCD theo cách chuy
 
 **Nếu postgres và redis vẫn không được tạo:**
 
+### Cách 1: Dùng script force deploy (Khuyến nghị - nhanh nhất)
+
 ```bash
-# Dùng script fix toàn bộ (khuyến nghị - fix tất cả vấn đề)
+# Script này đảm bảo namespace tồn tại và sync Applications
+chmod +x force-deploy-postgres-redis.sh
+./force-deploy-postgres-redis.sh
+```
+
+Script sẽ tự động:
+1. ✅ Kiểm tra và đợi namespace được tạo
+2. ✅ Kiểm tra secret được tạo
+3. ✅ Hard refresh postgres và redis Applications
+4. ✅ Kiểm tra resources được tạo
+5. ✅ Hiển thị trạng thái chi tiết
+
+### Cách 2: Dùng script fix toàn bộ (Nếu cách 1 không work)
+
+```bash
+# Dùng script fix toàn bộ (fix tất cả vấn đề)
 chmod +x fix-all-deploy-postgres-redis.sh
 ./fix-all-deploy-postgres-redis.sh
 
@@ -24,6 +41,22 @@ Script sẽ tự động:
 4. ✅ Sync namespace trước, đợi namespace được tạo
 5. ✅ Sync postgres và redis sau
 6. ✅ Hard refresh và kiểm tra manifests
+
+### Cách 3: Debug để tìm nguyên nhân
+
+```bash
+# Script debug chi tiết
+chmod +x check-postgres-redis-resources.sh
+./check-postgres-redis-resources.sh
+```
+
+Script sẽ kiểm tra:
+1. ✅ Namespace có tồn tại không
+2. ✅ Applications có tồn tại và sync không
+3. ✅ Merged values từ ArgoCD
+4. ✅ Helm template render local
+5. ✅ Resources trong cluster
+6. ✅ ArgoCD sync status chi tiết
 
 **Hoặc cleanup cơ bản:**
 
