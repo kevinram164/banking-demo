@@ -1,0 +1,65 @@
+<mxfile host="app.diagrams.net" modified="2026-01-28T00:00:00Z" agent="AI-Generated" version="22.1.0">
+  <diagram id="phase4-app-v2-simple" name="Phase4 App v2 - Simple">
+    <mxGraphModel dx="1000" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Layer 1: Client & Frontend -->
+        <mxCell id="client" value="Client Browser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="120" width="120" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="frontend" value="Frontend&#10;(React v2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="230" y="120" width="140" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Layer 2: API Gateway -->
+        <mxCell id="kong" value="Kong API Gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="410" y="120" width="170" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Layer 3: Backend services (grouped) -->
+        <mxCell id="backendGroup" value="Backend Services v2&#10;- Auth Service&#10;- Account Service&#10;- Transfer Service&#10;- Notification Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="620" y="80" width="220" height="130" as="geometry"/>
+        </mxCell>
+
+        <!-- Layer 4: Data stores -->
+        <mxCell id="postgres" value="Postgres DB&#10;(users, transfers, notifications)" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="640" y="250" width="160" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="redis" value="Redis&#10;(sessions, presence, notifications)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="830" y="230" width="190" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Optional: Common library note -->
+        <mxCell id="common" value="Common Library&#10;(/common: db, models, auth, redis_utils, observability)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="230" width="260" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" edge="1" parent="1" source="client" target="frontend" style="endArrow=block;strokeColor=#000000;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e2" edge="1" parent="1" source="frontend" target="kong" style="endArrow=block;strokeColor=#000000;labelBackgroundColor=#ffffff;" value="HTTP / WebSocket">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e3" edge="1" parent="1" source="kong" target="backendGroup" style="endArrow=block;strokeColor=#000000;labelBackgroundColor=#ffffff;" value="/api/* routes">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e4" edge="1" parent="1" source="backendGroup" target="postgres" style="endArrow=block;strokeColor=#000000;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e5" edge="1" parent="1" source="backendGroup" target="redis" style="endArrow=block;strokeColor=#000000;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
