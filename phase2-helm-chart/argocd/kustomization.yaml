@@ -1,0 +1,20 @@
+# Kustomize: apply tất cả Applications cùng lúc
+# Cách dùng: kubectl apply -k . -n argocd
+# Hoặc: kubectl kustomize . | kubectl apply -f - -n argocd
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  - project.yaml
+  - applications/infra.yaml
+  - applications/kong.yaml
+  - applications/auth-service.yaml
+  - applications/account-service.yaml
+  - applications/transfer-service.yaml
+  - applications/notification-service.yaml
+  - applications/frontend.yaml
+  - applications/ingress.yaml
+
+# Có thể thêm commonLabels, commonAnnotations nếu cần

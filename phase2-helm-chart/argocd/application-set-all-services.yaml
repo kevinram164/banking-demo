@@ -1,0 +1,120 @@
+# ApplicationSet: tự động tạo tất cả Applications cho banking-demo từ một file
+# Áp dụng: kubectl apply -f application-set-all-services.yaml -n argocd
+# Trước khi apply: sửa repoURL và targetRevision trong template
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: banking-demo-all-services
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - name: infra
+            release: banking-demo-infra
+            wave: "0"
+            valueFiles: "charts/common/values.yaml,charts/postgres/values.yaml,charts/redis/values.yaml"
+            enabledParams: "postgres.enabled=true,redis.enabled=true"
+          - name: kong
+            release: banking-demo-kong
+            wave: "1"
+            valueFiles: "charts/common/values.yaml,charts/kong/values.yaml"
+            enabledParams: "kong.enabled=true"
+          - name: auth-service
+            release: banking-demo-auth-service
+            wave: "2"
+            valueFiles: "charts/common/values.yaml,charts/auth-service/values.yaml"
+            enabledParams: "auth-service.enabled=true"
+          - name: account-service
+            release: banking-demo-account-service
+            wave: "2"
+            valueFiles: "charts/common/values.yaml,charts/account-service/values.yaml"
+            enabledParams: "account-service.enabled=true"
+          - name: transfer-service
+            release: banking-demo-transfer-service
+            wave: "2"
+            valueFiles: "charts/common/values.yaml,charts/transfer-service/values.yaml"
+            enabledParams: "transfer-service.enabled=true"
+          - name: notification-service
+            release: banking-demo-notification-service
+            wave: "2"
+            valueFiles: "charts/common/values.yaml,charts/notification-service/values.yaml"
+            enabledParams: "notification-service.enabled=true"
+          - name: frontend
+            release: banking-demo-frontend
+            wave: "3"
+            valueFiles: "charts/common/values.yaml,charts/frontend/values.yaml"
+            enabledParams: "frontend.enabled=true"
+          - name: ingress
+            release: banking-demo-ingress
+            wave: "4"
+            valueFiles: "charts/common/values.yaml"
+            enabledParams: "ingress.enabled=true"
+  template:
+    metadata:
+      name: '{{release}}'
+      labels:
+        app.kubernetes.io/name: banking-demo
+        app.kubernetes.io/component: '{{name}}'
+      annotations:
+        # Sync Waves: deploy theo thứ tự tự động
+        # Wave 0: infra → Wave 1: kong → Wave 2: microservices → Wave 3: frontend → Wave 4: ingress
+        argocd.argoproj.io/sync-wave: '{{wave}}'
+    spec:
+      project: banking-demo
+      source:
+        repoURL: https://github.com/kevinram164/banking-demo.git  # ← Đổi thành URL repo Git của bạn
+        targetRevision: main                                      # ← Branch hoặc tag
+        path: phase2-helm-chart/banking-demo
+        helm:
+          releaseName: '{{release}}'
+          valueFiles:
+            {{- range $file := .valueFiles | splitList "," }}
+            - {{ $file | trim }}
+            {{- end }}
+          parameters:
+            # Disable tất cả services trước
+            - name: postgres.enabled
+              value: "false"
+            - name: redis.enabled
+              value: "false"
+            - name: kong.enabled
+              value: "false"
+            - name: auth-service.enabled
+              value: "false"
+            - name: account-service.enabled
+              value: "false"
+            - name: transfer-service.enabled
+              value: "false"
+            - name: notification-service.enabled
+              value: "false"
+            - name: frontend.enabled
+              value: "false"
+            - name: ingress.enabled
+              value: "false"
+            # Enable service tương ứng
+            {{- range $param := .enabledParams | splitList "," }}
+            {{- $parts := $param | split "=" }}
+            - name: {{ index $parts 0 | trim }}
+              value: {{ index $parts 1 | trim | quote }}
+            {{- end }}
+            # Namespace và secret luôn enabled
+            - name: namespace.enabled
+              value: "true"
+            - name: secret.enabled
+              value: "true"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: banking
+      syncPolicy:
+        automated:
+          prune: false
+          selfHeal: false
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 1m

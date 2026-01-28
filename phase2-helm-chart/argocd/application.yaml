@@ -43,15 +43,18 @@ spec:
     server: https://kubernetes.default.svc
     namespace: banking
   syncPolicy:
+    # Tắt automated sync để tránh tự động xóa/tạo lại khi push commit
+    # Sync thủ công qua UI hoặc: argocd app sync banking-demo
     automated:
-      prune: true
-      selfHeal: true
+      prune: false      # Không tự động xóa resources
+      selfHeal: false   # Không tự động sửa drift
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
+      # Không dùng ServerSideApply để tránh conflict
+      # - ServerSideApply=true
     retry:
-      limit: 5
+      limit: 3
       backoff:
         duration: 5s
         factor: 2
-        maxDuration: 3m
+        maxDuration: 1m

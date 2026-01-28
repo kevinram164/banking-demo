@@ -1,0 +1,56 @@
+# Ingress Application
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banking-demo-ingress
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: banking-demo
+    app.kubernetes.io/component: ingress
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"  # Deploy cuối cùng (ingress)
+spec:
+  project: banking-demo
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: main
+    path: phase2-helm-chart/banking-demo
+    helm:
+      releaseName: banking-demo-ingress
+      valueFiles:
+        - charts/common/values.yaml
+      parameters:
+        - name: postgres.enabled
+          value: "false"
+        - name: redis.enabled
+          value: "false"
+        - name: kong.enabled
+          value: "false"
+        - name: auth-service.enabled
+          value: "false"
+        - name: account-service.enabled
+          value: "false"
+        - name: transfer-service.enabled
+          value: "false"
+        - name: notification-service.enabled
+          value: "false"
+        - name: frontend.enabled
+          value: "false"
+        - name: ingress.enabled
+          value: "true"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: banking
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
