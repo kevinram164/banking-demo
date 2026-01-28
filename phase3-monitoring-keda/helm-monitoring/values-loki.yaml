@@ -29,8 +29,9 @@ loki:
     type: filesystem
     filesystem:
       # Loki config expects `chunks_directory` / `rules_directory` (không phải `directory`)
-      chunks_directory: /loki/chunks
-      rules_directory: /loki/rules
+      # IMPORTANT: phải trỏ vào path được mount bởi PVC (chart thường mount vào /var/loki)
+      chunks_directory: /var/loki/chunks
+      rules_directory: /var/loki/rules
 
 deploymentMode: SingleBinary
 singleBinary:
@@ -44,6 +45,7 @@ singleBinary:
     storageClassName: nfs-client
     accessModes:
       - ReadWriteOnce
+    mountPath: /var/loki
 
 # Các deployment mode khác = 0
 backend:
