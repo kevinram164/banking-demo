@@ -32,6 +32,12 @@ spec:
         - charts/transfer-service/values.yaml
         - charts/notification-service/values.yaml
         - charts/frontend/values.yaml
+      parameters:
+        # Disable namespace và secret vì đã được tạo bởi namespace.yaml
+        - name: namespace.enabled
+          value: "false"
+        - name: secret.enabled
+          value: "false"
       # Cập nhật image / cấu hình: sửa trong charts/<service>/values.yaml hoặc charts/common/values.yaml
       # Override nhanh bằng parameters (tương đương --set), ví dụ:
       # parameters:
@@ -48,8 +54,8 @@ spec:
     automated:
       prune: false      # Không tự động xóa resources
       selfHeal: false   # Không tự động sửa drift
-    syncOptions:
-      - CreateNamespace=true
+    syncOptions: []
+      # Không dùng CreateNamespace=true vì namespace đã được tạo bởi namespace.yaml
       # Không dùng ServerSideApply để tránh conflict
       # - ServerSideApply=true
     retry:

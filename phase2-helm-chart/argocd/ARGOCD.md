@@ -831,18 +831,19 @@ chmod +x fix-namespace-pending-deletion.sh
 .\fix-namespace-pending-deletion.ps1
 ```
 
-**Cách 2: Xử lý thủ công**
+**Cách 2: Xử lý thủ công (không cần jq)**
 
 ```bash
-# Bước 1: Xóa finalizers để force delete namespace
+# Bước 1: Xóa finalizers bằng kubectl patch (đơn giản nhất)
+kubectl patch namespace banking -p '{"metadata":{"finalizers":[]}}' --type=merge
+
+# Hoặc dùng sed (nếu patch không work):
 kubectl get namespace banking -o json | \
-  jq '.spec.finalizers = []' | \
+  sed 's/"finalizers": \[[^]]*\]/"finalizers": []/' | \
   kubectl replace --raw /api/v1/namespaces/banking/finalize -f -
 
 # Hoặc dùng PowerShell:
-$ns = kubectl get namespace banking -o json | ConvertFrom-Json
-$ns.spec.finalizers = @()
-$ns | ConvertTo-Json -Depth 10 | kubectl replace --raw /api/v1/namespaces/banking/finalize -f -
+kubectl patch namespace banking -p '{\"metadata\":{\"finalizers\":[]}}' --type=merge
 
 # Bước 2: Đợi namespace bị xóa hoàn toàn
 kubectl get namespace banking --watch
@@ -852,11 +853,45 @@ kubectl apply -f applications/namespace.yaml -n argocd
 argocd app sync banking-demo-namespace
 ```
 
-**Cách 3: Force delete (nếu cách trên không work)**
+**Cách 2b: Dùng script đơn giản (không cần jq)**
+
+```bash
+# Script mới không cần jq
+chmod +x fix-namespace-pending-deletion-simple.sh
+./fix-namespace-pending-deletion-simple.sh banking
+```
+
+**Cách 3: Xóa secret có finalizers (nếu secret đang chặn)**
+
+Nếu secret `banking-db-secret` vẫn còn và không xóa được:
+
+```bash
+# Dùng script tự động
+chmod +x fix-secret-finalizers.sh
+./fix-secret-finalizers.sh banking banking-db-secret
+
+# Hoặc PowerShell
+.\fix-secret-finalizers.ps1 banking banking-db-secret
+
+# Hoặc thủ công
+# Bước 1: Xóa finalizers của secret
+kubectl patch secret banking-db-secret -n banking -p '{"metadata":{"finalizers":[]}}' --type=merge
+
+# Bước 2: Xóa secret
+kubectl delete secret banking-db-secret -n banking --force --grace-period=0
+
+# Bước 3: Xóa tất cả secrets trong namespace (nếu cần)
+kubectl delete secrets --all -n banking --force --grace-period=0
+```
+
+**Cách 4: Force delete tất cả resources (nếu cách trên không work)**
 
 ```bash
 # Xóa tất cả resources trong namespace trước
 kubectl delete all --all -n banking --force --grace-period=0
+kubectl delete secrets --all -n banking --force --grace-period=0
+kubectl delete configmaps --all -n banking --force --grace-period=0
+kubectl delete pvc --all -n banking --force --grace-period=0
 
 # Sau đó xóa namespace
 kubectl delete namespace banking --force --grace-period=0
@@ -1031,7 +1066,68 @@ kubectl get services -n banking | grep -E "postgres|redis"
 - Đảm bảo secret "banking-db-secret" đã được tạo trước (bởi `namespace.yaml`)
 - StorageClass "nfs-client" phải tồn tại trong cluster
 
-### 7.6. Các lỗi khác
+### 7.6. SharedResourceWarning - Namespace/Secret được quản lý bởi nhiều Applications
+
+**Triệu chứng:**
+- Warning: "Namespace/banking is part of applications argocd/banking-demo and banking-demo-frontend"
+- Warning: "Secret/banking-db-secret is part of applications argocd/banking-demo and banking-demo-frontend"
+- Postgres/Redis không deploy được
+
+**Nguyên nhân:**
+- Application `banking-demo` (từ `application.yaml`) đang deploy tất cả services và tạo namespace/secret
+- Trong khi `namespace.yaml` cũng tạo namespace/secret
+- Các Applications khác cũng deploy vào namespace `banking`
+- Gây conflict khi nhiều Applications cùng quản lý cùng một resource
+
+**Giải pháp:**
+
+**Cách 1: Xóa Application `banking-demo` (khuyến nghị)**
+
+Vì đã tách thành các Applications riêng (`namespace.yaml`, `postgres.yaml`, `redis.yaml`, etc.), không cần Application `banking-demo` nữa:
+
+```bash
+# Xóa Application banking-demo
+kubectl delete application banking-demo -n argocd --cascade=false
+
+# Hoặc nếu payload quá lớn
+kubectl patch application banking-demo -n argocd \
+  --type json \
+  -p='[{"op": "remove", "path": "/metadata/finalizers"}]'
+kubectl delete application banking-demo -n argocd --cascade=false
+```
+
+**Cách 2: Disable namespace/secret trong Application `banking-demo`**
+
+Nếu muốn giữ Application `banking-demo` để deploy tất cả cùng lúc:
+
+```bash
+# Apply file đã được sửa (đã disable namespace.enabled và secret.enabled)
+kubectl apply -f application.yaml -n argocd
+
+# Sync lại
+argocd app sync banking-demo
+```
+
+File `application.yaml` đã được cập nhật với:
+- `namespace.enabled: false` trong parameters
+- `secret.enabled: false` trong parameters
+- Bỏ `CreateNamespace=true` trong syncOptions
+
+**Cách 3: Đảm bảo chỉ `namespace.yaml` tạo namespace/secret**
+
+Kiểm tra tất cả Applications không có `namespace.enabled=true` hoặc `secret.enabled=true`:
+
+```bash
+# Kiểm tra Applications nào đang tạo namespace/secret
+kubectl get applications -n argocd -o yaml | grep -A 5 "namespace.enabled\|secret.enabled"
+```
+
+**Lưu ý:**
+- Chỉ Application `banking-demo-namespace` (từ `namespace.yaml`) nên tạo namespace và secret
+- Tất cả Applications khác nên có `namespace.enabled=false` và `secret.enabled=false` trong parameters
+- Application `banking-demo` (nếu còn dùng) cũng nên disable namespace/secret
+
+### 7.7. Các lỗi khác
 
 ### 7.1. Application không sync
 

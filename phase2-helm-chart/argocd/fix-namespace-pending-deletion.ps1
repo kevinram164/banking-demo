@@ -13,9 +13,21 @@ Write-Host ""
 
 # Bước 2: Xóa finalizers để force delete namespace
 Write-Host "📋 Step 2: Removing finalizers to force delete namespace..." -ForegroundColor Yellow
-$namespaceJson = kubectl get namespace $NAMESPACE -o json | ConvertFrom-Json
-$namespaceJson.spec.finalizers = @()
-$namespaceJson | ConvertTo-Json -Depth 10 | kubectl replace --raw "/api/v1/namespaces/$NAMESPACE/finalize" -f - 2>&1
+
+# Cách 1: Dùng kubectl patch (đơn giản nhất)
+kubectl patch namespace $NAMESPACE -p '{\"metadata\":{\"finalizers\":[]}}' --type=merge 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "⚠️  Không thể patch namespace (có thể đã bị xóa hoặc không có quyền)" -ForegroundColor Yellow
+}
+
+# Cách 2: Nếu cách 1 không work, dùng PowerShell JSON manipulation
+$exists = kubectl get namespace $NAMESPACE 2>&1
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "   Thử cách 2: dùng PowerShell JSON manipulation..." -ForegroundColor Yellow
+    $namespaceJson = kubectl get namespace $NAMESPACE -o json | ConvertFrom-Json
+    $namespaceJson.spec.finalizers = @()
+    $namespaceJson | ConvertTo-Json -Depth 10 | kubectl replace --raw "/api/v1/namespaces/$NAMESPACE/finalize" -f - 2>&1 | Out-Null
+}
 Write-Host ""
 
 # Bước 3: Đợi namespace bị xóa hoàn toàn
