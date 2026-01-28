@@ -16,9 +16,13 @@ tempo:
 
 # Bật metrics-generator để Grafana "Span rate / Service graph" không lỗi `empty ring`
 metricsGenerator:
+    enabled: true
+    remoteWriteUrl: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
+
+metrics_generator:
   enabled: true
-  # Đẩy metrics sang Prometheus (kube-prometheus-stack)
-  remoteWriteUrl: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
+  remote_write:
+    - url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
 
 # Storage: local (filesystem) — đủ cho dev/test
 # Production nên dùng S3/GCS/MinIO
