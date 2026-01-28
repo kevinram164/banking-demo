@@ -1,0 +1,59 @@
+# Loki — monolithic single replica (Grafana Loki Helm chart)
+# Chart: grafana/loki
+# Chỉnh persistence, MinIO, hoặc object storage khác nếu cần.
+
+loki:
+  commonConfig:
+    replication_factor: 1
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  pattern_ingester:
+    enabled: true
+  limits_config:
+    allow_structured_metadata: true
+  volume_enabled: true
+  ruler:
+    enable_api: true
+  minio:
+    enabled: true
+
+deploymentMode: SingleBinary
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 10Gi
+    # storageClassName: nfs-client  # bật nếu dùng NFS
+
+# Các deployment mode khác = 0
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+ingester:
+  replicas: 0
+querier:
+  replicas: 0
+queryFrontend:
+  replicas: 0
+queryScheduler:
+  replicas: 0
+distributor:
+  replicas: 0
+compactor:
+  replicas: 0
+indexGateway:
+  replicas: 0
+bloomCompactor:
+  replicas: 0
+bloomGateway:
+  replicas: 0

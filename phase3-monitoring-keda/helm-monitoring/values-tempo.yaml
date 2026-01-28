@@ -1,0 +1,45 @@
+# Grafana Tempo — tracing backend nhẹ, tích hợp tốt với Grafana
+# Chart: grafana/tempo
+# Nhận OTLP trực tiếp hoặc qua OTEL Collector
+
+tempo:
+  # OTLP receiver — app/OTel Collector gửi traces về đây
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  # Giữ trace trong 24h (có thể tăng)
+  retention: 24h
+
+# Storage: local (filesystem) — đủ cho dev/test
+# Production nên dùng S3/GCS/MinIO
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal
+
+# Persistence — bật để giữ traces khi pod restart
+persistence:
+  enabled: true
+  size: 5Gi
+  # storageClassName: nfs-client  # bật nếu dùng NFS
+
+# Resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Service ports (default)
+# - 3100: HTTP API (Grafana datasource)
+# - 4317: OTLP gRPC
+# - 4318: OTLP HTTP

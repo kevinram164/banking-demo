@@ -1,0 +1,64 @@
+# Kube Prometheus Stack — Prometheus + Grafana (+ Alertmanager, operator)
+# Helm chart: prometheus-community/kube-prometheus-stack
+# Chỉnh namespace, additionalScrapeConfigs (banking), Grafana datasources (Loki, Tempo).
+
+namespaceOverride: monitoring
+
+# Prometheus: thêm scrape config cho banking services (KEDA dùng job name)
+prometheus:
+  prometheusSpec:
+    additionalScrapeConfigs:
+      - job_name: auth-service
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['auth-service.banking.svc.cluster.local:8001']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: auth-service
+      - job_name: account-service
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['account-service.banking.svc.cluster.local:8002']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: account-service
+      - job_name: transfer-service
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['transfer-service.banking.svc.cluster.local:8003']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: transfer-service
+      - job_name: notification-service
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['notification-service.banking.svc.cluster.local:8004']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: notification-service
+
+# Grafana: datasources Loki + Tempo (sửa URL nếu release name khác)
+grafana:
+  adminPassword: admin
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki-gateway.monitoring.svc.cluster.local
+      access: proxy
+      isDefault: false
+    - name: Tempo
+      type: tempo
+      url: http://tempo.monitoring.svc.cluster.local:3100
+      access: proxy
+      isDefault: false
+
+# Tùy chọn: Ingress cho Grafana (bật nếu cần, đổi host)
+#  ingress:
+#    enabled: true
+#    ingressClassName: nginx
+#    hosts:
+#      - grafana.npd-banking.co

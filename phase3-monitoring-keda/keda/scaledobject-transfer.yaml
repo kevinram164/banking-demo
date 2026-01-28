@@ -1,0 +1,19 @@
+# KEDA ScaledObject — transfer-service (Prometheus RPS)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: transfer-service-scaler
+  namespace: banking
+spec:
+  scaleTargetRef:
+    name: transfer-service
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  cooldownPeriod: 120
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+        query: sum(rate(http_requests_total{job="transfer-service"}[2m]))
+        threshold: "5"
+        activationThreshold: "1"

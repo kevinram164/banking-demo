@@ -1,0 +1,19 @@
+# Promtail — log shipper gửi log pod tới Loki
+# Chart: grafana/promtail
+# Chỉnh config.clients (Loki URL) nếu release/namespace Loki khác.
+
+config:
+  clients:
+    - url: http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push
+  snippets:
+    pipelineStages:
+      - cri: {}
+      - multiline:
+          firstline: '^\d{4}-\d{2}-\d{2}'
+          max_wait_time: 3s
+
+# DaemonSet chạy trên mọi node
+daemonset:
+  enabled: true
+
+# Nếu Loki đặt namespace/release khác, sửa URL cho đúng (vd. kubectl get svc -n monitoring)
