@@ -28,7 +28,9 @@ loki:
   storage:
     type: filesystem
     filesystem:
-      directory: /loki/chunks
+      # Loki config expects `chunks_directory` / `rules_directory` (không phải `directory`)
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
 
 deploymentMode: SingleBinary
 singleBinary:
