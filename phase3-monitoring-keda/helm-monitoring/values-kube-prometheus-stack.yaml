@@ -44,6 +44,15 @@ prometheus:
 # Grafana: datasources Loki + Tempo (sửa URL nếu release name khác)
 grafana:
   adminPassword: admin
+  # Persistence: PVC để lưu password admin, dashboards, datasources, users
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: "nfs-client"  # Sử dụng default StorageClass của cluster
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+    # annotations: {}  # Thêm annotations nếu cần
   additionalDataSources:
     - name: Loki
       type: loki

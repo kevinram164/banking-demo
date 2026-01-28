@@ -9,7 +9,7 @@ loki:
     configs:
       - from: "2024-04-01"
         store: tsdb
-        object_store: s3
+        object_store: filesystem  # Dùng filesystem thay vì S3 cho local deployment
         schema: v13
         index:
           prefix: loki_index_
@@ -21,8 +21,14 @@ loki:
   volume_enabled: true
   ruler:
     enable_api: true
+  # MinIO disabled - dùng filesystem storage với PVC
   minio:
-    enabled: true
+    enabled: false
+  # Storage config cho filesystem
+  storage:
+    type: filesystem
+    filesystem:
+      directory: /loki/chunks
 
 deploymentMode: SingleBinary
 singleBinary:
