@@ -65,7 +65,11 @@ class RegisterReq(BaseModel):
     password: str = Field(min_length=6, max_length=128)
 
 class LoginReq(BaseModel):
-    phone: str = Field(min_length=8, max_length=20)
+    # backward-compatible:
+    # - v2: phone
+    # - v1: username
+    phone: str | None = Field(default=None, min_length=8, max_length=20)
+    username: str | None = Field(default=None, min_length=2, max_length=50)
     password: str = Field(min_length=6, max_length=128)
 
 @app.post("/register")
@@ -111,8 +115,19 @@ async def register(body: RegisterReq, db: Session = Depends(get_db)):
 @app.post("/login")
 async def login(body: LoginReq, db: Session = Depends(get_db)):
     """Login and create session"""
-    phone = body.phone.strip()
-    u = db.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
+    phone = (body.phone or "").strip()
+    username = (body.username or "").strip()
+
+    if phone:
+        if not phone.isdigit():
+            raise HTTPException(400, "Phone must be digits only")
+        u = db.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
+    elif username:
+        # Support old clients temporarily (v1 login payload)
+        u = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+    else:
+        raise HTTPException(400, "Missing phone/username")
+
     if not u or not verify_password(body.password, u.password_hash):
         raise HTTPException(401, "Invalid credentials")
 

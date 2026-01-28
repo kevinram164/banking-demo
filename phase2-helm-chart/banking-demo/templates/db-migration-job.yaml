@@ -1,0 +1,126 @@
+{{- /*
+DB migration hook job (Phase 4 v2).
+Runs before install/upgrade to keep schema compatible with new app version.
+
+Supports:
+- internal Postgres (default): host = <postgres fullname>
+- external Postgres: host/port/db/user/password from .Values.externalPostgres or existing Secret
+*/ -}}
+{{- if .Values.dbMigration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-db-migration-v2
+  namespace: {{ include "banking-demo.namespace" . }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: {{ .Values.dbMigration.hookWeight | quote }}
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    {{- include "banking-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+spec:
+  backoffLimit: {{ .Values.dbMigration.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.dbMigration.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "banking-demo.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: {{ .Values.dbMigration.image | quote }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "=== DB migration v2: add phone + account_number ==="
+
+              export PGHOST="${POSTGRES_HOST}"
+              export PGPORT="${POSTGRES_PORT}"
+              export PGDATABASE="${POSTGRES_DB}"
+              export PGUSER="${POSTGRES_USER}"
+              export PGPASSWORD="${POSTGRES_PASSWORD}"
+
+              # Quick connect check (fail fast)
+              psql -c "select 1" >/dev/null
+
+              # Migration (expand/backfill/index)
+              psql <<'SQL'
+              -- Expand: add columns nullable
+              ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+              ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number VARCHAR(20);
+
+              -- Backfill account_number for existing users (12 digits)
+              DO $$
+              DECLARE
+                r RECORD;
+                candidate TEXT;
+                attempts INT;
+                max_attempts INT := 200;
+              BEGIN
+                FOR r IN SELECT id FROM users WHERE account_number IS NULL LOOP
+                  attempts := 0;
+                  LOOP
+                    candidate := lpad((floor(random()*1e12))::bigint::text, 12, '0');
+                    EXIT WHEN NOT EXISTS (SELECT 1 FROM users WHERE account_number = candidate);
+                    attempts := attempts + 1;
+                    IF attempts >= max_attempts THEN
+                      RAISE EXCEPTION 'Cannot generate unique account_number after % attempts', max_attempts;
+                    END IF;
+                  END LOOP;
+                  UPDATE users SET account_number = candidate WHERE id = r.id;
+                END LOOP;
+              END $$;
+
+              -- Unique indexes (partial so NULL is allowed during transition)
+              CREATE UNIQUE INDEX IF NOT EXISTS users_account_number_uq
+              ON users(account_number)
+              WHERE account_number IS NOT NULL;
+
+              CREATE UNIQUE INDEX IF NOT EXISTS users_phone_uq
+              ON users(phone)
+              WHERE phone IS NOT NULL;
+
+              -- Verify duplicates (hard fail)
+              DO $$
+              DECLARE dup_count INT;
+              BEGIN
+                SELECT COUNT(*) INTO dup_count FROM (
+                  SELECT account_number, COUNT(*) c
+                  FROM users
+                  WHERE account_number IS NOT NULL
+                  GROUP BY account_number
+                  HAVING COUNT(*) > 1
+                ) t;
+                IF dup_count > 0 THEN
+                  RAISE EXCEPTION 'Found % duplicate account_number values', dup_count;
+                END IF;
+              END $$;
+
+              SELECT 'ok' AS status;
+              SQL
+
+              echo "✅ Migration done."
+          env:
+            - name: POSTGRES_HOST
+              value: {{- if .Values.externalPostgres.enabled -}}{{ .Values.externalPostgres.host | quote }}{{- else -}}{{ include "banking-demo.postgres.fullname" . | quote }}{{- end }}
+            - name: POSTGRES_PORT
+              value: {{- if .Values.externalPostgres.enabled -}}{{ .Values.externalPostgres.port | quote }}{{- else -}}{{ .Values.postgres.service.port | quote }}{{- end }}
+            - name: POSTGRES_DB
+              value: {{- if .Values.externalPostgres.enabled -}}{{ .Values.externalPostgres.db | quote }}{{- else -}}{{ .Values.secret.postgresDb | quote }}{{- end }}
+            - name: POSTGRES_USER
+              value: {{- if .Values.externalPostgres.enabled -}}{{ .Values.externalPostgres.user | quote }}{{- else -}}{{ .Values.secret.postgresUser | quote }}{{- end }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "banking-demo.secretName" . }}
+                  key: POSTGRES_PASSWORD
+          resources:
+            {{- toYaml .Values.dbMigration.resources | nindent 12 }}
+{{- end }}
+

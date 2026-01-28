@@ -65,6 +65,23 @@ kong:
     - Content-Type
     - Date
     - X-Session
+
+  # Extra plugins applied per-service (in addition to cors).
+  # Common choices for real-world:
+  # - rate-limiting
+  # - request-size-limiting
+  # - correlation-id
+  extraPlugins: []
+
+  # Example (enable by copying into values):
+  # extraPlugins:
+  #   - name: rate-limiting
+  #     config:
+  #       minute: 300
+  #       policy: local
+  #   - name: request-size-limiting
+  #     config:
+  #       allowed_payload_size: 10  # MB
   readinessProbe:
     enabled: true
     command: ["kong", "health"]

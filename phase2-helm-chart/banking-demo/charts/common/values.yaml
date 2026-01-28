@@ -18,6 +18,47 @@ secret:
   databaseUrl: "postgresql://banking:bankingpass@postgres:5432/banking"
   redisUrl: "redis://redis:6379/0"
 
+## Phase 4 v2 - DB migration hook (runs as Helm pre-install/pre-upgrade Job)
+dbMigration:
+  enabled: false
+  image: "postgres:15-alpine"   # contains psql
+  hookWeight: "-10"
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# External Postgres support (DB outside the cluster).
+# Password is still read from the existing Secret key POSTGRES_PASSWORD.
+externalPostgres:
+  enabled: false
+  host: "db.example.local"
+  port: "5432"
+  db: "banking"
+  user: "banking"
+
+## Smoke-test Job hook (post-install/post-upgrade)
+smokeTest:
+  enabled: false
+  image: "curlimages/curl:8.11.0"
+  hookWeight: "10"
+  backoffLimit: 1
+  activeDeadlineSeconds: 120
+  authUser: "smoke-user"
+  authPassword: "smoke-pass"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
 ingress:
   enabled: true
   className: haproxy

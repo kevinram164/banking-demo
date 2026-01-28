@@ -14,14 +14,16 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install backend deps (common)
+      - name: Install backend deps (common + test)
         run: |
           python -m pip install --upgrade pip
           pip install -r common/requirements.txt
+          pip install -r phase4-application-v2/requirements-dev.txt
 
-      - name: Syntax check (v1 + v2)
+      - name: Syntax check (v1 + v2) + tests (v2)
         run: |
           python -m compileall common services phase4-application-v2/common phase4-application-v2/services
+          pytest -q phase4-application-v2/tests
 
   frontend-build:
     runs-on: ubuntu-latest
@@ -35,12 +37,12 @@ jobs:
       - name: Install + build (v1)
         working-directory: frontend
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Install + build (v2)
         working-directory: phase4-application-v2/frontend
         run: |
-          npm install
+          npm ci
           npm run build
 

@@ -45,5 +45,14 @@ data:
               {{- range $.Values.kong.corsHeaders }}
                 - {{ . }}
               {{- end }}
+          {{- if $.Values.kong.extraPlugins }}
+          {{- range $.Values.kong.extraPlugins }}
+          - name: {{ .name }}
+            {{- if .config }}
+            config:
+              {{- toYaml .config | nindent 14 }}
+            {{- end }}
+          {{- end }}
+          {{- end }}
     {{- end }}
 {{- end }}

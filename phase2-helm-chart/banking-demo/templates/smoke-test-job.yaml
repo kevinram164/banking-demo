@@ -1,0 +1,93 @@
+{{- /*
+Smoke-test Job hook (Phase 2) — verify app basics after deploy.
+Runs small HTTP checks through Kong after install/upgrade.
+*/ -}}
+{{- if .Values.smokeTest.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-smoke-test
+  namespace: {{ include "banking-demo.namespace" . }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: {{ .Values.smokeTest.hookWeight | quote }}
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    {{- include "banking-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: smoke-test
+spec:
+  backoffLimit: {{ .Values.smokeTest.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.smokeTest.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "banking-demo.labels" . | nindent 8 }}
+        app.kubernetes.io/component: smoke-test
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: smoke
+          image: {{ .Values.smokeTest.image | quote }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              BASE="http://${KONG_HOST}:${KONG_PORT}"
+              echo "=== Smoke test via $BASE ==="
+
+              # 1) Health checks (nhanh, phát hiện pod chưa ready)
+              endpoints="/api/auth/health /api/account/health /api/transfer/health /api/notifications/health"
+
+              for p in $endpoints; do
+                url="$BASE$p"
+                echo "GET $url"
+                curl -sf "$url" >/dev/null
+              done
+
+              # 2) Auth flow: register (idempotent) + login với user test
+              USER="${SMOKE_USER:-smoke-user}"
+              PASS="${SMOKE_PASS:-smoke-pass}"
+
+              echo "=== Smoke auth flow with user=$USER ==="
+
+              reg_code=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST "$BASE/api/auth/register" \
+                -H 'Content-Type: application/json' \
+                -d "{\"username\":\"$USER\",\"password\":\"$PASS\"}")
+
+              case "$reg_code" in
+                200|201|409)
+                  echo "register ok (code $reg_code)"
+                  ;;
+                *)
+                  echo "register failed (code $reg_code)" >&2
+                  exit 1
+                  ;;
+              esac
+
+              login_code=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST "$BASE/api/auth/login" \
+                -H 'Content-Type: application/json' \
+                -d "{\"username\":\"$USER\",\"password\":\"$PASS\"}")
+
+              if [ "$login_code" != "200" ]; then
+                echo "login failed (code $login_code)" >&2
+                exit 1
+              fi
+
+              echo "✅ Smoke tests (health + login) passed."
+          env:
+            - name: KONG_HOST
+              value: {{ include "banking-demo.kong.fullname" . | quote }}
+            - name: KONG_PORT
+              value: {{ .Values.kong.proxyPort | quote }}
+            - name: SMOKE_USER
+              value: {{ .Values.smokeTest.authUser | quote }}
+            - name: SMOKE_PASS
+              value: {{ .Values.smokeTest.authPassword | quote }}
+          resources:
+            {{- toYaml .Values.smokeTest.resources | nindent 12 }}
+{{- end }}
+

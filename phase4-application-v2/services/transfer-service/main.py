@@ -45,7 +45,11 @@ def get_db():
         db.close()
 
 class TransferReq(BaseModel):
-    to_account_number: str = Field(min_length=6, max_length=30)
+    # backward-compatible:
+    # - v2: to_account_number
+    # - v1: to_username
+    to_account_number: str | None = Field(default=None, min_length=6, max_length=30)
+    to_username: str | None = Field(default=None, min_length=2, max_length=50)
     amount: int
 
 @app.post("/transfer")
@@ -57,7 +61,10 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
         raise HTTPException(400, "Amount must be > 0")
 
     to_acct = (body.to_account_number or "").strip()
-    if not to_acct.isdigit():
+    to_username = (body.to_username or "").strip()
+    if not to_acct and not to_username:
+        raise HTTPException(400, "Missing to_account_number/to_username")
+    if to_acct and not to_acct.isdigit():
         raise HTTPException(400, "to_account_number must be digits only")
 
     # Use SELECT FOR UPDATE to prevent race conditions
@@ -67,9 +74,15 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
     if not sender:
         raise HTTPException(404, "Sender not found")
 
-    receiver = db.execute(
-        select(User).where(User.account_number == to_acct).with_for_update()
-    ).scalar_one_or_none()
+    if to_acct:
+        receiver = db.execute(
+            select(User).where(User.account_number == to_acct).with_for_update()
+        ).scalar_one_or_none()
+    else:
+        # Support old clients temporarily (v1 transfer payload)
+        receiver = db.execute(
+            select(User).where(User.username == to_username).with_for_update()
+        ).scalar_one_or_none()
     if not receiver:
         raise HTTPException(404, "Receiver not found")
 
