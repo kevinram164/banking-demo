@@ -36,7 +36,12 @@ singleBinary:
   persistence:
     enabled: true
     size: 10Gi
-    storageClassName: nfs-client  # bật nếu dùng NFS
+    # IMPORTANT: chart grafana/loki thường dùng key `storageClass` (không phải `storageClassName`)
+    # Nếu cluster có default StorageClass thì có thể để trống.
+    storageClass: nfs-client
+    storageClassName: nfs-client
+    accessModes:
+      - ReadWriteOnce
 
 # Các deployment mode khác = 0
 backend:
