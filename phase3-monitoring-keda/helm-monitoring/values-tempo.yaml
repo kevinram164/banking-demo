@@ -28,7 +28,11 @@ storage:
 persistence:
   enabled: true
   size: 5Gi
-  # storageClassName: nfs-client  # bật nếu dùng NFS
+  storageClass: nfs-client  # bật nếu dùng NFS
+  storageClassName: nfs-client
+  accessModes:
+    - ReadWriteOnce
+  mountPath: /var/tempo
 
 # Resources
 resources:

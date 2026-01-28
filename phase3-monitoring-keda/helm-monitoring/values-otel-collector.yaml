@@ -6,6 +6,11 @@ namespaceOverride: monitoring
 mode: deployment
 replicaCount: 1
 
+# Chart mới yêu cầu set image.repository (bắt buộc)
+image:
+  repository: otel/opentelemetry-collector-contrib
+  # tag: "0.102.0"  # optional: pin version nếu muốn
+
 # Config: OTLP in → Tempo exporter (health_check bắt buộc cho probe)
 config:
   extensions:
