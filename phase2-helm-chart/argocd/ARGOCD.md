@@ -767,6 +767,7 @@ Chart banking-demo dùng Helm hooks (namespace, secret, postgres/redis trước)
 | **Sync tất cả Applications** | `argocd app sync -l app.kubernetes.io/name=banking-demo` |
 | **Hard refresh (bỏ cache Git)** | `argocd app get banking-demo-namespace --refresh` hoặc UI Refresh |
 | **Xóa một Application** | `kubectl delete application banking-demo-namespace -n argocd` |
+| **Xóa Application (payload lớn)** | `kubectl delete application <app-name> -n argocd --cascade=false` hoặc dùng script `delete-application-large-payload.sh` |
 | **Xem pods** | `kubectl get pods -n banking` |
 | **Xem logs một service** | `kubectl logs -n banking <pod-name>` |
 
@@ -892,7 +893,145 @@ argocd app sync banking-demo-redis
 argocd app sync -l app.kubernetes.io/name=banking-demo
 ```
 
-### 7.4. Các lỗi khác
+### 7.4. Lỗi "Payload Too Large" khi xóa Application
+
+**Triệu chứng:**
+- Lỗi "Unable to delete application: Payload Too Large" khi xóa Application qua UI
+- Application có quá nhiều resources hoặc history
+
+**Nguyên nhân:**
+- Application quản lý quá nhiều resources
+- ArgoCD UI có giới hạn payload size khi gửi request xóa
+
+**Giải pháp:**
+
+**Cách 1: Xóa qua CLI (khuyến nghị)**
+
+```bash
+# Linux/Mac
+chmod +x delete-application-large-payload.sh
+./delete-application-large-payload.sh banking-demo-infra
+
+# Windows PowerShell
+.\delete-application-large-payload.ps1 banking-demo-infra
+```
+
+**Cách 2: Xóa thủ công qua CLI**
+
+```bash
+# Xóa finalizers trước
+kubectl patch application banking-demo-infra -n argocd \
+  --type json \
+  -p='[{"op": "remove", "path": "/metadata/finalizers"}]'
+
+# Xóa Application với cascade=false (không xóa resources)
+kubectl delete application banking-demo-infra -n argocd --cascade=false
+
+# Hoặc xóa hoàn toàn (bao gồm resources)
+kubectl delete application banking-demo-infra -n argocd
+```
+
+**Cách 3: Xóa Application cũ và tạo lại với file mới**
+
+Vì `banking-demo-infra` đã được tách thành `namespace.yaml`, `postgres.yaml`, `redis.yaml`:
+
+```bash
+# Xóa Application cũ
+kubectl delete application banking-demo-infra -n argocd --cascade=false
+
+# Deploy các file mới
+kubectl apply -f applications/namespace.yaml -n argocd
+kubectl apply -f applications/postgres.yaml -n argocd
+kubectl apply -f applications/redis.yaml -n argocd
+
+# Sync
+argocd app sync banking-demo-namespace
+argocd app sync banking-demo-postgres
+argocd app sync banking-demo-redis
+```
+
+**Lưu ý:** 
+- `--cascade=false` chỉ xóa Application, không xóa resources trong cluster
+- Nếu muốn xóa cả resources, bỏ `--cascade=false` hoặc xóa resources thủ công trước
+
+### 7.5. Postgres/Redis không hiển thị resources
+
+**Triệu chứng:**
+- Application `banking-demo-postgres` và `banking-demo-redis` hiển thị "Healthy" và "Synced"
+- Nhưng không có Kubernetes resources (Pod, StatefulSet, Service) được tạo ra
+- Application Details Tree chỉ hiển thị Application node, không có resources con
+
+**Nguyên nhân:**
+- ArgoCD không render Helm templates đúng cách
+- Values không được merge đúng giữa valueFiles và parameters
+- Application cần hard refresh để reload templates
+
+**Giải pháp:**
+
+**Cách 1: Hard refresh và sync lại (thử trước)**
+
+```bash
+# Hard refresh Application để reload templates
+argocd app get banking-demo-postgres --refresh
+argocd app get banking-demo-redis --refresh
+
+# Sync lại
+argocd app sync banking-demo-postgres
+argocd app sync banking-demo-redis
+```
+
+**Cách 2: Xem rendered templates**
+
+```bash
+# Xem templates được render như thế nào
+argocd app manifests banking-demo-postgres
+
+# Kiểm tra xem có resources nào được render không
+argocd app manifests banking-demo-postgres | grep -E "kind:|name:"
+```
+
+**Cách 3: Xóa và tạo lại Application**
+
+```bash
+# Xóa Application cũ
+kubectl delete application banking-demo-postgres -n argocd --cascade=false
+kubectl delete application banking-demo-redis -n argocd --cascade=false
+
+# Apply lại
+kubectl apply -f applications/postgres.yaml -n argocd
+kubectl apply -f applications/redis.yaml -n argocd
+
+# Sync
+argocd app sync banking-demo-postgres
+argocd app sync banking-demo-redis
+```
+
+**Cách 4: Kiểm tra values được merge**
+
+```bash
+# Xem values được merge
+argocd app get banking-demo-postgres -o yaml | grep -A 20 "helm:"
+```
+
+**Kiểm tra sau khi fix:**
+
+```bash
+# Kiểm tra pods
+kubectl get pods -n banking | grep -E "postgres|redis"
+
+# Kiểm tra statefulsets
+kubectl get statefulsets -n banking
+
+# Kiểm tra services
+kubectl get services -n banking | grep -E "postgres|redis"
+```
+
+**Lưu ý:**
+- Đảm bảo namespace "banking" đã được tạo trước (bởi `namespace.yaml`)
+- Đảm bảo secret "banking-db-secret" đã được tạo trước (bởi `namespace.yaml`)
+- StorageClass "nfs-client" phải tồn tại trong cluster
+
+### 7.6. Các lỗi khác
 
 ### 7.1. Application không sync
 

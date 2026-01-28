@@ -22,12 +22,11 @@ spec:
         - charts/common/values.yaml
         - charts/postgres/values.yaml
       parameters:
+        # Disable các services khác
         - name: namespace.enabled
           value: "false"  # Namespace đã được tạo bởi namespace.yaml
         - name: secret.enabled
           value: "false"  # Secret đã được tạo bởi namespace.yaml
-        - name: postgres.enabled
-          value: "true"
         - name: redis.enabled
           value: "false"
         - name: kong.enabled
@@ -44,6 +43,7 @@ spec:
           value: "false"
         - name: ingress.enabled
           value: "false"
+        # postgres.enabled đã có trong charts/postgres/values.yaml, không cần override
   destination:
     server: https://kubernetes.default.svc
     namespace: banking
