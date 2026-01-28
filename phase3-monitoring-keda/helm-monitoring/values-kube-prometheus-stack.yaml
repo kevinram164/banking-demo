@@ -7,6 +7,8 @@ namespaceOverride: monitoring
 # Prometheus: thêm scrape config cho banking services (KEDA dùng job name)
 prometheus:
   prometheusSpec:
+    # Cho phép Tempo metrics-generator remote_write vào Prometheus
+    enableRemoteWriteReceiver: true
     additionalScrapeConfigs:
       - job_name: auth-service
         metrics_path: /metrics

@@ -14,6 +14,12 @@ tempo:
   # Giữ trace trong 24h (có thể tăng)
   retention: 24h
 
+# Bật metrics-generator để Grafana "Span rate / Service graph" không lỗi `empty ring`
+metricsGenerator:
+  enabled: true
+  # Đẩy metrics sang Prometheus (kube-prometheus-stack)
+  remoteWriteUrl: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
+
 # Storage: local (filesystem) — đủ cho dev/test
 # Production nên dùng S3/GCS/MinIO
 storage:
