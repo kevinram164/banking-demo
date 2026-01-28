@@ -22,6 +22,11 @@ spec:
         - charts/common/values.yaml
         - charts/notification-service/values.yaml
       parameters:
+        # QUAN TRỌNG: Disable namespace và secret để tránh conflict
+        - name: namespace.enabled
+          value: "false"  # Namespace đã được tạo bởi namespace.yaml
+        - name: secret.enabled
+          value: "false"  # Secret đã được tạo bởi namespace.yaml
         - name: postgres.enabled
           value: "false"
         - name: redis.enabled

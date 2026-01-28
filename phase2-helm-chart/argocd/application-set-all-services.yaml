@@ -102,13 +102,7 @@ spec:
               value: "false"
             - name: ingress.enabled
               value: "false"
-            # Enable service tương ứng
-            {{- range $param := .enabledParams | splitList "," }}
-            {{- $parts := $param | split "=" }}
-            - name: {{ index $parts 0 | trim }}
-              value: {{ index $parts 1 | trim | quote }}
-            {{- end }}
-            # Namespace và secret chỉ enabled cho namespace application
+            # QUAN TRỌNG: Disable namespace và secret cho tất cả (trừ namespace application)
             {{- if eq .name "namespace" }}
             - name: namespace.enabled
               value: "true"
@@ -116,9 +110,15 @@ spec:
               value: "true"
             {{- else }}
             - name: namespace.enabled
-              value: "false"
+              value: "false"  # Tránh conflict - chỉ namespace.yaml tạo namespace
             - name: secret.enabled
-              value: "false"
+              value: "false"  # Tránh conflict - chỉ namespace.yaml tạo secret
+            {{- end }}
+            # Enable service tương ứng
+            {{- range $param := .enabledParams | splitList "," }}
+            {{- $parts := $param | split "=" }}
+            - name: {{ index $parts 0 | trim }}
+              value: {{ index $parts 1 | trim | quote }}
             {{- end }}
       destination:
         server: https://kubernetes.default.svc

@@ -4,12 +4,31 @@ Hướng dẫn triển khai chart **banking-demo** bằng ArgoCD theo cách chuy
 
 ---
 
-## ⚠️ QUAN TRỌNG: Cleanup trước khi deploy
+## ⚠️ QUAN TRỌNG: Fix toàn bộ nếu postgres/redis không deploy được
 
-**Nếu namespace "banking" cứ tạo ra là mất hoặc Application không deploy được:**
+**Nếu postgres và redis vẫn không được tạo:**
 
 ```bash
-# Dùng script cleanup tự động (khuyến nghị)
+# Dùng script fix toàn bộ (khuyến nghị - fix tất cả vấn đề)
+chmod +x fix-all-deploy-postgres-redis.sh
+./fix-all-deploy-postgres-redis.sh
+
+# Hoặc PowerShell
+.\fix-all-deploy-postgres-redis.ps1
+```
+
+Script sẽ tự động:
+1. ✅ Xóa Applications cũ gây conflict
+2. ✅ Xóa namespace stuck (nếu có)
+3. ✅ Deploy lại Project và Applications
+4. ✅ Sync namespace trước, đợi namespace được tạo
+5. ✅ Sync postgres và redis sau
+6. ✅ Hard refresh và kiểm tra manifests
+
+**Hoặc cleanup cơ bản:**
+
+```bash
+# Dùng script cleanup tự động
 chmod +x cleanup-and-fix.sh
 ./cleanup-and-fix.sh
 
@@ -1188,63 +1207,83 @@ argocd app manifests banking-demo-redis | grep -E "kind:|name:"
 ### 7.6. SharedResourceWarning - Namespace/Secret được quản lý bởi nhiều Applications
 
 **Triệu chứng:**
-- Warning: "Namespace/banking is part of applications argocd/banking-demo and banking-demo-frontend"
-- Warning: "Secret/banking-db-secret is part of applications argocd/banking-demo and banking-demo-frontend"
+- Warning: "Namespace/banking is part of applications argocd/banking-demo-namespace and banking-demo-notification-service"
+- Warning: "Secret/banking-db-secret is part of applications argocd/banking-demo-namespace and banking-demo-auth-service"
+- Namespace cứ tạo ra là mất
 - Postgres/Redis không deploy được
 
 **Nguyên nhân:**
-- Application `banking-demo` (từ `application.yaml`) đang deploy tất cả services và tạo namespace/secret
-- Trong khi `namespace.yaml` cũng tạo namespace/secret
-- Các Applications khác cũng deploy vào namespace `banking`
+- `charts/common/values.yaml` có `namespace.enabled: true` và `secret.enabled: true`
+- Khi các Applications khác dùng `charts/common/values.yaml`, Helm sẽ render namespace và secret từ templates
 - Gây conflict khi nhiều Applications cùng quản lý cùng một resource
 
-**Giải pháp:**
+**Giải pháp (ĐÃ FIX):**
 
-**Cách 1: Xóa Application `banking-demo` (khuyến nghị)**
+**✅ Tất cả Applications đã được cập nhật với `namespace.enabled=false` và `secret.enabled=false`**
 
-Vì đã tách thành các Applications riêng (`namespace.yaml`, `postgres.yaml`, `redis.yaml`, etc.), không cần Application `banking-demo` nữa:
+Các file sau đã được fix:
+- `applications/auth-service.yaml`
+- `applications/notification-service.yaml`
+- `applications/account-service.yaml`
+- `applications/transfer-service.yaml`
+- `applications/kong.yaml`
+- `applications/frontend.yaml`
+- `applications/ingress.yaml`
+- `applications/postgres.yaml`
+- `applications/redis.yaml`
+
+**Nếu vẫn có SharedResourceWarning sau khi commit:**
 
 ```bash
-# Xóa Application banking-demo
-kubectl delete application banking-demo -n argocd --cascade=false
-
-# Hoặc nếu payload quá lớn
-kubectl patch application banking-demo -n argocd \
-  --type json \
-  -p='[{"op": "remove", "path": "/metadata/finalizers"}]'
-kubectl delete application banking-demo -n argocd --cascade=false
+# Dùng script tự động fix
+chmod +x fix-shared-resource-warnings.sh
+./fix-shared-resource-warnings.sh
 ```
 
-**Cách 2: Disable namespace/secret trong Application `banking-demo`**
+Script sẽ:
+1. Apply lại tất cả Applications
+2. Hard refresh Applications
+3. Sync lại theo đúng thứ tự
+4. Kiểm tra manifests không có namespace/secret
 
-Nếu muốn giữ Application `banking-demo` để deploy tất cả cùng lúc:
+**Hoặc fix thủ công:**
 
 ```bash
-# Apply file đã được sửa (đã disable namespace.enabled và secret.enabled)
-kubectl apply -f application.yaml -n argocd
+# 1. Apply lại Applications
+kubectl apply -f applications/ -n argocd
 
-# Sync lại
-argocd app sync banking-demo
+# 2. Hard refresh
+for app in banking-demo-namespace banking-demo-postgres banking-demo-redis \
+           banking-demo-kong banking-demo-auth-service banking-demo-notification-service \
+           banking-demo-account-service banking-demo-transfer-service \
+           banking-demo-frontend banking-demo-ingress; do
+  argocd app get $app --refresh 2>/dev/null || echo "$app không tồn tại"
+done
+
+# 3. Sync lại
+argocd app sync banking-demo-namespace --timeout 300
+sleep 5
+argocd app sync banking-demo-postgres banking-demo-redis --timeout 300
 ```
 
-File `application.yaml` đã được cập nhật với:
-- `namespace.enabled: false` trong parameters
-- `secret.enabled: false` trong parameters
-- Bỏ `CreateNamespace=true` trong syncOptions
-
-**Cách 3: Đảm bảo chỉ `namespace.yaml` tạo namespace/secret**
-
-Kiểm tra tất cả Applications không có `namespace.enabled=true` hoặc `secret.enabled=true`:
+**Kiểm tra:**
 
 ```bash
-# Kiểm tra Applications nào đang tạo namespace/secret
-kubectl get applications -n argocd -o yaml | grep -A 5 "namespace.enabled\|secret.enabled"
+# Kiểm tra Application conditions (không còn SharedResourceWarning)
+kubectl get application banking-demo-namespace -n argocd -o yaml | grep -A 10 "conditions:"
+
+# Kiểm tra manifests không có namespace/secret (trừ namespace.yaml)
+argocd app manifests banking-demo-auth-service | grep -E "kind: Namespace|kind: Secret"
+# → Không nên có output
+
+argocd app manifests banking-demo-notification-service | grep -E "kind: Namespace|kind: Secret"
+# → Không nên có output
 ```
 
 **Lưu ý:**
-- Chỉ Application `banking-demo-namespace` (từ `namespace.yaml`) nên tạo namespace và secret
-- Tất cả Applications khác nên có `namespace.enabled=false` và `secret.enabled=false` trong parameters
-- Application `banking-demo` (nếu còn dùng) cũng nên disable namespace/secret
+- ✅ Chỉ Application `banking-demo-namespace` (từ `namespace.yaml`) tạo namespace và secret
+- ✅ Tất cả Applications khác đã có `namespace.enabled=false` và `secret.enabled=false` trong parameters
+- ✅ ApplicationSet (`application-set-all-services.yaml`) cũng đã được cập nhật để tự động disable namespace/secret cho tất cả (trừ namespace)
 
 ### 7.7. Các lỗi khác
 
