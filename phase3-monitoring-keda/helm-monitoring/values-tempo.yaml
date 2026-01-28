@@ -14,22 +14,25 @@ tempo:
   # Giữ trace trong 24h (có thể tăng)
   retention: 24h
   # Metrics-generator (Span rate / Service graph).
-  # Log hiện tại báo thiếu `metrics_generator.storage.path` nên generator bị disable và gây `empty ring`.
-  metrics_generator:
+  # Với chart grafana/tempo, values đúng là `tempo.metricsGenerator.*` (sẽ render ra `metrics_generator.*` trong config).
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
     storage:
       path: /var/tempo/generator
-    remote_write:
-      - url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
+      # remote_write: []  # optional: dùng remoteWriteUrl nếu không set
+    traces_storage:
+      path: /var/tempo/generator-traces
 
-# Storage: local (filesystem) — đủ cho dev/test
-# Production nên dùng S3/GCS/MinIO
-storage:
-  trace:
-    backend: local
-    local:
-      path: /var/tempo/traces
-    wal:
-      path: /var/tempo/wal
+  # Storage: local (filesystem) — đủ cho dev/test
+  # Production nên dùng S3/GCS/MinIO
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
 
 # Persistence — bật để giữ traces khi pod restart
 persistence:
