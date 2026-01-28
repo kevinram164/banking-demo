@@ -30,7 +30,7 @@ singleBinary:
   persistence:
     enabled: true
     size: 10Gi
-    # storageClassName: nfs-client  # bật nếu dùng NFS
+    storageClassName: nfs-client  # bật nếu dùng NFS
 
 # Các deployment mode khác = 0
 backend:

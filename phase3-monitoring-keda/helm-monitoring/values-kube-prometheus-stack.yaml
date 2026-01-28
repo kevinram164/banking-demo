@@ -57,8 +57,8 @@ grafana:
       isDefault: false
 
 # Tùy chọn: Ingress cho Grafana (bật nếu cần, đổi host)
-#  ingress:
-#    enabled: true
-#    ingressClassName: nginx
-#    hosts:
-#      - grafana.npd-banking.co
+  ingress:
+    enabled: true
+    ingressClassName: haproxy
+    hosts:
+      - grafana.npd-banking.co
