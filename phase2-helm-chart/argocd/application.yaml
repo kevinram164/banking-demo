@@ -1,0 +1,44 @@
+# ArgoCD Application: Deploy tất cả services banking-demo trong 1 dashboard
+# Cách dùng: kubectl apply -f application.yaml -n argocd
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banking-demo
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: banking-demo
+spec:
+  project: banking-demo
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git  # ← Đổi thành repo của bạn
+    targetRevision: main                                      # ← Branch hoặc tag
+    path: phase2-helm-chart/banking-demo
+    helm:
+      releaseName: banking-demo
+      valueFiles:
+        - charts/common/values.yaml
+        - charts/postgres/values.yaml
+        - charts/redis/values.yaml
+        - charts/kong/values.yaml
+        - charts/auth-service/values.yaml
+        - charts/account-service/values.yaml
+        - charts/transfer-service/values.yaml
+        - charts/notification-service/values.yaml
+        - charts/frontend/values.yaml
+        - charts/ingress/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: banking
+  syncPolicy:
+    automated:
+      prune: false      # Không tự động xóa resources khi không còn trong Git
+      selfHeal: false   # Không tự động sync khi có thay đổi trong cluster
+    syncOptions:
+      - CreateNamespace=true  # Tự động tạo namespace nếu chưa có
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m

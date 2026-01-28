@@ -1,5 +1,19 @@
 # Deploy banking-demo với ArgoCD (GitOps)
 
+Hướng dẫn triển khai chart **banking-demo** bằng ArgoCD.
+
+## 🚀 Cách đơn giản nhất (Khuyến nghị cho người mới)
+
+**Chỉ cần 2 files:**
+1. `project.yaml` - ArgoCD Project
+2. `application.yaml` - ArgoCD Application (deploy tất cả services trong 1 dashboard)
+
+Xem hướng dẫn chi tiết: [SIMPLE-DEPLOY.md](./SIMPLE-DEPLOY.md)
+
+---
+
+## 📋 Cách chuyên nghiệp (Per-service Applications)
+
 Hướng dẫn triển khai chart **banking-demo** bằng ArgoCD theo cách chuyên nghiệp: cấu hình trong Git, sync thủ công, mỗi service một Application riêng để dễ quản lý.
 
 ---
