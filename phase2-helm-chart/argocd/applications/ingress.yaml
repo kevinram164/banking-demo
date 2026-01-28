@@ -46,8 +46,8 @@ spec:
     automated:
       prune: false
       selfHeal: false
-    syncOptions:
-      - CreateNamespace=true
+    syncOptions: []
+      # Không cần CreateNamespace=true vì namespace đã được tạo bởi infra (wave 0)
     retry:
       limit: 3
       backoff:

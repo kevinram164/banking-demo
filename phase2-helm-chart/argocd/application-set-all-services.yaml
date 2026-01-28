@@ -111,7 +111,12 @@ spec:
           prune: false
           selfHeal: false
         syncOptions:
+          {{- if eq .wave "0" }}
+          # Chỉ infra (wave 0) mới có CreateNamespace=true
           - CreateNamespace=true
+          {{- else }}
+          # Các Applications khác không cần CreateNamespace vì namespace đã được tạo bởi infra
+          {{- end }}
         retry:
           limit: 3
           backoff:

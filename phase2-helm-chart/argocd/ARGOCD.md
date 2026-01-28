@@ -170,7 +170,27 @@ argocd app sync banking-demo-auth-service
 2. Chọn tất cả Applications (checkbox) → **Sync** → **Synchronize**
 3. ArgoCD sẽ tự động deploy theo sync waves
 
-### Bước 5: Kiểm tra
+### Bước 5: Xử lý lỗi "namespace already exists"
+
+**Nếu gặp lỗi:** `namespaces "banking" already exists`
+
+**Nguyên nhân:** Nhiều Applications cùng có `CreateNamespace=true`, khiến ArgoCD cố tạo namespace nhiều lần.
+
+**Giải pháp:**
+
+1. **Xóa namespace cũ (nếu không có dữ liệu quan trọng):**
+   ```bash
+   kubectl delete namespace banking
+   ```
+
+2. **Hoặc chỉ giữ `CreateNamespace=true` cho infra:**
+   - Chỉ `applications/infra.yaml` (wave 0) có `CreateNamespace=true`
+   - Các Applications khác đã được cấu hình để **không** tạo namespace
+   - Sync lại: `argocd app sync -l app.kubernetes.io/name=banking-demo`
+
+**Lưu ý:** Sau khi sửa, chỉ Application `banking-demo-infra` sẽ tạo namespace, các Applications khác sẽ sử dụng namespace đã tồn tại.
+
+### Bước 6: Kiểm tra
 
 **5.1. Kiểm tra trong ArgoCD UI:**
 - Vào Applications → bạn sẽ thấy 8 Application riêng
@@ -736,6 +756,40 @@ Chart banking-demo dùng Helm hooks (namespace, secret, postgres/redis trước)
 ---
 
 ## 7. Troubleshooting
+
+### 7.1. Lỗi "namespace already exists"
+
+**Triệu chứng:**
+```
+SyncError: namespaces "banking" already exists (retried 3 times)
+```
+
+**Nguyên nhân:**
+- Nhiều Applications cùng có `CreateNamespace=true` trong `syncOptions`
+- Khi sync tất cả cùng lúc, các Applications đều cố tạo namespace → conflict
+
+**Giải pháp:**
+
+**Cách 1: Xóa namespace và sync lại (nếu không có dữ liệu quan trọng)**
+```bash
+kubectl delete namespace banking
+argocd app sync -l app.kubernetes.io/name=banking-demo
+```
+
+**Cách 2: Chỉ infra tạo namespace (đã được cấu hình sẵn)**
+- Chỉ `applications/infra.yaml` (wave 0) có `CreateNamespace=true`
+- Các Applications khác đã bỏ `CreateNamespace=true`
+- Sync lại: `argocd app sync -l app.kubernetes.io/name=banking-demo`
+
+**Kiểm tra:**
+```bash
+# Xem Applications nào đang có CreateNamespace=true
+kubectl get applications -n argocd -o jsonpath='{range .items[*]}{.metadata.name}{": "}{.spec.syncPolicy.syncOptions}{"\n"}{end}'
+```
+
+**Lưu ý:** Sau khi sửa, chỉ Application `banking-demo-infra` sẽ tạo namespace, các Applications khác sẽ sử dụng namespace đã tồn tại.
+
+### 7.2. Các lỗi khác
 
 ### 7.1. Application không sync
 

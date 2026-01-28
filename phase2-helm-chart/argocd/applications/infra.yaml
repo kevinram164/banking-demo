@@ -24,6 +24,10 @@ spec:
         - charts/postgres/values.yaml
         - charts/redis/values.yaml
       parameters:
+        - name: namespace.enabled
+          value: "true"  # Tạo namespace "banking" (chỉ infra mới tạo)
+        - name: secret.enabled
+          value: "true"  # Tạo secret (chỉ infra mới tạo)
         - name: postgres.enabled
           value: "true"
         - name: redis.enabled
