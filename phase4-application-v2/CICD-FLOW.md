@@ -78,6 +78,14 @@ detect-changes → lint → test → build-images → push-images → security-s
 - `ruff check phase4-application-v2/common phase4-application-v2/services --ignore E501`
 - Chạy `|| true` (không fail CI nếu có warning)
 
+- Lint là bước trong CI dùng Ruff để kiểm tra Python:
+- Ruff: công cụ linter cho Python (kiểm tra style, best practice, lỗi tiềm ẩn)
+- v1 + v2: CI chạy Ruff cho hai nhóm code trong repo:
+- v1: common/, services/ (ở root)
+- v2: phase4-application-v2/common/, phase4-application-v2/services/
+- Khi có service thay đổi: job lint chỉ chạy khi detect-changes báo còn có thay đổi (tức services-list != 'none')
+
+
 #### 3. test
 
 - Cài: `common/requirements.txt`, `phase4-application-v2/requirements-dev.txt`
