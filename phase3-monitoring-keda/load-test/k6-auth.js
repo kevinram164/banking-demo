@@ -23,8 +23,12 @@ export const options = {
 
 const USER = { username: 'loadtest1', password: 'loadtest1' };
 
+// Kong route: /api/auth → auth-service (strip_path), nên gọi /api/auth/register, /api/auth/login
+const REGISTER_PATH = __ENV.AUTH_PATH || '/api/auth/register';
+const LOGIN_PATH = __ENV.AUTH_LOGIN_PATH || '/api/auth/login';
+
 export function setup() {
-  const reg = http.post(`${BASE_URL}/register`, JSON.stringify(USER), {
+  const reg = http.post(`${BASE_URL}${REGISTER_PATH}`, JSON.stringify(USER), {
     headers: { 'Content-Type': 'application/json' },
   });
   if (reg.status !== 200 && reg.status !== 409) {
@@ -34,7 +38,7 @@ export function setup() {
 }
 
 export default function () {
-  const res = http.post(`${BASE_URL}/login`, JSON.stringify(USER), {
+  const res = http.post(`${BASE_URL}${LOGIN_PATH}`, JSON.stringify(USER), {
     headers: { 'Content-Type': 'application/json' },
   });
   check(res, { 'login ok': (r) => r.status === 200 });
