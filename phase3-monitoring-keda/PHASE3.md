@@ -27,6 +27,7 @@ Giai đoạn 3 tập trung **observability chuyên sâu** (metrics, logging, tra
 phase3-monitoring-keda/
 ├── PHASE3.md                 # File này
 ├── PHASE3-FLOW.md            # Sơ đồ luồng (Mermaid) + ghi chú
+├── METRICS-PERCENTILES.md    # Giải thích P50, P95, P99 và cách dùng trong dashboards/load test
 ├── phase3-flow.drawio        # Sơ đồ Draw.io
 ├── helm-monitoring/          # Monitoring + Logging + Tracing (Helm)
 │   ├── README.md             # Repos, thứ tự cài, từng chart
@@ -111,3 +112,5 @@ kubectl get pods -n banking -w
 - Sau khi dừng k6: đợi vài phút → replicas giảm dần về minReplicaCount.
 
 Chi tiết kịch bản, biến môi trường (BASE_URL, VUs, duration) và các lệnh kiểm tra nằm trong `load-test/README.md` và `keda/README.md`. Chi tiết từng bước cài monitoring (Helm), chỉnh values, và kiểm tra UI nằm trong `helm-monitoring/README.md`.
+
+**Metrics & percentiles:** Xem `METRICS-PERCENTILES.md` để hiểu P50, P95, P99 và cách chúng được dùng trong dashboards và load test.
