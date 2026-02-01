@@ -1,5 +1,11 @@
 # Phase 4 (v2) — Hướng dẫn migrate DB (không mắc lỗi khi rollout)
 
+## ⚠️ DB Migration phải chạy TRƯỚC khi deploy v2
+
+Thứ tự bắt buộc: **1. ALTER bảng / migration DB** → 2. Deploy v2. Nếu deploy trước migration, app v2 sẽ crash (thiếu cột).
+
+---
+
 v2 thêm 2 cột vào bảng `users`:
 
 - `phone` (unique)
@@ -11,11 +17,11 @@ v2 thêm 2 cột vào bảng `users`:
 - Hoặc add `NOT NULL + UNIQUE` sai thứ tự → fail khi data cũ chưa backfill
 - Rollout dở dang (một nửa pod v1, một nửa pod v2) → conflict logic/query
 
-Tài liệu này mô tả cách làm **an toàn** (chuẩn đi làm).
+Tài liệu này mô tả cách làm **an toàn**.
 
 ---
 
-## Nguyên tắc vàng: Expand / Contract
+## Nguyên tắc: Expand / Contract
 
 Với system đang chạy, luôn làm theo 2 bước:
 

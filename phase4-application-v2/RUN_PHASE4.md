@@ -7,19 +7,70 @@ Phase 4 chạy theo mô hình **production-like**:
 
 ---
 
+## ⚠️ Thứ tự bắt buộc
+
+**DB Migration phải chạy TRƯỚC khi deploy v2.** v2 thêm cột `phone`, `account_number` — nếu deploy trước khi ALTER bảng, app sẽ crash.
+
+```
+1. DB Migration (ALTER TABLE, backfill...)  ← TRƯỚC TIÊN
+2. CI (build & push images)
+3. CD (ArgoCD sync)
+```
+
+---
+
 ## Tổng quan flow
 
 ```
-┌─────────────────────┐         ┌──────────────────────┐         ┌─────────────────┐
-│  Push code phase4   │         │  GitHub Actions (CI)  │         │  ArgoCD (CD)    │
-│  → main/develop     │ ──────▶ │  Build → Push images │ ──────▶ │  Sync từ Git    │
-│                     │         │  Registry             │         │  Deploy K8s     │
-└─────────────────────┘         └──────────────────────┘         └─────────────────┘
-         │                                    │                             │
-         │                                    │                             │
-         └────────────────────────────────────┴─────────────────────────────┘
-                          Cập nhật image tag trong values → commit → push
+┌──────────────────────┐     ┌─────────────────────┐     ┌──────────────────────┐     ┌─────────────────┐
+│  1. DB Migration     │     │  2. Push code       │     │  3. CI (GitHub       │     │  4. CD          │
+│  ALTER TABLE users   │ ──▶ │  phase4 → main      │ ──▶ │  Actions) Build →   │ ──▶ │  ArgoCD sync    │
+│  + backfill          │     │                     │     │  Push images         │     │  Deploy K8s     │
+└──────────────────────┘     └─────────────────────┘     └──────────────────────┘     └─────────────────┘
+         │                              │                           │                           │
+         │                              └───────────────────────────┴───────────────────────────┘
+         │                                         Cập nhật image tag trong values → commit → push
+         │
+         └── Phải xong trước bước 4 (deploy)
 ```
+
+---
+
+## Bước 0: DB Migration (BẮT BUỘC trước khi deploy v2)
+
+v2 thêm 2 cột: `phone`, `account_number`. **Phải chạy migration trước** khi ArgoCD sync deploy v2.
+
+### SQL cần chạy
+
+```sql
+-- Bước 1: Add columns (nullable)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number VARCHAR(20);
+
+-- Bước 2: Backfill account_number cho user cũ (nếu có)
+-- (Xem DB_MIGRATION_GUIDE.md để copy script đầy đủ)
+
+-- Bước 3: Add unique index
+CREATE UNIQUE INDEX IF NOT EXISTS users_account_number_uq ON users(account_number) WHERE account_number IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS users_phone_uq ON users(phone) WHERE phone IS NOT NULL;
+```
+
+### Cách chạy (K8s)
+
+```bash
+# Lấy DATABASE_URL từ Secret banking-db-secret
+kubectl get secret banking-db-secret -n banking -o jsonpath='{.data.DATABASE_URL}' | base64 -d
+
+# Chạy migration (thay $DATABASE_URL)
+kubectl run -it --rm migration --image=postgres:15-alpine -n banking -- \
+  env PGPASSWORD=... psql -h postgres -U banking -d banking -c "
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number VARCHAR(20);
+  -- + backfill + index (xem DB_MIGRATION_GUIDE.md)
+"
+```
+
+Chi tiết đầy đủ: **[DB_MIGRATION_GUIDE.md](./DB_MIGRATION_GUIDE.md)**.
 
 ---
 
@@ -95,27 +146,9 @@ Nếu bật **Auto Sync**, ArgoCD tự sync khi detect thay đổi trong Git.
 
 ---
 
-## Migration DB và Smoke test với ArgoCD
+## Smoke test (sau khi deploy)
 
-**Lưu ý**: ArgoCD **không chạy Helm hooks** (dbMigration, smokeTest) khi sync — ArgoCD chỉ `kubectl apply` manifests.
-
-### Migration DB
-
-Có 2 cách:
-
-1. **Chạy migration thủ công** trước khi sync lần đầu lên v2:
-   ```bash
-   kubectl run -it --rm migration --image=postgres:15-alpine -n banking -- \
-     psql $DATABASE_URL -c "
-     ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
-     ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number VARCHAR(20);
-   "
-   ```
-   (Chi tiết: [DB_MIGRATION_GUIDE.md](./DB_MIGRATION_GUIDE.md))
-
-2. **Dùng ArgoCD PreSync hook**: chuyển Job migration sang annotation `argocd.argoproj.io/hook: PreSync` — ArgoCD sẽ chạy trước khi apply manifests.
-
-### Smoke test
+ArgoCD **không chạy Helm hooks** khi sync. Chạy smoke test thủ công sau khi ArgoCD sync xong.
 
 Chạy thủ công sau khi sync (từ root repo):
 
@@ -134,14 +167,18 @@ Hoặc chuyển smoke-test Job sang ArgoCD PostSync hook.
 ## Tóm tắt quy trình release
 
 ```bash
+# 0. DB Migration TRƯỚC (bắt buộc)
+#    ALTER TABLE users ADD COLUMN phone, account_number + backfill + index
+#    Xem DB_MIGRATION_GUIDE.md
+
 # 1. Developer push code phase4
 git push origin main
 
 # 2. CI chạy → build & push images (SHA: abc1234)
 
 # 3. Cập nhật image tag trong values
-# Sửa charts/auth-service/values.yaml, charts/account-service/values.yaml, ... 
-# image.tag: abc1234
+#    charts/auth-service/values.yaml, charts/account-service/values.yaml, ...
+#    image.tag: abc1234
 
 # 4. Commit và push
 git add phase2-helm-chart/banking-demo/charts/
@@ -149,7 +186,7 @@ git commit -m "chore: bump images to abc1234"
 git push origin main
 
 # 5. ArgoCD sync (auto hoặc manual)
-# 6. Verify: curl https://<host>/api/auth/health
+# 6. Smoke test + Verify
 ```
 
 ---

@@ -4,13 +4,17 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
+│  ⚠️ Bước 0: DB Migration (BẮT BUỘC trước deploy v2)                      │
+│  ALTER TABLE users + backfill + index — xem DB_MIGRATION_GUIDE.md        │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
 │                              CI (GitHub Actions)                         │
 ├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
 │   ┌─────────────────┐                                                    │
 │   │ Detect Changes  │ ← Chỉ build services thay đổi                      │
 │   └────────┬────────┘                                                    │
-│            │                                                             │
 │            ▼                                                             │
 │   ┌──────┐    ┌──────┐    ┌───────────────┐    ┌──────────────┐         │
 │   │ Lint │───▶│ Test │───▶│ Build Images  │───▶│ Push Images  │         │
@@ -21,25 +25,15 @@
 │                                               │ Security     │          │
 │                                               │ Scan (Trivy) │          │
 │                                               └──────────────┘          │
-│                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
-                                    │ registry.gitlab.com/kiettt164/banking-demo-payment/*
+                                    │ registry.gitlab.com/.../*
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              CD (ArgoCD)                                 │
 ├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│   ArgoCD Application (Phase 2 Helm chart)                               │
-│       │                                                                  │
-│       ├── Sync khi image tag thay đổi trong values.yaml                 │
-│       │                                                                  │
-│       ▼                                                                  │
-│   ┌──────────────────┐    ┌──────────────────┐    ┌─────────────────┐   │
-│   │ DB Migration     │───▶│ Deploy Services  │───▶│ Smoke Test      │   │
-│   │ (Helm pre-hook)  │    │ (Deployments)    │    │ (Helm post-hook)│   │
-│   └──────────────────┘    └──────────────────┘    └─────────────────┘   │
-│                                                                          │
+│   Cập nhật image.tag trong values.yaml → commit → push → ArgoCD sync    │
+│   Deploy Services → (Smoke test thủ công hoặc PostSync hook)             │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -370,10 +364,11 @@ registry.gitlab.com/kiettt164/banking-demo-payment/auth-service:latest
 
 ### Quy trình CD với ArgoCD
 
-1. CI push images lên Registry (tag: `<sha>`, `main`, `latest`)
-2. Cập nhật `phase2-helm-chart/banking-demo/charts/<service>/values.yaml` — `image.tag: <sha>`
-3. Commit và push
-4. ArgoCD sync → apply manifests → rolling update
+1. **DB Migration trước** (bắt buộc): ALTER TABLE users + backfill + index. Xem [DB_MIGRATION_GUIDE.md](./DB_MIGRATION_GUIDE.md)
+2. CI push images lên Registry (tag: `<sha>`, `main`, `latest`)
+3. Cập nhật `phase2-helm-chart/banking-demo/charts/<service>/values.yaml` — `image.tag: <sha>`
+4. Commit và push
+5. ArgoCD sync → apply manifests → rolling update
 
 (Xem [RUN_PHASE4.md](./RUN_PHASE4.md) — hướng dẫn chi tiết.)
 
@@ -381,14 +376,7 @@ registry.gitlab.com/kiettt164/banking-demo-payment/auth-service:latest
 
 ArgoCD **không chạy Helm hooks** (`helm.sh/hook`) — ArgoCD chỉ `kubectl apply` manifests.
 
-Hiện tại Helm chart có:
-
-- `dbMigration` (Helm hook) — **không chạy** qua ArgoCD sync
-- `smokeTest` (Helm hook) — **không chạy** qua ArgoCD sync
-
-**Cách xử lý:**
-
-- **Migration**: Chạy thủ công trước sync, hoặc chuyển Job sang `argocd.argoproj.io/hook: PreSync`
+- **DB Migration**: Phải chạy **thủ công trước** khi ArgoCD sync lần đầu lên v2. Hoặc chuyển Job sang `argocd.argoproj.io/hook: PreSync`.
 - **Smoke test**: Chạy thủ công sau sync, hoặc chuyển Job sang `argocd.argoproj.io/hook: PostSync`
 
 ### Alternative: Helm CLI (cho demo/test local)
@@ -400,10 +388,14 @@ Khi dùng `helm upgrade` thay vì ArgoCD, Helm hooks **sẽ chạy** (migration 
 ## Quy trình release chuẩn (end-to-end) — CI + ArgoCD
 
 ```bash
+# 0. DB Migration TRƯỚC (bắt buộc — nếu không v2 sẽ crash)
+#    ALTER TABLE users ADD COLUMN phone, account_number + backfill + index
+#    Xem phase4-application-v2/DB_MIGRATION_GUIDE.md
+
 # 1. Developer push code phase4
 git push origin main
 
-# 2. CI (GitHub Actions) chạy: lint → test → build → push → scan
+# 2. CI (GitHub Actions): lint → test → build → push → scan
 #    Images: <sha>, main, latest trên GitLab Registry
 
 # 3. CD (ArgoCD): Cập nhật image.tag trong charts/<service>/values.yaml
@@ -411,9 +403,7 @@ git push origin main
 
 # 4. ArgoCD sync (auto hoặc manual) → deploy
 
-# 5. Verify:
-#    kubectl get pods -n banking
-#    curl https://npd-banking.co/api/auth/health
+# 5. Verify: kubectl get pods -n banking; curl .../api/auth/health
 ```
 
 ---
