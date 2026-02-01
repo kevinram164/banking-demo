@@ -42,6 +42,33 @@ prometheus:
           - source_labels: [__address__]
             target_label: instance
             replacement: notification-service
+      # Kong API Gateway (cần bật Prometheus plugin trong Kong)
+      - job_name: kong
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['kong.banking.svc.cluster.local:8001']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: kong
+      # Redis (qua redis-exporter trong namespace banking)
+      - job_name: redis
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['redis-exporter.banking.svc.cluster.local:9121']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: redis
+      # PostgreSQL (qua postgres-exporter trong namespace banking)
+      - job_name: postgres
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['postgres-exporter.banking.svc.cluster.local:9187']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: postgres
 
 # Grafana: datasources Loki + Tempo (sửa URL nếu release name khác)
 grafana:

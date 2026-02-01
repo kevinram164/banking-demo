@@ -34,7 +34,10 @@ Sau khi cài xong, chỉnh **Grafana** `additionalDataSources` (Loki, Tempo) tro
 - **Chart:** `prometheus-community/kube-prometheus-stack`
 - **Values:** `values-kube-prometheus-stack.yaml`
   - Namespace `monitoring`
-  - `additionalScrapeConfigs` cho banking services (auth, account, transfer, notification)
+  - `additionalScrapeConfigs` cho banking services (auth, account, transfer, notification) **và** Kong, Redis, PostgreSQL:
+    - **Kong:** `kong.banking.svc.cluster.local:8001/metrics` (cần bật Prometheus plugin trong Kong — đã cấu hình trong phase2 `kong.globalPlugins`).
+    - **Redis:** qua `redis-exporter` trong namespace banking (xem `phase3-monitoring-keda/exporters/`).
+    - **PostgreSQL:** qua `postgres-exporter` trong namespace banking (xem `phase3-monitoring-keda/exporters/`).
   - Grafana `additionalDataSources`: Loki, Tempo (sửa URL nếu release khác; kiểm tra `kubectl get svc -n monitoring`).
   - Có thể bật Ingress cho Grafana/Prometheus (tùy cluster)
 
@@ -111,9 +114,19 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
 
 ---
 
+## Monitoring Kong, Redis, PostgreSQL
+
+- **Kong:** Đã bật global plugin `prometheus` trong phase2 (chart banking-demo, `kong.globalPlugins`). Metrics tại Admin API `:8001/metrics`. Grafana dashboard gợi ý: [Kong Official 7424](https://grafana.com/grafana/dashboards/7424-kong-official/).
+- **Redis:** Cần deploy **redis-exporter** trong namespace `banking` (manifests trong `phase3-monitoring-keda/exporters/redis-exporter.yaml`). Apply xong thì Prometheus tự scrape job `redis`.
+- **PostgreSQL:** Cần deploy **postgres-exporter** trong namespace `banking` (manifests trong `phase3-monitoring-keda/exporters/postgres-exporter.yaml`), dùng secret `banking-db-secret`. Apply xong thì Prometheus tự scrape job `postgres`.
+
+Chi tiết và lệnh apply: xem `phase3-monitoring-keda/exporters/README.md`.
+
+---
+
 ## App gửi trace / metrics
 
-- **Metrics:** Prometheus scrape `/metrics` (đã cấu hình qua `additionalScrapeConfigs` cho banking).
+- **Metrics:** Prometheus scrape `/metrics` (đã cấu hình qua `additionalScrapeConfigs` cho banking services + Kong + Redis + Postgres).
 - **Traces:** App set `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4317` và export OTLP gRPC.
 
 Đảm bảo app trong `banking` có thể resolve được service OTEL Collector trong `monitoring`.

@@ -66,6 +66,10 @@ kong:
     - Date
     - X-Session
 
+  # Global plugins (ví dụ: prometheus cho monitoring)
+  globalPlugins:
+    - name: prometheus
+
   # Extra plugins applied per-service (in addition to cors).
   # Common choices for real-world:
   # - rate-limiting

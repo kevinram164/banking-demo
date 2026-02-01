@@ -55,4 +55,15 @@ data:
           {{- end }}
           {{- end }}
     {{- end }}
+
+    {{- if .Values.kong.globalPlugins }}
+    plugins:
+    {{- range .Values.kong.globalPlugins }}
+      - name: {{ .name }}
+        {{- if .config }}
+        config:
+          {{- toYaml .config | nindent 10 }}
+        {{- end }}
+    {{- end }}
+    {{- end }}
 {{- end }}
