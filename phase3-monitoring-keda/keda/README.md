@@ -2,6 +2,8 @@
 
 Scale các Deployment `auth-service`, `account-service`, `transfer-service`, `notification-service` theo **Prometheus metrics** (rate `http_requests_total`).
 
+> **HPA theo CPU/Memory:** Nếu bạn muốn scale theo CPU và Memory thay vì Prometheus, dùng thư mục `../hpa/`. Không dùng cả KEDA và HPA cùng lúc cho cùng một deployment.
+
 ## Điều kiện
 
 - KEDA đã cài trên cluster (operator + CRDs).

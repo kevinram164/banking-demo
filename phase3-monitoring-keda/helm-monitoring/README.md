@@ -106,6 +106,28 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
 
 ---
 
+## Dashboard Banking Services
+
+Để xem metrics của các service (auth, account, transfer, notification) trong Grafana, apply ConfigMap dashboard:
+
+```bash
+kubectl apply -f grafana-dashboard-banking-services.yaml
+```
+
+Grafana sidecar (kube-prometheus-stack) sẽ tự động load dashboard có label `grafana_dashboard=1`. Vào Grafana → Dashboards → **Banking Services**.
+
+Dashboard gồm:
+- **Request Rate (RPS)** theo từng service
+- **P95 Latency** theo từng service
+- **Error Rate (5xx)** theo từng service
+- **Stat panels** RPS cho từng service
+- **Request Rate by Endpoint** (Auth)
+- **Request Rate by Status Code**
+
+Yêu cầu: Prometheus đã scrape `/metrics` của các banking services (đã cấu hình trong `additionalScrapeConfigs`).
+
+---
+
 ## Lưu ý
 
 - **Prometheus service:** KEDA ScaledObjects trỏ tới `kube-prometheus-stack-prometheus.monitoring...`. Nếu release name khác hoặc service đổi tên, sửa `serverAddress` trong từng `phase3-monitoring-keda/keda/scaledobject-*.yaml`.

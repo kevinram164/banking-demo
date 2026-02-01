@@ -1,0 +1,206 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Request Rate (RPS) by Service",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service\"}[5m])) by (job)",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}},
+      "options": {}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "P95 Latency by Service (seconds)",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"auth-service|account-service|transfer-service|notification-service\"}[5m])) by (job, le))",
+          "legendFormat": "{{job}} p95",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "options": {}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Error Rate (5xx) by Service",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service\",status=~\"5..\"}[5m])) by (job) / sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service\"}[5m])) by (job) * 100",
+          "legendFormat": "{{job}} %",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}},
+      "options": {}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Auth Service — RPS",
+      "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4},
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"auth-service\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}},
+      "options": {}
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Account Service — RPS",
+      "gridPos": {"x": 18, "y": 8, "w": 6, "h": 4},
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"account-service\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}},
+      "options": {}
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Transfer Service — RPS",
+      "gridPos": {"x": 12, "y": 12, "w": 6, "h": 4},
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"transfer-service\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}},
+      "options": {}
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Notification Service — RPS",
+      "gridPos": {"x": 18, "y": 12, "w": 6, "h": 4},
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"notification-service\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}},
+      "options": {}
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Request Rate by Endpoint (Auth)",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"auth-service\"}[5m])) by (endpoint)",
+          "legendFormat": "{{endpoint}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}},
+      "options": {}
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Request Rate by Status Code",
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service\"}[5m])) by (job, status)",
+          "legendFormat": "{{job}} {{status}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}},
+      "options": {}
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Transfer — Giao dịch thành công vs thất bại",
+      "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\",status=~\"2..\"}[5m]))",
+          "legendFormat": "Thành công (2xx)",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\",status=~\"4..\"}[5m]))",
+          "legendFormat": "Thất bại (4xx)",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\",status=~\"5..\"}[5m]))",
+          "legendFormat": "Lỗi server (5xx)",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}},
+      "options": {}
+    },
+    {
+      "id": 11,
+      "type": "gauge",
+      "title": "Transfer — Tỷ lệ thành công (%)",
+      "gridPos": {"x": 12, "y": 24, "w": 6, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\",status=~\"2..\"}[5m])) / sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\"}[5m])) * 100 or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 95}, {"color": "green", "value": 99}]}}},
+      "options": {}
+    },
+    {
+      "id": 12,
+      "type": "gauge",
+      "title": "Transfer — Tỷ lệ thất bại (%)",
+      "gridPos": {"x": 18, "y": 24, "w": 6, "h": 8},
+      "targets": [
+        {
+          "expr": "(sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\",status=~\"[45]..\"}[5m])) / sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\"}[5m])) * 100) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}}},
+      "options": {}
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "tags": ["banking", "services"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "Banking Services",
+  "uid": "banking-services",
+  "version": 1,
+  "weekStart": ""
+}
