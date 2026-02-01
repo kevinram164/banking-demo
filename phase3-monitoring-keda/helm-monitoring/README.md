@@ -138,11 +138,19 @@ Yêu cầu: Prometheus đã scrape `/metrics` của các banking services (đã 
 
 ## Monitoring Kong, Redis, PostgreSQL
 
-- **Kong:** Đã bật global plugin `prometheus` trong phase2 (chart banking-demo, `kong.globalPlugins`). Metrics tại Admin API `:8001/metrics`. Grafana dashboard gợi ý: [Kong Official 7424](https://grafana.com/grafana/dashboards/7424-kong-official/).
-- **Redis:** Cần deploy **redis-exporter** trong namespace `banking` (manifests trong `phase3-monitoring-keda/exporters/redis-exporter.yaml`). Apply xong thì Prometheus tự scrape job `redis`.
-- **PostgreSQL:** Cần deploy **postgres-exporter** trong namespace `banking` (manifests trong `phase3-monitoring-keda/exporters/postgres-exporter.yaml`), dùng secret `banking-db-secret`. Apply xong thì Prometheus tự scrape job `postgres`.
+| Thành phần | Exporter / Metrics | Grafana Dashboard |
+|------------|--------------------|-------------------|
+| **Kong** | Plugin `prometheus` tại Admin API `:8001/metrics` | [Kong Official 7424](https://grafana.com/grafana/dashboards/7424-kong-official/) |
+| **Redis** | redis-exporter (job `redis`) | [Redis 763](https://grafana.com/grafana/dashboards/763-redis-dashboard-for-prometheus-redis-exporter-1-x/) |
+| **PostgreSQL** | postgres-exporter (job `postgres`) | [PostgreSQL 14114](https://grafana.com/grafana/dashboards/14114-postgres-overview/) hoặc [12485](https://grafana.com/grafana/dashboards/12485-postgresql-exporter/) |
 
-Chi tiết và lệnh apply: xem `phase3-monitoring-keda/exporters/README.md`.
+**Cách import dashboard:** Grafana → Dashboards → New → Import → nhập Dashboard ID (ví dụ `7424`).
+
+- **Kong:** Đã bật global plugin `prometheus` trong phase2. Metrics tại `kong.banking.svc.cluster.local:8001/metrics`.
+- **Redis:** Deploy **redis-exporter** (`kubectl apply -f exporters/redis-exporter.yaml`). Prometheus scrape `redis-exporter.banking.svc.cluster.local:9121`.
+- **PostgreSQL:** Deploy **postgres-exporter** (`kubectl apply -f exporters/postgres-exporter.yaml`), dùng secret `banking-db-secret`. Prometheus scrape `postgres-exporter.banking.svc.cluster.local:9187`.
+
+Chi tiết: xem `phase3-monitoring-keda/exporters/README.md`.
 
 ---
 
