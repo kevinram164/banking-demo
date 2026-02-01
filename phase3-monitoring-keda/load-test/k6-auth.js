@@ -9,8 +9,15 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8000';
+const HOST_HEADER = __ENV.HOST_HEADER || ''; // Khi gọi bằng IP: HOST_HEADER=npd-banking.co
 const VUS = __ENV.VUS ? parseInt(__ENV.VUS, 10) : 10;
 const DURATION = __ENV.DURATION || '2m';
+
+function headers(extra = {}) {
+  const h = { 'Content-Type': 'application/json', ...extra };
+  if (HOST_HEADER) h['Host'] = HOST_HEADER;
+  return h;
+}
 
 export const options = {
   vus: VUS,
@@ -28,9 +35,7 @@ const REGISTER_PATH = __ENV.AUTH_PATH || '/api/auth/register';
 const LOGIN_PATH = __ENV.AUTH_LOGIN_PATH || '/api/auth/login';
 
 export function setup() {
-  const reg = http.post(`${BASE_URL}${REGISTER_PATH}`, JSON.stringify(USER), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  const reg = http.post(`${BASE_URL}${REGISTER_PATH}`, JSON.stringify(USER), { headers: headers() });
   if (reg.status !== 200 && reg.status !== 409) {
     console.warn(`register failed: ${reg.status} ${reg.body}`);
   }
@@ -38,9 +43,7 @@ export function setup() {
 }
 
 export default function () {
-  const res = http.post(`${BASE_URL}${LOGIN_PATH}`, JSON.stringify(USER), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  const res = http.post(`${BASE_URL}${LOGIN_PATH}`, JSON.stringify(USER), { headers: headers() });
   check(res, { 'login ok': (r) => r.status === 200 });
   sleep(0.1);
 }

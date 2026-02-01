@@ -12,8 +12,11 @@ Dùng **k6** để tạo tải lên API banking (qua Ingress hoặc port-forward
 | Biến | Mô tả | Mặc định |
 |------|--------|----------|
 | `BASE_URL` | Base URL API (Kong hoặc ingress) | `http://localhost:8000` |
+| `HOST_HEADER` | Host header (bắt buộc khi gọi bằng IP) | _(trống)_ |
 | `VUS` | Số virtual users (song song) | `10` |
 | `DURATION` | Thời gian chạy mỗi kịch bản | `2m` |
+
+**Khi gọi bằng IP:** Ingress route theo `Host`. Nếu `BASE_URL=http://10.100.1.100` thì phải set `HOST_HEADER=npd-banking.co` (đúng với `ingress.host` trong phase2) thì mới không bị 404.
 
 Ví dụ:
 
@@ -21,6 +24,12 @@ Ví dụ:
 export BASE_URL="https://npd-banking.co"
 export VUS=20
 export DURATION=3m
+```
+
+Gọi bằng IP (jump-host, cùng mạng):
+
+```bash
+BASE_URL="http://10.100.1.100" HOST_HEADER="npd-banking.co" VUS=20 DURATION=3m k6 run k6-transfer.js
 ```
 
 ## Kịch bản

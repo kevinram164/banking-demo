@@ -8,8 +8,15 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8000';
+const HOST_HEADER = __ENV.HOST_HEADER || ''; // Khi gọi bằng IP: HOST_HEADER=npd-banking.co
 const VUS = __ENV.VUS ? parseInt(__ENV.VUS, 10) : 10;
 const DURATION = __ENV.DURATION || '2m';
+
+function headers(extra = {}) {
+  const h = { 'Content-Type': 'application/json', ...extra };
+  if (HOST_HEADER) h['Host'] = HOST_HEADER;
+  return h;
+}
 
 export const options = {
   vus: VUS,
@@ -23,9 +30,7 @@ export const options = {
 const USER = { username: 'loadtest1', password: 'loadtest1' };
 
 export function setup() {
-  http.post(`${BASE_URL}/api/auth/register`, JSON.stringify(USER), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  http.post(`${BASE_URL}/api/auth/register`, JSON.stringify(USER), { headers: headers() });
   return {};
 }
 
@@ -33,15 +38,12 @@ let session = null;
 
 export default function () {
   if (!session) {
-    const r = http.post(`${BASE_URL}/api/auth/login`, JSON.stringify(USER), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const r = http.post(`${BASE_URL}/api/auth/login`, JSON.stringify(USER), { headers: headers() });
     if (r.status !== 200) return;
     session = r.json('session');
   }
-  const meRes = http.get(`${BASE_URL}/api/account/me`, {
-    headers: { 'X-Session': session },
-  });
+  const getHeaders = HOST_HEADER ? { 'X-Session': session, 'Host': HOST_HEADER } : { 'X-Session': session };
+  const meRes = http.get(`${BASE_URL}/api/account/me`, { headers: getHeaders });
   check(meRes, { 'me ok': (r) => r.status === 200 });
   sleep(0.1);
 }
