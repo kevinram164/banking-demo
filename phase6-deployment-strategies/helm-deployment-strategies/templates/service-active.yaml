@@ -1,0 +1,26 @@
+{{/* Service "active" – Kong (Phase 2) trỏ tới tên auth-service, account-service, ...
+  Blue-Green: selector = activeSlot (blue|green). Canary: selector = stable (canary % split qua Ingress riêng). */}}
+{{- range $name, $cfg := .Values.services }}
+{{- if not $cfg.enabled }}{{ continue }}{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $name }}
+    {{- include "deployment-strategies.labels" $ | nindent 4 }}
+  annotations:
+    deployment-strategies/strategy: {{ $.Values.strategy }}
+    deployment-strategies/activeSlot: {{ if eq $.Values.strategy "blueGreen" }}{{ $.Values.activeSlot }}{{ else }}stable{{ end }}
+spec:
+  selector:
+    app: {{ $name }}
+    version: {{ if eq $.Values.strategy "blueGreen" }}{{ $.Values.activeSlot }}{{ else }}stable{{ end }}
+  ports:
+    - port: {{ $cfg.port }}
+      targetPort: {{ $cfg.port }}
+      name: {{ $cfg.portName | default "http" }}
+{{ end }}
+{{ print "\n" }}

@@ -12,11 +12,22 @@ Giai đoạn 6 tập trung vào **chiến lược rollout** trên Kubernetes: Bl
 
 ```text
 phase6-deployment-strategies/
-├── PHASE6.md                 # File này – overview + checklist
+├── PHASE6.md                     # File này – overview + checklist
+├── helm-deployment-strategies/   # Helm chart riêng Phase 6 (không lẫn Phase 2)
+│   ├── Chart.yaml
+│   ├── values.yaml
+│   ├── values-blue-green.yaml
+│   ├── values-canary.yaml
+│   ├── README.md
+│   └── templates/
+│       ├── _helpers.tpl
+│       ├── deployment-slot.yaml
+│       ├── service-slot.yaml
+│       └── service-active.yaml
 ├── blue-green/
-│   └── BLUE-GREEN.md         # Thiết kế Blue-Green với K8s/Helm
+│   └── BLUE-GREEN.md             # Thiết kế Blue-Green với K8s/Helm
 └── canary/
-    └── CANARY.md             # Thiết kế Canary với K8s/Ingress hoặc Argo Rollouts
+    └── CANARY.md                 # Thiết kế Canary với K8s/Ingress hoặc Argo Rollouts
 ```
 
 ## So sánh nhanh
@@ -27,9 +38,17 @@ phase6-deployment-strategies/
 | **Blue-Green** | 2 bản (blue/green), switch traffic | Đổi lại Service/Ingress → blue | 2 bản chạy song song |
 | **Canary**  | % traffic sang version mới | Giảm % hoặc xóa canary       | 2 bản, 1 nhận ít traffic |
 
+## Helm chart Phase 6 (riêng, không lẫn Phase 2)
+
+Phase 6 có **một bộ Helm chart riêng** trong `helm-deployment-strategies/`:
+
+- **Chart**: `banking-deployment-strategies` – deploy các service banking (auth, account, transfer, notification) theo **Blue-Green** hoặc **Canary**.
+- **Cách dùng**: Tắt các service tương ứng trong Phase 2 (auth-service, account-service, …), rồi cài chart Phase 6 trong cùng namespace `banking`. Kong (Phase 2) vẫn trỏ tới tên `auth-service`, `account-service` – chart Phase 6 tạo đúng các Service đó với selector blue/green hoặc stable.
+- **Chi tiết**: xem `helm-deployment-strategies/README.md`.
+
 ## Lộ trình thực hiện (gợi ý)
 
-1. **Blue-Green** – đọc `blue-green/BLUE-GREEN.md`. Có thể triển khai bằng:
+1. **Blue-Green** – dùng chart `helm-deployment-strategies` với `strategy: blueGreen`; đọc `blue-green/BLUE-GREEN.md`.
    - Hai Deployment + hai Service; Ingress trỏ tới Service “active” (blue hoặc green). Đổi Ingress/Service khi promote.
    - Hoặc một Service với selector thay đổi (version label): deploy green, đổi selector → green nhận traffic.
 2. **Canary** – đọc `canary/CANARY.md`. Có thể triển khai bằng:
@@ -43,15 +62,14 @@ phase6-deployment-strategies/
 - (Khuyến nghị) **Phase 3** monitoring đã cài (Prometheus + Grafana) để theo dõi canary/blue-green khi switch traffic.
 - **Phase 4** nếu bạn rollout image v2: build image v2, dùng cùng chart với tag khác cho green/canary.
 
-## Lệnh tham chiếu (Phase 2)
+## Lệnh tham chiếu
+
+**Phase 6 chart (khuyến nghị):**
 
 ```bash
-# Từ repo root
-cd phase2-helm-chart/banking-demo
-
-# Cài/upgrade với image tag (ví dụ v2 cho green)
-helm upgrade --install banking-demo . -n banking -f charts/common/values.yaml \
-  --set auth-service.image.tag=v2
+cd phase6-deployment-strategies/helm-deployment-strategies
+helm upgrade -i banking-rollout . -n banking -f values.yaml -f values-blue-green.yaml
+helm upgrade banking-rollout . -n banking -f values.yaml -f values-blue-green.yaml --set activeSlot=green  # promote
 ```
 
-Phase 6 không thay thế Phase 2; nó bổ sung **cách** bạn rollout (blue-green hoặc canary) trên cùng chart đó.
+**Phase 2** (chỉ dùng khi không dùng Phase 6 chart): `phase2-helm-chart/banking-demo` – cài banking-demo; khi dùng Phase 6 chart thì **tắt** auth-service, account-service, transfer-service, notification-service trong Phase 2 để tránh trùng tên.

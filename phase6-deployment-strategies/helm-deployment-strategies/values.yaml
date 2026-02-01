@@ -1,0 +1,125 @@
+# Phase 6 - Deployment Strategies (Blue-Green / Canary)
+# Chart riêng, deploy cùng namespace banking với Phase 2 (Kong, postgres, redis, frontend từ Phase 2).
+# Khi dùng chart này: tắt auth-service, account-service, transfer-service, notification-service trong Phase 2.
+
+# Chiến lược: blueGreen | canary
+strategy: blueGreen
+
+# Blue-Green: slot đang nhận traffic (blue | green). Đổi để promote/rollback.
+activeSlot: blue
+
+# Canary: % traffic sang canary (0-100). Chỉ dùng khi strategy=canary và Ingress hỗ trợ canary.
+canaryWeight: 10
+
+global:
+  namespace: banking
+  secretName: banking-db-secret
+  corsOrigins: "http://localhost:3000"
+
+# Services áp dụng strategy. Tên key = tên Service (Kong từ Phase 2 trỏ tới tên này).
+# Blue-Green: active Service selector = activeSlot → Kong gọi auth-service → traffic vào blue hoặc green.
+# Canary: cần Ingress canary hoặc Argo Rollouts (xem canary/CANARY.md).
+services:
+  auth-service:
+    enabled: true
+    image:
+      repository: registry.gitlab.com/kiettt164/banking-demo-payment/auth-service
+      blueTag: v1
+      greenTag: v2
+      stableTag: v1
+      canaryTag: v2
+      pullPolicy: Always
+    replicas: 1
+    port: 8001
+    portName: http
+    secretRef:
+      name: banking-db-secret
+      keys:
+        databaseUrl: DATABASE_URL
+        redisUrl: REDIS_URL
+    readinessProbe:
+      path: /health
+      port: 8001
+      initialDelaySeconds: 10
+      periodSeconds: 15
+    resources:
+      requests: { memory: "128Mi", cpu: "100m" }
+      limits: { memory: "256Mi", cpu: "300m" }
+
+  account-service:
+    enabled: true
+    image:
+      repository: registry.gitlab.com/kiettt164/banking-demo-payment/account-service
+      blueTag: v1
+      greenTag: v2
+      stableTag: v1
+      canaryTag: v2
+      pullPolicy: Always
+    replicas: 1
+    port: 8002
+    portName: http
+    secretRef:
+      name: banking-db-secret
+      keys:
+        databaseUrl: DATABASE_URL
+        redisUrl: REDIS_URL
+    readinessProbe:
+      path: /health
+      port: 8002
+      initialDelaySeconds: 10
+      periodSeconds: 15
+    resources:
+      requests: { memory: "128Mi", cpu: "100m" }
+      limits: { memory: "256Mi", cpu: "300m" }
+
+  transfer-service:
+    enabled: true
+    image:
+      repository: registry.gitlab.com/kiettt164/banking-demo-payment/transfer-service
+      blueTag: v1
+      greenTag: v2
+      stableTag: v1
+      canaryTag: v2
+      pullPolicy: Always
+    replicas: 1
+    port: 8003
+    portName: http
+    secretRef:
+      name: banking-db-secret
+      keys:
+        databaseUrl: DATABASE_URL
+        redisUrl: REDIS_URL
+    readinessProbe:
+      path: /health
+      port: 8003
+      initialDelaySeconds: 10
+      periodSeconds: 15
+    resources:
+      requests: { memory: "128Mi", cpu: "100m" }
+      limits: { memory: "256Mi", cpu: "300m" }
+
+  notification-service:
+    enabled: true
+    image:
+      repository: registry.gitlab.com/kiettt164/banking-demo-payment/notification-service
+      blueTag: v1
+      greenTag: v2
+      stableTag: v1
+      canaryTag: v2
+      pullPolicy: Always
+    replicas: 1
+    port: 8004
+    portName: http
+    secretRef:
+      name: banking-db-secret
+      keys:
+        databaseUrl: DATABASE_URL
+        redisUrl: REDIS_URL
+    readinessProbe:
+      path: /health
+      port: 8004
+      initialDelaySeconds: 10
+      periodSeconds: 15
+    resources:
+      requests: { memory: "128Mi", cpu: "100m" }
+      limits: { memory: "256Mi", cpu: "300m" }

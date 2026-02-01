@@ -1,0 +1,116 @@
+{{- range $name, $cfg := .Values.services }}
+{{- if not $cfg.enabled }}{{ continue }}{- end }}
+{{- $strategy := $.Values.strategy }}
+{{- $secretName := default $.Values.global.secretName $cfg.secretRef.name }}
+---
+# Slot 1: blue (blueGreen) hoặc stable (canary)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-{{ if eq $strategy "blueGreen" }}blue{{ else }}stable{{ end }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $name }}
+    version: {{ if eq $strategy "blueGreen" }}blue{{ else }}stable{{ end }}
+    {{- include "deployment-strategies.labels" $ | nindent 4 }}
+spec:
+  replicas: {{ $cfg.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+      version: {{ if eq $strategy "blueGreen" }}blue{{ else }}stable{{ end }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+        version: {{ if eq $strategy "blueGreen" }}blue{{ else }}stable{{ end }}
+    spec:
+      containers:
+        - name: {{ $name }}
+          image: "{{ $cfg.image.repository }}:{{ if eq $strategy "blueGreen" }}{{ $cfg.image.blueTag }}{{ else }}{{ $cfg.image.stableTag }}{{ end }}"
+          imagePullPolicy: {{ $cfg.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - containerPort: {{ $cfg.port }}
+              name: {{ $cfg.portName | default "http" }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $cfg.secretRef.keys.databaseUrl }}
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $cfg.secretRef.keys.redisUrl }}
+            - name: CORS_ORIGINS
+              value: {{ $.Values.global.corsOrigins | default "http://localhost:3000" | quote }}
+          {{- if $cfg.readinessProbe }}
+          readinessProbe:
+            httpGet:
+              path: {{ $cfg.readinessProbe.path }}
+              port: {{ $cfg.readinessProbe.port }}
+            initialDelaySeconds: {{ $cfg.readinessProbe.initialDelaySeconds | default 10 }}
+            periodSeconds: {{ $cfg.readinessProbe.periodSeconds | default 15 }}
+          {{- end }}
+          {{- with $cfg.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+---
+# Slot 2: green (blueGreen) hoặc canary (canary)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-{{ if eq $strategy "blueGreen" }}green{{ else }}canary{{ end }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $name }}
+    version: {{ if eq $strategy "blueGreen" }}green{{ else }}canary{{ end }}
+    {{- include "deployment-strategies.labels" $ | nindent 4 }}
+spec:
+  replicas: {{ $cfg.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+      version: {{ if eq $strategy "blueGreen" }}green{{ else }}canary{{ end }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+        version: {{ if eq $strategy "blueGreen" }}green{{ else }}canary{{ end }}
+    spec:
+      containers:
+        - name: {{ $name }}
+          image: "{{ $cfg.image.repository }}:{{ if eq $strategy "blueGreen" }}{{ $cfg.image.greenTag }}{{ else }}{{ $cfg.image.canaryTag }}{{ end }}"
+          imagePullPolicy: {{ $cfg.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - containerPort: {{ $cfg.port }}
+              name: {{ $cfg.portName | default "http" }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $cfg.secretRef.keys.databaseUrl }}
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $cfg.secretRef.keys.redisUrl }}
+            - name: CORS_ORIGINS
+              value: {{ $.Values.global.corsOrigins | default "http://localhost:3000" | quote }}
+          {{- if $cfg.readinessProbe }}
+          readinessProbe:
+            httpGet:
+              path: {{ $cfg.readinessProbe.path }}
+              port: {{ $cfg.readinessProbe.port }}
+            initialDelaySeconds: {{ $cfg.readinessProbe.initialDelaySeconds | default 10 }}
+            periodSeconds: {{ $cfg.readinessProbe.periodSeconds | default 15 }}
+          {{- end }}
+          {{- with $cfg.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{ end }}
+{{ print "\n" }}

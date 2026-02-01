@@ -1,0 +1,8 @@
+# Phase 6 - Blue-Green (override)
+# Dùng: helm upgrade -i banking-rollout . -n banking -f values.yaml -f values-blue-green.yaml
+
+strategy: blueGreen
+activeSlot: blue   # Đổi thành green khi promote: --set activeSlot=green
+
+# Ví dụ: chỉ bật auth-service blue-green, image green = v2
+# services.auth-service.image.greenTag: v2

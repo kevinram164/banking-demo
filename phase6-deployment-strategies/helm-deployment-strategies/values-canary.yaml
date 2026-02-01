@@ -1,0 +1,9 @@
+# Phase 6 - Canary (override)
+# Dùng: helm upgrade -i banking-rollout . -n banking -f values.yaml -f values-canary.yaml
+# Kong trỏ tới Service active (mặc định = stable). Để split % traffic cần Ingress canary (xem canary/CANARY.md).
+
+strategy: canary
+canaryWeight: 10
+
+# Ví dụ: chỉ bật auth-service canary
+# services.auth-service.image.canaryTag: v2

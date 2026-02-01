@@ -1,0 +1,12 @@
+apiVersion: v2
+name: banking-deployment-strategies
+description: Phase 6 - Blue-Green & Canary deployment strategies for banking services. Standalone chart, không lẫn với Phase 2.
+type: application
+version: 0.1.0
+appVersion: "1"
+keywords:
+  - banking
+  - blue-green
+  - canary
+  - rollout
+kubeVersion: ">=1.24"
