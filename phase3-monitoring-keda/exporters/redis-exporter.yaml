@@ -21,7 +21,8 @@ spec:
     spec:
       containers:
         - name: redis-exporter
-          image: quay.io/prometheuscommunity/redis-exporter:v1.55.0
+          # Dùng Docker Hub thay quay.io (quay.io có thể unauthorized/rate-limit)
+          image: oliver006/redis_exporter:v1.80.1
           args:
             - --redis.addr=redis.banking.svc.cluster.local:6379
           ports:
