@@ -206,21 +206,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Phase 4 (v2) — build từ phase4-application-v2/
         service:
           - name: auth-service
             context: .
-            dockerfile: services/auth-service/Dockerfile
+            dockerfile: phase4-application-v2/services/auth-service/Dockerfile
           - name: account-service
             context: .
-            dockerfile: services/account-service/Dockerfile
+            dockerfile: phase4-application-v2/services/account-service/Dockerfile
           - name: transfer-service
             context: .
-            dockerfile: services/transfer-service/Dockerfile
+            dockerfile: phase4-application-v2/services/transfer-service/Dockerfile
           - name: notification-service
             context: .
-            dockerfile: services/notification-service/Dockerfile
+            dockerfile: phase4-application-v2/services/notification-service/Dockerfile
           - name: frontend
-            context: frontend
+            context: phase4-application-v2/frontend
             dockerfile: frontend/Dockerfile
     steps:
       - name: Check if should build

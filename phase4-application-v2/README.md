@@ -9,17 +9,9 @@ Folder này là **version mới** để so sánh với code **v1** ở root.
 - Chuyển tiền theo **số tài khoản** + UI tự lookup **tên người nhận**
 - UI được chỉnh lại đẹp/clear hơn (React + Tailwind)
 
-## Chạy thử nhanh (dev)
+## Chạy Phase 4
 
-Bạn có thể chạy theo cách cũ (Docker/K8s) nhưng trỏ image/build context sang `phase4-application-v2/`.
+Phase 4 chạy chuẩn production: **CI** (GitHub Actions) + **CD** (ArgoCD).
 
-### Docker build (ví dụ)
-
-Build từ repo root, nhưng Dockerfile nằm trong phase4:
-
-```bash
-docker build -f phase4-application-v2/services/auth-service/Dockerfile -t auth-service:v2 .
-```
-
-Lưu ý: v2 có thay đổi schema bảng `users` (thêm `phone`, `account_number`), nên nên dùng **database mới** hoặc migration.
+Xem **[RUN_PHASE4.md](./RUN_PHASE4.md)** — hướng dẫn chi tiết flow CI/CD.
 

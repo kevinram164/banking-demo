@@ -11,7 +11,7 @@
 | Hook Type | Khi nào chạy | Ví dụ dùng |
 |-----------|--------------|------------|
 | `pre-install` | Trước khi install lần đầu | Migration DB, tạo namespace |
-| `post-install` | Sau khi install xong | Gửi notification, smoke test |
+| `post-install` | Sau khi install xong | Gửi notification, smoke test (xem [CICD-FLOW.md](./CICD-FLOW.md#hướng-dẫn-smoke-test-khi-nâng-cấp-application)) |
 | `pre-upgrade` | Trước khi upgrade | **Migration DB** (quan trọng!) |
 | `post-upgrade` | Sau khi upgrade | Verify health, cleanup |
 | `pre-delete` | Trước khi uninstall | Backup data |
