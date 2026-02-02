@@ -141,10 +141,10 @@ Yêu cầu: Prometheus đã scrape `/metrics` của các banking services (đã 
 | Thành phần | Exporter / Metrics | Grafana Dashboard |
 |------------|--------------------|-------------------|
 | **Kong** | Plugin `prometheus` tại Admin API `:8001/metrics` | [Kong Official 7424](https://grafana.com/grafana/dashboards/7424-kong-official/) |
-| **Redis** | redis-exporter (job `redis`) | [Redis 763](https://grafana.com/grafana/dashboards/763-redis-dashboard-for-prometheus-redis-exporter-1-x/) |
-| **PostgreSQL** | postgres-exporter (job `postgres`) | [PostgreSQL 14114](https://grafana.com/grafana/dashboards/14114-postgres-overview/) hoặc [12485](https://grafana.com/grafana/dashboards/12485-postgresql-exporter/) |
+| **Redis** | redis-exporter (job `redis`) | [Redis 11835](https://grafana.com/grafana/dashboards/11835-redis-dashboard-for-prometheus-redis-exporter-helm-stable-redis-ha/) |
+| **PostgreSQL** | postgres-exporter (job `postgres`) | [PostgreSQL 9628](https://grafana.com/grafana/dashboards/9628-postgresql-database/) |
 
-**Cách import dashboard:** Grafana → Dashboards → New → Import → nhập Dashboard ID (ví dụ `7424`).
+**Cách import dashboard:** Grafana → Dashboards → New → Import → nhập Dashboard ID (ví dụ `11835`).
 
 - **Kong:** Đã bật global plugin `prometheus` trong phase2. Metrics tại `kong.banking.svc.cluster.local:8001/metrics`.
 - **Redis:** Deploy **redis-exporter** (`kubectl apply -f exporters/redis-exporter.yaml`). Prometheus scrape `redis-exporter.banking.svc.cluster.local:9121`.
