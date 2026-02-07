@@ -143,17 +143,58 @@ curl https://<ingress-host>/api/auth/health
 
 ---
 
-## Smoke test (tùy chọn)
+## Smoke test (sau khi ArgoCD sync xong)
 
-Sau khi deploy, chạy smoke test thủ công:
+Smoke test verify health + auth flow qua Kong. **Chạy sau Bước 5** (sau khi ArgoCD sync xong, pods mới đã chạy).
+
+### Bước 1: Chạy smoke test Job
+
+Từ **root repo**:
 
 ```bash
 helm template banking-demo phase2-helm-chart/banking-demo \
   -n banking \
   -f phase2-helm-chart/banking-demo/charts/common/values.yaml \
+  -f phase2-helm-chart/banking-demo/charts/kong/values.yaml \
   --set smokeTest.enabled=true \
   -s templates/smoke-test-job.yaml | kubectl apply -f - -n banking
 ```
+
+### Bước 2: Xem trạng thái Job
+
+```bash
+kubectl get jobs -n banking | grep smoke-test
+```
+
+### Bước 3: Xem logs
+
+```bash
+# Lấy tên Job (vd: banking-demo-smoke-test-xxxxx)
+kubectl logs -n banking -l app.kubernetes.io/component=smoke-test -f
+```
+
+- **Thành công**: Log có `✅ Smoke tests (health + login) passed.`
+- **Thất bại**: Log báo lỗi, Job fail
+
+### Bước 4: Debug nếu fail
+
+```bash
+# Kiểm tra pods services
+kubectl get pods -n banking
+
+# Test health thủ công qua Kong
+kubectl run -it --rm curl --image=curlimages/curl -n banking -- \
+  curl -s http://kong:8000/api/auth/health
+```
+
+### Cấu hình (nếu cần)
+
+Trong `charts/common/values.yaml`, smoke test dùng:
+
+- `authUser`: `smoke-user` (user test cho register/login)
+- `authPassword`: `smoke-pass`
+
+**Lưu ý v2**: Phase 4 đăng ký dùng `phone`. Smoke test mặc định dùng `username` — v2 vẫn hỗ trợ login bằng username (backward compatible). Nếu register fail (400), có thể user `smoke-user` đã tồn tại từ lần test trước → login vẫn pass.
 
 ---
 
@@ -167,6 +208,7 @@ helm template banking-demo phase2-helm-chart/banking-demo \
 | 4 | Sửa `image.tag` trong charts/*/values.yaml |
 | 5 | Commit, push → ArgoCD sync |
 | 6 | Verify |
+| 7 | Smoke test (sau ArgoCD sync) |
 
 ---
 

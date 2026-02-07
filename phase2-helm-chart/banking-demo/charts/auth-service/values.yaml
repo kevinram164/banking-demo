@@ -4,7 +4,7 @@ auth-service:
   enabled: true
   image:
     repository: registry.gitlab.com/kiettt164/banking-demo-payment/auth-service
-    tag: acaf6af
+    tag: 9f5df24
     pullPolicy: Always
   imagePullSecrets: []
   replicas: 1
