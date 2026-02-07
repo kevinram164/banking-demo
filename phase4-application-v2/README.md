@@ -100,7 +100,7 @@ git rev-parse --short HEAD
 
 ### Bước 4: Cập nhật image tag trong Helm values
 
-Sửa các file trong `phase2-helm-chart/banking-demo/charts/`:
+Chỉ sửa **5 file** (không sửa postgres, redis — tránh restart DB/cache):
 
 - `auth-service/values.yaml`
 - `account-service/values.yaml`
@@ -122,12 +122,20 @@ auth-service:
 ### Bước 5: Commit và ArgoCD sync
 
 ```bash
-git add phase2-helm-chart/banking-demo/charts/
+# Chỉ add 5 service values — KHÔNG add postgres, redis (tránh restart DB)
+git add phase2-helm-chart/banking-demo/charts/auth-service/values.yaml \
+  phase2-helm-chart/banking-demo/charts/account-service/values.yaml \
+  phase2-helm-chart/banking-demo/charts/transfer-service/values.yaml \
+  phase2-helm-chart/banking-demo/charts/notification-service/values.yaml \
+  phase2-helm-chart/banking-demo/charts/frontend/values.yaml
 git commit -m "chore: bump images to abc1234"
 git push origin main
 ```
 
-Vào **ArgoCD UI** → Applications → `banking-demo` → **Refresh** → **Sync**.
+**ArgoCD sync — tránh restart postgres/redis:**
+
+- **Cách 1 (1 Application)**: ArgoCD UI → banking-demo → Sync → **Selective Sync** → Chọn chỉ các Deployment (auth, account, transfer, notification, frontend), bỏ chọn postgres, redis StatefulSets.
+- **Cách 2 (per-service Applications)**: Chỉ sync 5 app: `banking-demo-auth-service`, `banking-demo-account-service`, `banking-demo-transfer-service`, `banking-demo-notification-service`, `banking-demo-frontend`. Không sync `banking-demo-postgres`, `banking-demo-redis`.
 
 ---
 
@@ -206,13 +214,81 @@ Trong `charts/common/values.yaml`, smoke test dùng:
 | 2 | Cấu hình GitHub Secrets (GITLAB_USERNAME, GITLAB_TOKEN) |
 | 3 | Push code → CI build & push images |
 | 4 | Sửa `image.tag` trong charts/*/values.yaml |
-| 5 | Commit, push → ArgoCD sync |
+| 5 | Commit, push → ArgoCD sync (chỉ 5 app services, không sync postgres/redis) |
 | 6 | Verify |
 | 7 | Smoke test (sau ArgoCD sync) |
 
 ---
 
+## Khắc phục: Postgres/Redis bị restart khi update images
+
+**Nguyên nhân**: Sync ArgoCD apply cả postgres/redis, hoặc commit nhầm file values của postgres/redis.
+
+**Cách tránh**:
+1. Chỉ sửa 5 file values (auth, account, transfer, notification, frontend) — không sửa postgres/redis
+2. Dùng `git add` chọn lọc (như Bước 5 trên)
+3. ArgoCD sync: Selective Sync (bỏ chọn postgres, redis) hoặc dùng per-service Applications — chỉ sync 5 app
+4. `application.yaml` đã có `ApplyOutOfSyncOnly=true` — chỉ apply resources thay đổi
+
+---
+
+## Khắc phục: Grafana không ghi nhận giao dịch transfer thành công
+
+**Triệu chứng**: Chuyển khoản OK trên app, nhưng dashboard Grafana (Transfer — Thành công vs thất bại, Tỷ lệ thành công) vẫn 0.
+
+**Luồng dữ liệu**: Frontend → Kong (`/api/transfer/transfer`) → transfer-service (`/transfer`) → metrics `http_requests_total{job="transfer-service",endpoint="/transfer",status="200"}` → Prometheus scrape → Grafana.
+
+### Chẩn đoán (làm lần lượt)
+
+**1. Kiểm tra Prometheus targets**
+
+Vào `http://<prometheus-url>:9090/targets` (hoặc port-forward `kubectl port-forward svc/xxx-prometheus-server -n monitoring 9090:80`). Tìm target `transfer-service`. Nếu **DOWN** → Prometheus không scrape được (kiểm tra network, Service, namespace `banking`).
+
+**2. Kiểm tra transfer-service có expose /metrics**
+
+```bash
+kubectl exec -it deploy/transfer-service -n banking -- curl -s http://localhost:8003/metrics | head -50
+```
+
+Phải thấy dòng `http_requests_total` với labels `method`, `endpoint`, `status`. Nếu không có → image transfer-service cũ (chưa có `observability.py`) → cần deploy image Phase 4.
+
+**3. Kiểm tra labels trong Prometheus**
+
+Vào Prometheus → Query (`http://<prometheus-url>:9090/graph`):
+
+```promql
+http_requests_total{job="transfer-service"}
+```
+
+Xem có series với `endpoint="/transfer"` và `status=~"2.."` không. Nếu có `endpoint="/"` thay vì `/transfer` → Kong strip_path có thể đang gửi path sai (hiếm); hoặc Grafana query dùng sai label.
+
+**4. Kiểm tra time range**
+
+Grafana mặc định `now-1h` đến `now`. Đảm bảo time range bao gồm thời điểm bạn chuyển khoản. `rate(...[5m])` cần có scrape trong 5 phút gần đây.
+
+**5. Thử query thư giãn hơn (chỉ để test)**
+
+Trong Grafana, thêm panel tạm với:
+
+```promql
+http_requests_total{job="transfer-service"}
+```
+
+Nếu panel này có dữ liệu mà panel Transfer không có → vấn đề nằm ở filter `endpoint="/transfer"` hoặc `status=~"2.."`.
+
+### Khắc phục thường gặp
+
+| Nguyên nhân | Cách sửa |
+|-------------|----------|
+| Image transfer-service cũ (không có metrics) | Bump `image.tag` trong `charts/transfer-service/values.yaml` → ArgoCD sync |
+| Prometheus target DOWN | Kiểm tra Service, network policies; scrape config dùng `transfer-service.banking.svc.cluster.local:8003` |
+| Sai time range | Chọn Last 15m hoặc 1h trong Grafana |
+| Prometheus chưa cài đặt | Deploy `helm-monitoring` (kube-prometheus-stack) với `values-kube-prometheus-stack.yaml` |
+
+---
+
 ## Tài liệu thêm
 
+- `CICD-FLOW.md` — Luồng CI/CD chi tiết (GitHub Actions jobs, ArgoCD)
 - `RUNBOOK_EXTERNAL_DB_REDIS.md` — Dùng DB/Redis bên ngoài cluster
 - `phase2-helm-chart/argocd/ARGOCD.md` — Hướng dẫn ArgoCD đầy đủ

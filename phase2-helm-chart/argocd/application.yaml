@@ -33,7 +33,9 @@ spec:
     # Tắt automated sync → chỉ sync thủ công để tránh rollout tất cả services khi có thay đổi
     automated: null
     syncOptions:
-      - CreateNamespace=true  # Tự động tạo namespace nếu chưa có
+      - CreateNamespace=true
+      # Chỉ apply resources thay đổi — tránh restart postgres/redis khi chỉ đổi app images
+      - ApplyOutOfSyncOnly=true  # Tự động tạo namespace nếu chưa có
     retry:
       limit: 3
       backoff:
