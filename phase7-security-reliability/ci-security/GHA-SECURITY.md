@@ -1,4 +1,4 @@
-# GitHub Actions Security Hardening (Phase 5)
+# GitHub Actions Security Hardening (Phase 7)
 
 Mục tiêu: bổ sung một layer **security** cho CI/CD, tập trung vào:
 
@@ -55,10 +55,9 @@ Nguyên tắc:
 
 Trong demo hiện tại, CI **không dùng** DB/Redis thật → không cần secret nhạy cảm trong pipeline (điểm cộng an toàn).
 
-## 3. Gợi ý cho bài “kể chuyện” khi phỏng vấn
+## 3. Gợi ý cho bài "kể chuyện" khi phỏng vấn
 
 - Bạn có thể nói:
-  - “Ở Phase 5 em thêm một job security scan bằng Trivy trong CI để check lỗ hổng HIGH/CRITICAL trong code và image”.
-  - “Tách rõ build/test và security scan, có thể cấu hình exit-code để chặn release nếu có issue nghiêm trọng”.
-  - “Không sử dụng secret thật trong pipeline để tránh rủi ro leak khi share log/artefact”.
-
+  - "Ở Phase 7 em thêm một job security scan bằng Trivy trong CI để check lỗ hổng HIGH/CRITICAL trong code và image".
+  - "Tách rõ build/test và security scan, có thể cấu hình exit-code để chặn release nếu có issue nghiêm trọng".
+  - "Không sử dụng secret thật trong pipeline để tránh rủi ro leak khi share log/artefact".

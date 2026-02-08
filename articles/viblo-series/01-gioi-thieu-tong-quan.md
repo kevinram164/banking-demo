@@ -130,9 +130,10 @@ Dự án được tổ chức theo **6 phase** tăng dần độ phức tạp:
 | **—** | Hướng dẫn triển khai Docker Compose | Bài 2 |
 | **Phase 1** | Docker Compose → Kubernetes (manifest thuần) | Bài 3 |
 | **Phase 2** | Helm Chart + ArgoCD GitOps | Bài 4, 5 |
-| **Phase 3** | Monitoring (Prometheus, Grafana, Loki, Tempo, KEDA) | Bài 6, 7 |
-| **Phase 4** | CI/CD chuẩn production (GitHub Actions, DB migration) | Bài 8 |
-| **Phase 5** | Security & Reliability (SRE) | Bài 9 |
+| **Phase 3** | Monitoring (Prometheus, Grafana, Loki, Tempo, KEDA) | Bài 6 |
+| **Phase 4** | CI/CD chuẩn production (GitHub Actions, DB migration) | Bài 7 |
+| **Phase 5** | Đổi kiến trúc (tách ns, tách chart, Kong DB) | Bài 9 |
+| **Phase 7** | Security & Reliability (JWT, Kong plugins, CI, SLO) | Bài 11 |
 | **Phase 6** | Deployment strategies (Blue-Green, Canary) | Bài 10 |
 
 Mỗi phase có folder riêng trong repo, tài liệu rõ ràng, và có thể chạy độc lập hoặc kết hợp.
@@ -173,8 +174,9 @@ banking-demo/
 ├── phase2-helm-chart/    # Helm chart + ArgoCD
 ├── phase3-monitoring-keda/
 ├── phase4-application-v2/
-├── phase5-security-reliability/
-└── phase6-deployment-strategies/
+├── phase5-architecture-refactor/   # Tách ns & chart (Kong, Redis, DB); Kong DB riêng
+├── phase6-deployment-strategies/
+└── phase7-security-reliability/   # Security & Reliability (JWT, Kong plugins, CI, SLO)
 ```
 
 ---

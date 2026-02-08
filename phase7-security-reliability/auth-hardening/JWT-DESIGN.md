@@ -1,4 +1,4 @@
-# JWT + Refresh Token Design (Phase 5)
+# JWT + Refresh Token Design (Phase 7)
 
 Mục tiêu: thay session Redis hiện tại bằng **JWT + refresh token**, nhưng vẫn có khả năng **revoke** (logout, force logout) và demo được best practice khi đi phỏng vấn.
 
@@ -155,9 +155,9 @@ Cho demo này, có thể:
   - Parse & verify JWT.
   - Gắn `request.state.user` hoặc `Depends(current_user)` ở các route cần auth.
 
-## 6. Backward compatibility strategy (Phase 5)
+## 6. Backward compatibility strategy (Phase 7)
 
-Vì Phase 4 đang dùng session-Redis + header `X-Session`, Phase 5 có thể rollout theo 2 bước:
+Vì Phase 4 đang dùng session-Redis + header `X-Session`, Phase 7 có thể rollout theo 2 bước:
 
 1. **Song song**:
    - Backend accept cả:
@@ -178,4 +178,3 @@ Vì Phase 4 đang dùng session-Redis + header `X-Session`, Phase 5 có thể ro
 - Giải thích cách **rollout an toàn**:
   - accept song song `X-Session` & JWT.
   - migrate frontend từ session sang JWT dần dần.
-

@@ -1,4 +1,4 @@
-# Kong Security Plugins (Phase 5)
+# Kong Security Plugins (Phase 7)
 
 Mục tiêu: dùng các plugin có sẵn của **Kong** để tăng bảo mật cho API mà không phải sửa nhiều code.
 
@@ -12,7 +12,7 @@ Ví dụ (demo): tối đa **300 request/phút** trên mỗi client cho public A
 
 ### 1.2. `request-size-limiting`
 
-Chặn request body quá lớn (bảo vệ API khỏi payload “bắn phá”).
+Chặn request body quá lớn (bảo vệ API khỏi payload "bắn phá").
 
 Ví dụ: giới hạn **10MB** per request.
 
@@ -23,9 +23,9 @@ Thêm header `X-Correlation-ID` vào request/response để trace log/traces end
 Giúp:
 - log backend, log Kong, traces trong Tempo trùng 1 id → dễ debug.
 
-## 2. Cấu hình trong values (Phase 2 chart)
+## 2. Cấu hình trong values (Phase 2 chart hoặc chart Kong riêng)
 
-File: `phase2-helm-chart/banking-demo/charts/kong/values.yaml` đã có:
+File: `phase2-helm-chart/banking-demo/charts/kong/values.yaml` (hoặc chart Kong riêng sau Phase 5) đã có:
 
 ```yaml
 kong:
@@ -61,7 +61,7 @@ Hiện tại chart đang apply chung 1 set plugin cho mọi backend. Nếu muố
 1. Dùng **nhiều `backends` block** với plugin riêng (phức tạp hơn trong chart).
 2. Hoặc chấp nhận 1 policy chung (đủ tốt cho demo).
 
-Cho Phase 5 demo, policy chung là đủ:
+Cho Phase 7 demo, policy chung là đủ:
 
 - Auth bị rate-limit = tốt (bảo vệ login).
 - Transfer bị request-size-limit = tốt (body nhỏ).
@@ -74,6 +74,8 @@ Sau khi apply:
 ```bash
 kubectl -n banking get configmap kong-config -o yaml
 ```
+
+(Kong có thể ở ns `kong` sau Phase 5 – kiểm tra đúng namespace.)
 
 Kiểm tra trong phần `data.kong.yml`:
 
@@ -99,5 +101,4 @@ Kết hợp với Phase 3:
   - log Kong
   - log service (qua Loki)
   - trace (Tempo)
-- `rate-limiting` + metrics KEDA giúp bạn mô tả câu chuyện “bảo vệ API + autoscale”.
-
+- `rate-limiting` + metrics KEDA giúp bạn mô tả câu chuyện "bảo vệ API + autoscale".

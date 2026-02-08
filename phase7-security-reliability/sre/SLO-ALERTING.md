@@ -1,4 +1,4 @@
-# SLO & Alerting Notes (Phase 5)
+# SLO & Alerting Notes (Phase 7)
 
 Mục tiêu: định nghĩa một vài **SLO đơn giản** dựa trên stack Phase 3 (Prometheus + Grafana) và gợi ý alert rule cơ bản.
 
@@ -86,4 +86,3 @@ Bạn có thể dùng những kịch bản này để demo cách:
 - phát hiện sự cố (alert)
 - điều tra (dashboard, log, trace)
 - rollback/redeploy (Helm/ArgoCD)
-

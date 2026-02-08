@@ -54,7 +54,7 @@ Phase 6 có **một bộ Helm chart riêng** trong `helm-deployment-strategies/`
 2. **Canary** – đọc `canary/CANARY.md`. Có thể triển khai bằng:
    - Ingress (HAProxy/NGINX) hỗ trợ traffic split theo weight hoặc header.
    - Hoặc Argo Rollouts / Flagger nếu muốn canary tự động + analysis dựa trên Prometheus (Phase 3).
-3. **Kết hợp Phase 3** – dùng SLO/error rate từ Prometheus để quyết định promote canary hoặc rollback (xem Phase 5 `sre/SLO-ALERTING.md`).
+3. **Kết hợp Phase 3** – dùng SLO/error rate từ Prometheus để quyết định promote canary hoặc rollback (xem Phase 7 `phase7-security-reliability/sre/SLO-ALERTING.md`).
 
 ## Điều kiện tiên quyết
 

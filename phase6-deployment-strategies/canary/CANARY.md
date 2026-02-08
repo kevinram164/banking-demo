@@ -114,4 +114,4 @@ Phù hợp khi bạn đã dùng Argo CD (Phase 2) và Prometheus (Phase 3): roll
 
 - **Phase 2**: `phase2-helm-chart/banking-demo` – Ingress, Service; HAProxy Ingress có thể cần doc riêng cho weight.
 - **Phase 3**: Prometheus metrics – dùng cho analysis/automation.
-- **Phase 5**: SLO & Alerting – định nghĩa ngưỡng success rate/latency cho canary promote.
+- **Phase 7**: SLO & Alerting – định nghĩa ngưỡng success rate/latency cho canary promote.
