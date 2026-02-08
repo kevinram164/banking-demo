@@ -9,7 +9,7 @@ Phase 5 nếu muốn Kong **DB mode**: cài Postgres riêng (ví dụ `helm inst
 
 ## 1. Lợi ích Kong DB mode
 
-- **Một nguồn sự thật**: Config lưu trong Postgres; nhiều replica Kong cùng đọc, đồng bộ.
+- **Config tập trung**: Config lưu trong Postgres; nhiều replica Kong cùng đọc, đồng bộ.
 - **Admin API**: Thêm/sửa routes, services, plugins qua API (hoặc Konga, deck) thay vì sửa file và rollout lại.
 - **Scale Kong**: Tăng số replica Kong mà không phải replicate file config.
 - **Tách biệt**: DB Kong tách với DB ứng dụng banking → bảo trì, backup, quyền riêng.
