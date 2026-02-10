@@ -23,7 +23,7 @@ data:
             {{- range .paths }}
               - {{ . | quote }}
             {{- end }}
-            strip_path: {{ .strip_path | default true }}
+            strip_path: {{ if kindIs "invalid" .strip_path }}true{{ else }}{{ .strip_path }}{{ end }}
             {{- if .protocols }}
             protocols:
             {{- range .protocols }}
