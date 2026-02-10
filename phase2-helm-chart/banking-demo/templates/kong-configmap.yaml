@@ -35,7 +35,14 @@ data:
           - name: cors
             config:
               origins:
-                - {{ $.Values.kong.corsOrigins | quote }}
+                {{- $origins := $.Values.kong.corsOrigins }}
+                {{- if kindIs "string" $origins }}
+                - {{ $origins | quote }}
+                {{- else }}
+                {{- range $origins }}
+                - {{ . | quote }}
+                {{- end }}
+                {{- end }}
               credentials: {{ $.Values.kong.corsCredentials }}
               methods:
               {{- range $.Values.kong.corsMethods }}

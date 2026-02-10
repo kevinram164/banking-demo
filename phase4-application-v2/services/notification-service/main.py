@@ -1,4 +1,5 @@
 import os, asyncio
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,11 +11,14 @@ from common.db import SessionLocal, engine, Base
 from common.models import Notification
 from common.redis_utils import get_user_id_from_session, set_presence
 from common.observability import instrument_fastapi
+from common.logging_utils import get_json_logger, RequestLogMiddleware, log_event
 
 Base.metadata.create_all(bind=engine)
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+
+logger = get_json_logger("notification-service")
 
 redis: Redis | None = None
 
@@ -35,6 +39,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(
+    RequestLogMiddleware,
+    logger=logger,
+    service_name="notification-service",
+)
 
 def get_db():
     db = SessionLocal()
@@ -52,6 +61,14 @@ async def list_notifications(x_session: str | None = Header(default=None), db: S
         .scalars()
         .all()
     )
+
+    log_event(
+        logger,
+        "notifications_list",
+        user_id=user_id,
+        count=len(items),
+    )
+
     return [{
         "id": x.id,
         "message": x.message,

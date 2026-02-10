@@ -54,7 +54,11 @@ kong:
           paths: ["/ws"]
           strip_path: false
           protocols: ["http", "https"]
-  corsOrigins: "http://localhost:3000"
+  # Cho phép CORS từ localhost và host production → tránh 403 trên WebSocket /ws
+  corsOrigins:
+    - "http://localhost:3000"
+    - "https://npd-banking.co"
+    - "http://npd-banking.co"
   corsCredentials: true
   corsMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
   corsHeaders:

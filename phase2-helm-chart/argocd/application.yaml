@@ -30,12 +30,14 @@ spec:
     server: https://kubernetes.default.svc
     namespace: banking
   syncPolicy:
-    # Tắt automated sync → chỉ sync thủ công để tránh rollout tất cả services khi có thay đổi
-    automated: null
+    # Auto sync mỗi khi ArgoCD phát hiện drift (tần suất = timeout.reconciliation trong argocd-cm)
+    automated:
+      selfHeal: true   # Tự động áp dụng thay đổi
+      prune: false     # Không auto xóa resources — an toàn hơn
     syncOptions:
       - CreateNamespace=true
-      # Chỉ apply resources thay đổi — tránh restart postgres/redis khi chỉ đổi app images
-      - ApplyOutOfSyncOnly=true  # Tự động tạo namespace nếu chưa có
+      # Chỉ apply resources thay đổi — rollout đúng service có values thay đổi, không động postgres/redis
+      - ApplyOutOfSyncOnly=true
     retry:
       limit: 3
       backoff:

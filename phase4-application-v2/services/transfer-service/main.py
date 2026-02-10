@@ -11,11 +11,14 @@ from common.db import SessionLocal, engine, Base
 from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, publish_notify
 from common.observability import instrument_fastapi
+from common.logging_utils import get_json_logger, RequestLogMiddleware, log_event
 
 Base.metadata.create_all(bind=engine)
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+
+logger = get_json_logger("transfer-service")
 
 redis: Redis | None = None
 
@@ -36,6 +39,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestLogMiddleware, logger=logger, service_name="transfer-service")
 
 def get_db():
     db = SessionLocal()
@@ -58,13 +62,32 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
     user_id = await get_user_id_from_session(redis, x_session)
 
     if body.amount <= 0:
+        log_event(
+            logger,
+            "transfer_failed",
+            reason="INVALID_AMOUNT",
+            amount=body.amount,
+        )
         raise HTTPException(400, "Amount must be > 0")
 
     to_acct = (body.to_account_number or "").strip()
     to_username = (body.to_username or "").strip()
     if not to_acct and not to_username:
+        log_event(
+            logger,
+            "transfer_failed",
+            reason="MISSING_RECEIVER",
+            amount=body.amount,
+        )
         raise HTTPException(400, "Missing to_account_number/to_username")
     if to_acct and not to_acct.isdigit():
+        log_event(
+            logger,
+            "transfer_failed",
+            reason="ACCOUNT_NOT_DIGITS",
+            to_account_number=to_acct,
+            amount=body.amount,
+        )
         raise HTTPException(400, "to_account_number must be digits only")
 
     # Use SELECT FOR UPDATE to prevent race conditions
@@ -72,6 +95,15 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
         select(User).where(User.id == user_id).with_for_update()
     ).scalar_one_or_none()
     if not sender:
+        log_event(
+            logger,
+            "transfer_failed",
+            reason="SENDER_NOT_FOUND",
+            user_id=user_id,
+            to_account_number=to_acct,
+            to_username=to_username,
+            amount=body.amount,
+        )
         raise HTTPException(404, "Sender not found")
 
     if to_acct:
@@ -84,12 +116,36 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
             select(User).where(User.username == to_username).with_for_update()
         ).scalar_one_or_none()
     if not receiver:
+        log_event(
+            logger,
+            "transfer_failed",
+            reason="RECEIVER_NOT_FOUND",
+            user_id=user_id,
+            to_account_number=to_acct,
+            to_username=to_username,
+            amount=body.amount,
+        )
         raise HTTPException(404, "Receiver not found")
 
     if receiver.id == sender.id:
+        log_event(
+            logger,
+            "transfer_failed",
+            reason="SELF_TRANSFER",
+            user_id=user_id,
+            amount=body.amount,
+        )
         raise HTTPException(400, "Cannot transfer to yourself")
 
     if sender.balance < body.amount:
+        log_event(
+            logger,
+            "transfer_failed",
+            reason="INSUFFICIENT_BALANCE",
+            user_id=user_id,
+            from_balance=sender.balance,
+            amount=body.amount,
+        )
         raise HTTPException(400, "Insufficient balance")
 
     # Update balances + save transfer + notifications within transaction
@@ -109,6 +165,18 @@ async def transfer(body: TransferReq, x_session: str | None = Header(default=Non
 
     # Realtime push via redis pubsub (after commit to ensure data consistency)
     await publish_notify(redis, receiver.id, msg_receiver)
+
+    log_event(
+        logger,
+        "transfer_success",
+        from_user=sender.id,
+        to_user=receiver.id,
+        from_username=sender.username,
+        to_username=receiver.username,
+        from_account_number=sender.account_number,
+        to_account_number=receiver.account_number,
+        amount=body.amount,
+    )
 
     return {
         "ok": True,

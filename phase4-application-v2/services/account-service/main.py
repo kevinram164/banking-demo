@@ -1,4 +1,5 @@
 import os
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,11 +11,14 @@ from common.db import SessionLocal, engine, Base
 from common.models import User
 from common.redis_utils import get_user_id_from_session
 from common.observability import instrument_fastapi
+from common.logging_utils import get_json_logger, RequestLogMiddleware, log_event
 
 Base.metadata.create_all(bind=engine)
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+
+logger = get_json_logger("account-service")
 
 redis: Redis | None = None
 
@@ -35,6 +39,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestLogMiddleware, logger=logger, service_name="account-service")
 
 def get_db():
     db = SessionLocal()
@@ -64,6 +69,11 @@ async def balance(x_session: str | None = Header(default=None), db: Session = De
     user_id = await get_user_id_from_session(redis, x_session)
     u = db.get(User, user_id)
     if not u:
+        log_event(
+            logger,
+            "balance_failed",
+            reason="USER_NOT_FOUND",
+        )
         raise HTTPException(404, "User not found")
     return {"balance": u.balance}
 
@@ -77,8 +87,20 @@ async def lookup(account_number: str, db: Session = Depends(get_db)):
 
     u = db.execute(select(User).where(User.account_number == acct)).scalar_one_or_none()
     if not u:
+        log_event(
+            logger,
+            "account_lookup_failed",
+            reason="ACCOUNT_NOT_FOUND",
+            account_number=acct,
+        )
         raise HTTPException(404, "Account not found")
 
+    log_event(
+        logger,
+        "account_lookup_success",
+        account_number=u.account_number,
+        username=u.username,
+    )
     return {"account_number": u.account_number, "username": u.username}
 
 @app.get("/health")

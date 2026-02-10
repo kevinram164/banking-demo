@@ -1,5 +1,6 @@
 import os
 import secrets
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,11 +14,14 @@ from common.models import User
 from common.auth import hash_password, verify_password
 from common.redis_utils import create_session
 from common.observability import instrument_fastapi
+from common.logging_utils import get_json_logger, RequestLogMiddleware, log_event
 
 Base.metadata.create_all(bind=engine)
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+
+logger = get_json_logger("auth-service")
 
 redis: Redis | None = None
 
@@ -38,6 +42,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestLogMiddleware, logger=logger, service_name="auth-service")
 
 def get_db():
     db = SessionLocal()
@@ -82,6 +87,13 @@ async def register(body: RegisterReq, db: Session = Depends(get_db)):
 
     exists_phone = db.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
     if exists_phone:
+        log_event(
+            logger,
+            "register_failed",
+            reason="PHONE_EXISTS",
+            phone=phone,
+            username=username,
+        )
         raise HTTPException(409, "Phone already exists")
 
     # Sinh account_number random (unique)
@@ -104,6 +116,15 @@ async def register(body: RegisterReq, db: Session = Depends(get_db)):
     db.add(u)
     db.commit()
     db.refresh(u)
+
+    log_event(
+        logger,
+        "register_success",
+        user_id=u.id,
+        phone=u.phone,
+        username=u.username,
+        account_number=u.account_number,
+    )
     return {
         "id": u.id,
         "phone": _mask_phone(u.phone),
@@ -129,9 +150,24 @@ async def login(body: LoginReq, db: Session = Depends(get_db)):
         raise HTTPException(400, "Missing phone/username")
 
     if not u or not verify_password(body.password, u.password_hash):
+        log_event(
+            logger,
+            "login_failed",
+            reason="INVALID_CREDENTIALS",
+            phone=phone or username,
+        )
         raise HTTPException(401, "Invalid credentials")
 
     sid = await create_session(redis, u.id)
+
+    log_event(
+        logger,
+        "login_success",
+        user_id=u.id,
+        phone=u.phone,
+        username=u.username,
+        account_number=u.account_number,
+    )
     return {
         "session": sid,
         "phone": _mask_phone(u.phone),
