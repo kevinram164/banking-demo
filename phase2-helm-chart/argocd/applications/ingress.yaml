@@ -50,8 +50,9 @@ spec:
   syncPolicy:
     automated:
       prune: false
-      selfHeal: false
-    syncOptions: []
+      selfHeal: true
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
       # Không cần CreateNamespace=true vì namespace đã được tạo bởi infra (wave 0)
     retry:
       limit: 3

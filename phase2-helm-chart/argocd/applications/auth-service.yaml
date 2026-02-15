@@ -51,9 +51,9 @@ spec:
   syncPolicy:
     automated:
       prune: false
-      selfHeal: false
-    syncOptions: []
-      # Không cần CreateNamespace=true vì namespace đã được tạo bởi infra (wave 0)
+      selfHeal: true   # Auto sync khi image/values thay đổi — không ảnh hưởng services khác
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
     retry:
       limit: 3
       backoff:

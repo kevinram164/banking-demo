@@ -1,4 +1,5 @@
-# ArgoCD Application: Deploy tất cả services banking-demo trong 1 dashboard
+# DEPRECATED: Application đơn deploy tất cả — dễ gây restart postgres/redis/services khi sync
+# Khuyến nghị: Dùng applications/ (per-service) — xem MIGRATE-TO-PER-SERVICE.md
 # Cách dùng: kubectl apply -f application.yaml -n argocd
 ---
 apiVersion: argoproj.io/v1alpha1

@@ -48,12 +48,13 @@ kubectl apply -f applications/kong.yaml -n argocd
 
 ## Sync policy
 
-Tất cả Application đều có:
-- `automated.prune: false` - Không tự động xóa resources
-- `automated.selfHeal: false` - Không tự động sửa drift
-- Sync thủ công qua UI hoặc CLI: `argocd app sync <app-name>`
+| Application | selfHeal | Ghi chú |
+|-------------|----------|---------|
+| namespace, postgres, redis | `false` | Sync thủ công — tránh restart DB |
+| kong, auth, account, transfer, notification, frontend, ingress | `true` | Auto sync — đổi Kong/image chỉ rollout đúng service đó |
 
-Điều này tránh việc tự động xóa/tạo lại khi push commit mới.
+- `prune: false` — Không tự động xóa resources
+- `ApplyOutOfSyncOnly=true` — Chỉ apply resources thay đổi
 
 ## Quản lý
 
