@@ -1,0 +1,47 @@
+# Phase 5 - Postgres HA (Bitnami PostgreSQL, primary + read replica)
+# Dùng: helm upgrade -i postgres-ha bitnami/postgresql -n postgres -f values-postgres-ha.yaml
+
+# Mapping Phase 2: user banking, db banking, password bankingpass
+auth:
+  enablePostgresUser: true
+  postgresPassword: "bankingpass"
+  username: "banking"
+  password: "bankingpass"
+  database: "banking"
+  replicationUsername: "repl_user"
+  replicationPassword: "replpass"
+
+# HA: primary + 1 read replica
+architecture: replication
+
+primary:
+  replicaCount: 1
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: nfs-client
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+readReplicas:
+  replicaCount: 1
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: nfs-client
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Connection string cho app (primary):
+# postgresql://banking:bankingpass@postgres-ha-postgresql.postgres.svc.cluster.local:5432/banking
+# (Service name = <release>-postgresql khi fullnameOverride không set)

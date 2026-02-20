@@ -1,0 +1,23 @@
+# Phase 5 - Redis HA (Bitnami Redis, master + replica)
+# Dùng: helm upgrade -i redis bitnami/redis -n redis -f values-redis-ha.yaml
+
+architecture: replication
+auth:
+  enabled: false
+
+master:
+  replicaCount: 1
+  persistence:
+    enabled: true
+    size: 256Mi
+    storageClass: nfs-client
+
+replica:
+  replicaCount: 1
+  persistence:
+    enabled: true
+    size: 256Mi
+    storageClass: nfs-client
+
+# Connection string cho app:
+# redis://redis-master.redis.svc.cluster.local:6379/0

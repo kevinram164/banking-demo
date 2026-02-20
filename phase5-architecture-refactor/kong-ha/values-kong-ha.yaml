@@ -1,0 +1,76 @@
+# Phase 5 - Kong HA với Postgres (chart kong/kong)
+# Dùng: helm upgrade -i kong kong/kong -n kong -f values-kong-ha.yaml
+# Điều kiện: Postgres HA đã chạy, DB kong + user kong đã tạo (kong-db-init-job)
+
+# Tắt Ingress Controller - dùng Kong truyền thống (Admin API + Proxy)
+ingressController:
+  enabled: false
+
+# Tắt Postgres subchart - dùng Postgres HA có sẵn
+postgresql:
+  enabled: false
+
+# Kong env - kết nối Postgres
+env:
+  database: "postgres"
+  pg_host: "postgres-postgresql-primary.postgres.svc.cluster.local"  
+  pg_port: "5432"
+  pg_database: "kong"
+  pg_user: "kong"
+  pg_password: "kongpass"
+  pg_ssl: "off"
+  proxy_access_log: "/dev/stdout"
+  admin_access_log: "/dev/stdout"
+  proxy_error_log: "/dev/stderr"
+  admin_error_log: "/dev/stderr"
+  admin_listen: "0.0.0.0:8001"
+  proxy_listen: "0.0.0.0:8000"
+  nginx_worker_processes: "2"
+
+# HA: 2 replica
+replicaCount: 2
+
+# Admin API - bật để import config (Konga/decK cần kết nối nội bộ)
+admin:
+  enabled: true
+  type: ClusterIP
+  http:
+    enabled: true
+    servicePort: 8001
+    containerPort: 8001
+  tls:
+    enabled: false
+  # Ingress tắt - dùng kong-manager-ingress.yaml trỏ vào Manager
+  ingress:
+    enabled: false
+
+# Proxy - ClusterIP (Ingress banking trỏ tới đây)
+proxy:
+  enabled: true
+  type: ClusterIP
+  http:
+    enabled: true
+    servicePort: 8000
+    containerPort: 8000
+  tls:
+    enabled: false
+
+# Image
+image:
+  repository: kong
+  tag: "3.4"
+  pullPolicy: IfNotPresent
+
+# Không dùng dbless config
+dblessConfig:
+  configMap: ""
+  config: ""
+
+# Resources
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "1Gi"
+    cpu: "500m"

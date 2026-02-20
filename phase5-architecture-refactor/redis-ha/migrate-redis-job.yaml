@@ -1,0 +1,47 @@
+# Job migrate data từ Redis cũ (Phase 2, ns banking) sang Redis HA mới (Phase 5, ns redis)
+# Redis lưu: session:{sid}, presence:{user_id} – migrate giữ session để user không phải login lại
+#
+# Chạy khi: Redis HA (Bitnami) đã deploy trong ns redis; Redis cũ vẫn chạy trong ns banking
+# Sửa OLD_HOST / NEW_HOST nếu tên Service khác
+#
+# kubectl apply -f migrate-redis-job.yaml -n redis
+# kubectl -n redis logs -f job/redis-migrate-from-banking
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redis-migrate-from-banking
+  namespace: redis
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: redis:7-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              OLD_HOST="redis.banking.svc.cluster.local"
+              NEW_HOST="redis.redis.svc.cluster.local"   # Bitnami: redis-master; chart khác: redis
+              PORT="6379"
+              
+              echo "=== Migrate Redis: $OLD_HOST -> $NEW_HOST ==="
+              echo "Scanning keys from old Redis..."
+              
+              migrated=0
+              for key in $(redis-cli -h "$OLD_HOST" -p "$PORT" --scan 2>/dev/null); do
+                ttl=$(redis-cli -h "$OLD_HOST" -p "$PORT" TTL "$key" 2>/dev/null || echo "-2")
+                if [ "$ttl" = "-2" ]; then continue; fi
+                ttl_ms=0
+                if [ "$ttl" -gt 0 ] 2>/dev/null; then ttl_ms=$((ttl * 1000)); fi
+                redis-cli -h "$OLD_HOST" -p "$PORT" DUMP "$key" 2>/dev/null | \
+                  redis-cli -h "$NEW_HOST" -p "$PORT" -x RESTORE "$key" $ttl_ms REPLACE 2>/dev/null && migrated=$((migrated+1)) || true
+              done
+              
+              echo "Migrated $migrated keys"
+              echo "=== Done ==="

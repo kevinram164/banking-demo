@@ -1,0 +1,25 @@
+# Ingress trỏ vào Kong Manager (UI quản lý)
+# Apply: kubectl apply -f kong-manager-ingress.yaml -n kong
+# Truy cập: http://kong-manager.co (dùng HTTP, không dùng HTTPS nếu chưa cấu hình TLS)
+# Sửa hostname nếu cần
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kong-manager
+  namespace: kong
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: manager
+spec:
+  ingressClassName: haproxy
+  rules:
+    - host: kong-manager.co
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: kong-kong-manager
+                port:
+                  number: 8002  # HTTP

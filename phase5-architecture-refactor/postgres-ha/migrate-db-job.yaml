@@ -1,0 +1,51 @@
+# Job migrate data từ Postgres cũ (Phase 2, ns banking) sang Postgres HA mới (Phase 5, ns postgres)
+# Chạy khi: Postgres HA đã deploy và Ready; DB cũ (Phase 2) vẫn chạy trong ns banking
+#
+# Sửa OLD_HOST nếu Phase 2 dùng Service/namespace khác (ví dụ release name khác → postgres-xxx)
+#
+# kubectl apply -f migrate-db-job.yaml -n postgres
+# kubectl -n postgres logs -f job/postgres-migrate-from-banking
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-migrate-from-banking
+  namespace: postgres
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: postgres:16-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "=== Migrate DB: banking (old) -> postgres-ha (new) ==="
+              
+              OLD_HOST="postgres.banking.svc.cluster.local"
+              OLD_PORT="5432"
+              NEW_HOST="postgres-ha-postgresql.postgres.svc.cluster.local"
+              NEW_PORT="5432"
+              DB="banking"
+              USER="banking"
+              export PGPASSWORD="bankingpass"
+              
+              echo "Step 1: pg_dump from old DB ($OLD_HOST)"
+              pg_dump -h "$OLD_HOST" -p "$OLD_PORT" -U "$USER" -d "$DB" -F c -f /tmp/banking.dump
+              echo "Dump size: $(du -h /tmp/banking.dump | cut -f1)"
+              
+              echo "Step 2: pg_restore to new DB ($NEW_HOST)"
+              pg_restore -h "$NEW_HOST" -p "$NEW_PORT" -U "$USER" -d "$DB" --clean --if-exists --no-owner --no-acl /tmp/banking.dump || true
+              # pg_restore exit 1 khi có harmless warnings (e.g. role không tồn tại) – dùng || true
+              # Nếu cần fail khi có lỗi thật: bỏ "|| true"
+              
+              echo "Step 3: Verify"
+              psql -h "$NEW_HOST" -p "$NEW_PORT" -U "$USER" -d "$DB" -c "SELECT count(*) FROM users;" || true
+              psql -h "$NEW_HOST" -p "$NEW_PORT" -U "$USER" -d "$DB" -c "SELECT count(*) FROM transfers;" || true
+              
+              echo "=== Migration done ==="

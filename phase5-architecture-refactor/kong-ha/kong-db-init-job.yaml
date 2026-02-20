@@ -1,0 +1,37 @@
+# Job tạo database và user Kong trên Postgres HA có sẵn (ns postgres)
+# Chạy một lần sau khi Postgres HA đã Ready
+# Sửa POSTGRES_SVC nếu release Postgres khác (ví dụ postgres-ha-postgresql-primary)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kong-db-init
+  namespace: postgres
+  labels:
+    app: kong-db-init
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: postgres:16-alpine
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-postgresql  
+                  key: postgres-password
+            - name: POSTGRES_SVC
+              value: "postgres-postgresql-primary.postgres.svc.cluster.local" 
+          command:
+            - /bin/sh
+            - -c
+            - |
+              psql -h $POSTGRES_SVC -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='kong'" | grep -q 1 || \
+              psql -h $POSTGRES_SVC -U postgres -d postgres -c "CREATE DATABASE kong;"
+              psql -h $POSTGRES_SVC -U postgres -d postgres -c "CREATE USER kong WITH PASSWORD 'kongpass';" 2>/dev/null || true
+              psql -h $POSTGRES_SVC -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE kong TO kong;"
+              psql -h $POSTGRES_SVC -U postgres -d kong -c "GRANT ALL ON SCHEMA public TO kong;"
+              echo "Kong DB init done"

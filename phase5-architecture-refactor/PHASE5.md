@@ -14,6 +14,21 @@ Giai đoạn 5 tập trung vào **đổi kiến trúc**: tách Kong, Redis, Post
 ```text
 phase5-architecture-refactor/
 ├── PHASE5.md                         # File này – overview Phase 5 (kiến trúc)
+├── postgres-ha/                      # Triển khai Postgres HA + migrate data
+│   ├── README.md                     # Hướng dẫn từng bước
+│   ├── values-postgres-ha.yaml       # Values Bitnami PostgreSQL (HA)
+│   └── migrate-db-job.yaml           # Job migrate DB cũ → DB mới
+├── kong-ha/                          # Triển khai Kong HA với Postgres
+│   ├── README.md                     # Hướng dẫn từng bước
+│   ├── values-kong-ha.yaml           # Values Kong (DB mode, 2 replica)
+│   ├── kong-db-init-job.yaml         # Job tạo DB kong trên Postgres
+│   ├── kong-import-job.yaml          # Job import config declarative vào DB
+│   └── kong-declarative.yaml         # Config services/routes/plugins (FQDN)
+├── redis-ha/                         # Triển khai Redis HA + migrate
+│   ├── README.md
+│   ├── values-redis-ha.yaml          # Values Bitnami Redis (master + replica)
+│   └── migrate-redis-job.yaml        # Job migrate session/presence sang Redis mới
+├── APP-CUTOVER.md                    # Hướng dẫn chuyển app sang DB/Redis/Kong mới
 └── architecture/
     ├── NAMESPACE-SPLIT.md            # Tách namespace: banking, kong, redis, postgres; DNS, kết nối
     ├── KONG-DEDICATED-DB.md          # Kong DB riêng (DB mode), lợi ích, migration
