@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Blue hexagon (K8s style #326ce5) -->
+  <path fill="#326ce5" d="M32 4 L56 18 L56 46 L32 60 L8 46 L8 18 Z"/>
+  <!-- White cube (isometric 3D) -->
+  <path fill="#ffffff" fill-opacity="0.95" d="M32 22 L44 29 L44 43 L32 50 L20 43 L20 29 Z"/>
+  <path fill="#ffffff" fill-opacity="0.85" d="M32 22 L32 36 L44 43 L44 29 Z"/>
+  <path fill="#ffffff" fill-opacity="0.7" d="M32 36 L32 50 L44 43 L44 29 Z"/>
+</svg>

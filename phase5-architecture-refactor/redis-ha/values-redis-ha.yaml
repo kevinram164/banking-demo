@@ -2,22 +2,41 @@
 # Dùng: helm upgrade -i redis bitnami/redis -n redis -f values-redis-ha.yaml
 
 architecture: replication
+
 auth:
-  enabled: false
+  enabled: true
+  password: "*******"
 
+####################
+# MASTER
+####################
 master:
-  replicaCount: 1
   persistence:
     enabled: true
-    size: 256Mi
+    size: 20Gi
     storageClass: nfs-client
 
+  podAntiAffinityPreset: soft
+
+####################
+# REPLICA
+####################
 replica:
-  replicaCount: 1
+  replicaCount: 3
+
   persistence:
     enabled: true
-    size: 256Mi
+    size: 20Gi
     storageClass: nfs-client
+
+  podAntiAffinityPreset: soft
+
+####################
+# SENTINEL
+####################
+sentinel:
+  enabled: true
+  replicas: 3
 
 # Connection string cho app:
 # redis://redis-master.redis.svc.cluster.local:6379/0

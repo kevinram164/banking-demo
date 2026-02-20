@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path fill="#326ce5" d="M32 4 L56 18 L56 46 L32 60 L8 46 L8 18 Z"/>
+  <!-- Arrow/route (Ingress) -->
+  <path fill="#fff" d="M18 32 L32 20 L46 32 L38 32 L38 44 L26 44 L26 32 Z" opacity="0.95"/>
+</svg>

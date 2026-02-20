@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path fill="#326ce5" d="M32 4 L56 18 L56 46 L32 60 L8 46 L8 18 Z"/>
+  <!-- Stacked blocks (1-2-3 StatefulSet style) -->
+  <rect x="24" y="36" width="16" height="12" fill="#fff" opacity="0.95"/>
+  <rect x="28" y="28" width="16" height="12" fill="#fff" opacity="0.9"/>
+  <rect x="32" y="20" width="16" height="12" fill="#fff" opacity="0.85"/>
+</svg>

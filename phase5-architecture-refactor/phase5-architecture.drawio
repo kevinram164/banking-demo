@@ -1,0 +1,129 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0" version="22.0.0" etag="phase5" type="device">
+  <diagram name="Phase 5 - Kiến trúc mới" id="phase5-arch">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Tiêu đề -->
+        <mxCell id="title" parent="1" value="Phase 5 — Kiến trúc sau refactor (tách namespace)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;" vertex="1">
+          <mxGeometry x="400" y="10" width="400" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Namespace: banking -->
+        <mxCell id="ns-banking" parent="1" value="Namespace: banking" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1">
+          <mxGeometry x="40" y="60" width="320" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="ingress" parent="ns-banking" value="Ingress (HAProxy)&#xa;/ → frontend, /api &amp; /ws → Kong" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1">
+          <mxGeometry x="20" y="40" width="280" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="frontend" parent="ns-banking" value="Frontend (Deployment)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1">
+          <mxGeometry x="20" y="95" width="130" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="auth" parent="ns-banking" value="auth-service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1">
+          <mxGeometry x="20" y="140" width="130" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="account" parent="ns-banking" value="account-service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1">
+          <mxGeometry x="20" y="185" width="130" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="transfer" parent="ns-banking" value="transfer-service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1">
+          <mxGeometry x="170" y="95" width="130" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="notif" parent="ns-banking" value="notification-service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1">
+          <mxGeometry x="170" y="140" width="130" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="secret" parent="ns-banking" value="Secret (DATABASE_URL, REDIS_URL)" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1">
+          <mxGeometry x="20" y="235" width="280" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Namespace: kong -->
+        <mxCell id="ns-kong" parent="1" value="Namespace: kong" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1">
+          <mxGeometry x="400" y="60" width="280" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="kong" parent="ns-kong" value="Kong (Deployment)&#xa;DB mode · Proxy :8000 · Admin :8001" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1">
+          <mxGeometry x="20" y="40" width="240" height="95" as="geometry" />
+        </mxCell>
+
+        <!-- Namespace: redis -->
+        <mxCell id="ns-redis" parent="1" value="Namespace: redis" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1">
+          <mxGeometry x="720" y="60" width="200" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="redis-master" parent="ns-redis" value="Redis Master (StatefulSet)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1">
+          <mxGeometry x="20" y="40" width="160" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="redis-replica" parent="ns-redis" value="Redis Replica" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1">
+          <mxGeometry x="20" y="85" width="160" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Namespace: postgres -->
+        <mxCell id="ns-postgres" parent="1" value="Namespace: postgres" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1">
+          <mxGeometry x="960" y="60" width="200" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="pg-primary" parent="ns-postgres" value="PostgreSQL Primary (StatefulSet)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1">
+          <mxGeometry x="20" y="40" width="160" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="pg-replica" parent="ns-postgres" value="PostgreSQL Replica" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1">
+          <mxGeometry x="20" y="85" width="160" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- User -->
+        <mxCell id="user" parent="1" value="User / Browser" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1">
+          <mxGeometry x="140" y="370" width="40" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Các mũi tên kết nối -->
+        <mxCell id="e1" parent="1" source="user" target="ingress" value="HTTP/HTTPS">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" parent="1" source="ingress" target="frontend" value="/">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" parent="1" source="ingress" target="kong" value="/api, /ws">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360" y="90" />
+              <mxPoint x="440" y="90" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" parent="1" source="kong" target="auth" value="FQDN">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="380" y="210" />
+              <mxPoint x="95" y="210" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" parent="1" source="auth" target="secret" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" parent="1" source="secret" target="redis-master" value="REDIS_URL">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820" y="200" />
+              <mxPoint x="820" y="125" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" parent="1" source="secret" target="pg-primary" value="DATABASE_URL">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1060" y="200" />
+              <mxPoint x="1060" y="125" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Ghi chú FQDN -->
+        <mxCell id="note" parent="1" value="FQDN cross-namespace:&#xa;• postgres-postgresql-primary.postgres.svc.cluster.local:5432&#xa;• redis-master.redis.svc.cluster.local:6379&#xa;• kong-kong-proxy.kong.svc.cluster.local:8000&#xa;• auth-service.banking.svc.cluster.local:8001 (Kong → app)" style="text;html=1;strokeColor=#666666;fillColor=#f5f5f5;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;fontSize=10;" vertex="1">
+          <mxGeometry x="40" y="400" width="500" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Ghi chú K8s icons -->
+        <mxCell id="k8s-note" parent="1" value="💡 Để dùng icon K8s chính thức: Mở draw.io → More Shapes (+) → tìm &quot;Kubernetes&quot; → bật → kéo Deployment, Service, StatefulSet, Pod, Ingress từ panel thay cho các hình trên." style="text;html=1;strokeColor=none;fillColor=#e1d5e7;align=left;verticalAlign=top;spacingLeft=4;fontSize=9;fontColor=#333333;" vertex="1">
+          <mxGeometry x="560" y="400" width="400" height="50" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

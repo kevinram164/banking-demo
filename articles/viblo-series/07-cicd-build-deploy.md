@@ -358,17 +358,17 @@ Sau đó có thể chạy **smoke test** (Helm template smoke-test job) để ve
 - **GitHub Actions**: Trigger theo path; các job detect-changes → lint → test → build-images → push-images → security-scan; manual trigger; image tag SHA/branch/latest; secrets cho registry.
 - **CD**: Cập nhật `image.tag` trong 5 file values, commit + push; ArgoCD sync tay hoặc auto-sync (vd 5 phút); Selective Sync hoặc per-service Application để tránh động postgres/redis.
 
-Bài tiếp theo: **Security & Reliability** (Phase 7) — JWT hardening, Kong plugins, SLO/alerting.
+Bài tiếp theo: **Refactor kiến trúc** (Phase 5) — tách namespace, Kong DB mode, Postgres/Redis HA.
 
 ---
 
 ## Bài tiếp theo
 
-**Bài 8**: *Security & Reliability (Phase 7)*
+**Bài 8**: *Refactor kiến trúc (Phase 5)*
 
-- Auth hardening (JWT design)
-- Kong security plugins
-- SLO và alerting (SRE)
+- Tách namespace (banking, kong, redis, postgres)
+- Tách Helm chart, Kong DB mode
+- Postgres/Redis HA, cutover
 
 ---
 
