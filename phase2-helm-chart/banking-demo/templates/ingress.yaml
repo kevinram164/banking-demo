@@ -25,6 +25,9 @@ spec:
             backend:
               service:
                 name: {{ .serviceName }}
+                {{- if .serviceNamespace }}
+                namespace: {{ .serviceNamespace }}
+                {{- end }}
                 port:
                   number: {{ .servicePort }}
         {{- end }}

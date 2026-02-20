@@ -15,8 +15,11 @@ secret:
   postgresUser: banking
   postgresPassword: bankingpass
   postgresDb: banking
-  databaseUrl: "postgresql://banking:bankingpass@postgres:5432/banking"
-  redisUrl: "redis://redis:6379/0"
+  #databaseUrl: "postgresql://banking:bankingpass@postgres:5432/banking"
+  #redisUrl: "redis://redis:6379/0"
+  # Phase 5: Postgres HA, Redis HA ở namespace riêng
+  databaseUrl: "postgresql://banking:bankingpass@postgres-postgresql-primary.postgres.svc.cluster.local:5432/banking"
+  redisUrl: "redis://redis.redis.svc.cluster.local:6379/0"
 
 ## Phase 4 v2 - DB migration hook (runs as Helm pre-install/pre-upgrade Job)
 dbMigration:
@@ -64,6 +67,7 @@ ingress:
   className: haproxy
   host: npd-banking.co
   name: banking-ingress
+  # Phase 5: Kong HA ở ns kong, backend cross-namespace
   paths:
     - path: /
       pathType: Prefix
@@ -71,9 +75,13 @@ ingress:
       servicePort: 80
     - path: /api
       pathType: Prefix
-      serviceName: kong
+      #serviceName: kong
+      serviceName: kong-kong-proxy
+      serviceNamespace: kong
       servicePort: 8000
     - path: /ws
       pathType: Prefix
-      serviceName: kong
+      #serviceName: kong
+      serviceName: kong-kong-proxy
+      serviceNamespace: kong
       servicePort: 8000

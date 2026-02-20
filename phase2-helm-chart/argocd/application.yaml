@@ -1,5 +1,6 @@
-# DEPRECATED: Application đơn deploy tất cả — dễ gây restart postgres/redis/services khi sync
+# DEPRECATED: Application đơn deploy tất cả — dễ gây restart/services khi sync
 # Khuyến nghị: Dùng applications/ (per-service) — xem MIGRATE-TO-PER-SERVICE.md
+# Phase 5: Postgres, Redis, Kong đã tách ra ns riêng — không deploy qua chart banking-demo
 # Cách dùng: kubectl apply -f application.yaml -n argocd
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -19,14 +20,19 @@ spec:
       releaseName: banking-demo
       valueFiles:
         - charts/common/values.yaml
-        - charts/postgres/values.yaml
-        - charts/redis/values.yaml
-        - charts/kong/values.yaml
+        # Phase 5: Không còn postgres, redis, kong — dùng Phase 5 (ns postgres, redis, kong)
         - charts/auth-service/values.yaml
         - charts/account-service/values.yaml
         - charts/transfer-service/values.yaml
         - charts/notification-service/values.yaml
         - charts/frontend/values.yaml
+      parameters:
+        - name: postgres.enabled
+          value: "false"
+        - name: redis.enabled
+          value: "false"
+        - name: kong.enabled
+          value: "false"
   destination:
     server: https://kubernetes.default.svc
     namespace: banking
