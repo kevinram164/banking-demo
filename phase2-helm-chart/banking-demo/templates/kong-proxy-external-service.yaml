@@ -1,0 +1,14 @@
+{{- if and .Values.ingress.enabled .Values.ingress.kongExternalService }}
+# ExternalName Service: HAProxy Ingress mặc định không hỗ trợ backend cross-namespace.
+# Service này trỏ tới Kong proxy trong ns kong, Ingress reference service cùng namespace.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-proxy
+  namespace: {{ include "banking-demo.namespace" . }}
+  labels:
+    {{- include "banking-demo.labels" . | nindent 4 }}
+spec:
+  type: ExternalName
+  externalName: {{ .Values.ingress.kongExternalServiceName | default "kong-kong-proxy.kong.svc.cluster.local" }}
+{{- end }}

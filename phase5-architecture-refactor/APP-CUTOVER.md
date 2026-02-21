@@ -114,27 +114,17 @@ paths:
           number: 8000
 ```
 
-**Cách 2: ExternalName Service (nếu Ingress không hỗ trợ cross-ns)**
+**Cách 2: ExternalName Service (HAProxy Ingress mặc định không hỗ trợ cross-ns)**
 
-Tạo Service trong ns `banking` trỏ tới Kong:
+Chart `banking-demo` đã cấu hình `ingress.kongExternalService: true` trong `charts/common/values.yaml` — tạo Service `kong-proxy` (ExternalName) trong ns `banking` trỏ tới `kong-kong-proxy.kong.svc.cluster.local`. Ingress reference `kong-proxy` (cùng namespace).
 
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: kong-proxy
-  namespace: banking
-spec:
-  type: ExternalName
-  externalName: kong-kong-proxy.kong.svc.cluster.local
----
-# Port không có trong ExternalName – một số controller cần Service có port.
-# Thay bằng Endpoints thủ công hoặc dùng Cách 1.
+**Cách 3: Bật --allow-cross-namespace trên HAProxy Ingress**
+
+```bash
+kubectl get deployment -A -l app.kubernetes.io/name=haproxy-ingress
+kubectl edit deployment <tên> -n <namespace>
+# Thêm vào args: --allow-cross-namespace=true
 ```
-
-Một số Ingress (vd. HAProxy) có thể cần Service + Endpoints trong cùng ns. Khi đó dùng **Endpoints** trỏ tới ClusterIP của Kong.
-
-**Cách 3: HAProxy Ingress** – thường hỗ trợ `backend.service.namespace`. Thử Cách 1 trước.
 
 ---
 

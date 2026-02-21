@@ -67,7 +67,10 @@ ingress:
   className: haproxy
   host: npd-banking.co
   name: banking-ingress
-  # Phase 5: Kong HA ở ns kong, backend cross-namespace
+  # Phase 5: Kong HA ở ns kong. HAProxy Ingress mặc định KHÔNG hỗ trợ backend cross-namespace.
+  # Dùng ExternalName Service (kongExternalService: true) hoặc bật --allow-cross-namespace trên HAProxy.
+  kongExternalService: true
+  kongExternalServiceName: "kong-kong-proxy.kong.svc.cluster.local"
   paths:
     - path: /
       pathType: Prefix
@@ -75,13 +78,9 @@ ingress:
       servicePort: 80
     - path: /api
       pathType: Prefix
-      #serviceName: kong
-      serviceName: kong-kong-proxy
-      serviceNamespace: kong
+      serviceName: kong-proxy
       servicePort: 8000
     - path: /ws
       pathType: Prefix
-      #serviceName: kong
-      serviceName: kong-kong-proxy
-      serviceNamespace: kong
+      serviceName: kong-proxy
       servicePort: 8000
