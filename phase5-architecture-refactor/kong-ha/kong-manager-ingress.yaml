@@ -1,7 +1,14 @@
-# Ingress trỏ vào Kong Manager (UI quản lý)
+# Ingress cho Kong Manager + Admin API (cùng host để Kong Manager gọi Admin API qua path)
+#
+# Kong Manager (browser) gọi Admin API tại kong-manager.co/admin-api
+# Ingress route /admin-api -> kong-kong-admin (ClusterIP) — không expose Admin API riêng
+#
 # Apply: kubectl apply -f kong-manager-ingress.yaml -n kong
-# Truy cập: http://kong-manager.co (dùng HTTP, không dùng HTTPS nếu chưa cấu hình TLS)
-# Sửa hostname nếu cần
+# Truy cập: http://kong-manager.co
+#
+# Cần set KONG_ADMIN_GUI_API_URL trong values-kong-ha.yaml:
+#   env:
+#     admin_gui_api_url: "http://kong-manager.co/admin-api"
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -10,16 +17,28 @@ metadata:
   labels:
     app.kubernetes.io/name: kong
     app.kubernetes.io/component: manager
+  annotations:
+    # Strip /admin-api prefix khi forward tới Admin API (Admin API expect /services, /routes...)
+    haproxy.org/path-rewrite: "/admin-api/(.*) /\\1"
 spec:
   ingressClassName: haproxy
   rules:
     - host: kong-manager.co
       http:
         paths:
+          # Admin API — path dài hơn trước để match trước
+          - path: /admin-api
+            pathType: Prefix
+            backend:
+              service:
+                name: kong-kong-admin
+                port:
+                  number: 8001
+          # Kong Manager UI
           - path: /
             pathType: ImplementationSpecific
             backend:
               service:
                 name: kong-kong-manager
                 port:
-                  number: 8002  # HTTP
+                  number: 8002

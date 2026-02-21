@@ -156,6 +156,22 @@ kubectl run curl-test --rm -it --restart=Never --image=curlimages/curl -- \
 
 ---
 
+## Kong Manager — gọi Admin API qua ClusterIP
+
+Kong Manager (browser) cần gọi Admin API. Thay vì expose Admin API riêng, dùng **Ingress proxy** trên cùng host:
+
+1. **Ingress** `kong-manager-ingress.yaml`: route `kong-manager.co/admin-api` → `kong-kong-admin:8001` (ClusterIP), path rewrite `/admin-api/services` → `/services`
+2. **Kong env** `admin_gui_api_url`: `http://kong-manager.co/admin-api` (đã thêm trong values-kong-ha.yaml)
+
+```bash
+kubectl apply -f kong-manager-ingress.yaml -n kong
+helm upgrade kong kong/kong -n kong -f values-kong-ha.yaml  # apply admin_gui_api_url
+```
+
+Thêm `kong-manager.co` vào DNS/hosts trỏ IP Ingress. Truy cập http://kong-manager.co → Kong Manager sẽ gọi Admin API qua path `/admin-api` (Ingress proxy tới ClusterIP).
+
+---
+
 ## Lưu ý
 
 - **pg_host / Secret**: Nếu dùng release Postgres `postgres-ha`, sửa `pg_host` và tên Secret trong Job tương ứng.

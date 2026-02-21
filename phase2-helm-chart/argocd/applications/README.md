@@ -31,6 +31,7 @@ kubectl apply -f applications/ -n argocd
 
 - Postgres HA, Redis HA, Kong HA đã deploy trong ns `postgres`, `redis`, `kong`
 - Secret dùng: `postgres-postgresql-primary.postgres`, `redis.redis`, Kong proxy `kong-kong-proxy.kong`
+- **Redis có auth**: Cần patch `banking-db-secret` với REDIS_URL có password — xem `MIGRATE-TO-PER-SERVICE.md` Bước 3
 
 ## Sync policy
 

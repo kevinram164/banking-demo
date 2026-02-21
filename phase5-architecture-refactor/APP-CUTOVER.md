@@ -52,21 +52,31 @@ kubectl -n redis logs -f job/redis-migrate-from-banking
 
 ## Bước 3: Cập nhật Secret cho app
 
-Tạo/cập nhật Secret `banking-db-secret` trong ns `banking` với URL mới:
+Tạo/cập nhật Secret `banking-db-secret` trong ns `banking` với URL mới.
 
-```yaml
-# kubectl create secret generic banking-db-secret -n banking \
-#   --from-literal=DATABASE_URL='postgresql://banking:bankingpass@postgres-postgresql-primary.postgres.svc.cluster.local:5432/banking' \
-#   --from-literal=REDIS_URL='redis://redis.redis.svc.cluster.local:6379/0' \
-#   --dry-run=client -o yaml | kubectl apply -f -
+**Quan trọng**: Bitnami Redis Phase 5 bật `auth.enabled: true` → **REDIS_URL phải có password**. Nếu thiếu, app trả 503 trên `/health` (Readiness probe failed).
 
-# Hoặc patch nếu Secret đã tồn tại:
-kubectl patch secret banking-db-secret -n banking -p '{
-  "stringData": {
-    "DATABASE_URL": "postgresql://banking:bankingpass@postgres-postgresql-primary.postgres.svc.cluster.local:5432/banking",
-    "REDIS_URL": "redis://redis.redis.svc.cluster.local:6379/0"
+```bash
+# Lấy Redis password (Bitnami: redis-password hoặc password)
+REDIS_PASS=$(kubectl get secret -n redis redis -o jsonpath='{.data.redis-password}' 2>/dev/null | base64 -d)
+[ -z "$REDIS_PASS" ] && REDIS_PASS=$(kubectl get secret -n redis redis -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)
+
+# Patch Secret — cú pháp redis://:password@host (dấu : trước password)
+kubectl patch secret banking-db-secret -n banking -p "{
+  \"stringData\": {
+    \"DATABASE_URL\": \"postgresql://banking:bankingpass@postgres-postgresql-primary.postgres.svc.cluster.local:5432/banking\",
+    \"REDIS_URL\": \"redis://:${REDIS_PASS}@redis.redis.svc.cluster.local:6379/0\"
   }
-}'
+}"
+```
+
+**Hoặc tạo mới** (nếu Secret chưa tồn tại):
+
+```bash
+REDIS_PASS=$(kubectl get secret -n redis redis -o jsonpath='{.data.redis-password}' 2>/dev/null | base64 -d)
+kubectl create secret generic banking-db-secret -n banking \
+  --from-literal=DATABASE_URL='postgresql://banking:bankingpass@postgres-postgresql-primary.postgres.svc.cluster.local:5432/banking' \
+  --from-literal=REDIS_URL="redis://:${REDIS_PASS}@redis.redis.svc.cluster.local:6379/0"
 ```
 
 **Sửa host** nếu release name khác:
@@ -188,5 +198,5 @@ curl -X POST https://npd-banking.co/api/auth/login -H "Content-Type: application
 | Thành phần | Phase 2 (cũ) | Phase 5 (mới) |
 |------------|--------------|---------------|
 | Postgres | `postgres.banking:5432` | `postgres-postgresql-primary.postgres:5432` |
-| Redis | `redis.banking:6379` | `redis.redis:6379` |
+| Redis | `redis.banking:6379` (no auth) | `redis.redis:6379` — **cần password**: `redis://:PASSWORD@redis.redis...` |
 | Kong (proxy) | `kong.banking:8000` | `kong-kong-proxy.kong:8000` |
