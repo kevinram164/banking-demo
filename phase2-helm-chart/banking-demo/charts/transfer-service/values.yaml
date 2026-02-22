@@ -4,7 +4,7 @@ transfer-service:
   enabled: true
   image:
     repository: registry.gitlab.com/kiettt164/banking-demo-payment/transfer-service
-    tag: 06bc624
+    tag: fc4b0fda
     pullPolicy: Always
   imagePullSecrets: []
   replicas: 1
