@@ -14,7 +14,7 @@ from common.models import User
 from common.auth import hash_password, verify_password
 from common.redis_utils import create_session, create_redis_client
 from common.observability import instrument_fastapi
-from common.logging_utils import get_json_logger, RequestLogMiddleware, log_event
+from common.logging_utils import get_json_logger, RequestLogMiddleware, log_event, setup_exception_logging
 
 Base.metadata.create_all(bind=engine)
 
@@ -35,6 +35,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Auth Service", lifespan=lifespan)
 instrument_fastapi(app, "auth-service")
+setup_exception_logging(app, logger, "auth-service")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[x.strip() for x in CORS_ORIGINS],

@@ -2,11 +2,13 @@ import json
 import logging
 import os
 import time
+import traceback
 import uuid
 from typing import Any, Dict
 
+from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
 
 
 def get_json_logger(service_name: str) -> logging.Logger:
@@ -80,7 +82,33 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
 
         self.logger.info(json.dumps(payload, ensure_ascii=False))
 
-        # Gắn request_id vào response để client / các service khác trace được
         response.headers.setdefault("X-Request-Id", request_id)
         return response
+
+
+def setup_exception_logging(app, logger: logging.Logger, service_name: str):
+    """
+    Gắn global exception handler vào FastAPI app.
+    Mọi unhandled exception sẽ được log thành 1 JSON line duy nhất
+    (thay vì multi-line traceback mặc định của uvicorn).
+    """
+
+    @app.exception_handler(Exception)
+    async def _unhandled(request: Request, exc: Exception):
+        if isinstance(exc, HTTPException):
+            raise exc
+
+        tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+        payload = {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
+            "event": "unhandled_exception",
+            "service": service_name,
+            "method": request.method,
+            "path": request.url.path,
+            "error": str(exc),
+            "error_type": type(exc).__name__,
+            "traceback": "".join(tb).replace("\n", "\\n"),
+        }
+        logger.error(json.dumps(payload, ensure_ascii=False))
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 

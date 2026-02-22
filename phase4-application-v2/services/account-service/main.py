@@ -11,7 +11,7 @@ from common.db import SessionLocal, engine, Base
 from common.models import User
 from common.redis_utils import get_user_id_from_session, create_redis_client
 from common.observability import instrument_fastapi
-from common.logging_utils import get_json_logger, RequestLogMiddleware, log_event
+from common.logging_utils import get_json_logger, RequestLogMiddleware, log_event, setup_exception_logging
 
 Base.metadata.create_all(bind=engine)
 
@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Account Service", lifespan=lifespan)
 instrument_fastapi(app, "account-service")
+setup_exception_logging(app, logger, "account-service")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[x.strip() for x in CORS_ORIGINS],
