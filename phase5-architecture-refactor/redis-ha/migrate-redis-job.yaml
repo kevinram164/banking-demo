@@ -27,8 +27,9 @@ spec:
             - |
               set -e
               OLD_HOST="redis.banking.svc.cluster.local"
-              NEW_HOST="redis.redis.svc.cluster.local"   # Bitnami: redis-master; chart khác: redis
+              NEW_HOST="redis.redis.svc.cluster.local"
               PORT="6379"
+              NEW_PASS="Mbfs@2025"
               
               echo "=== Migrate Redis: $OLD_HOST -> $NEW_HOST ==="
               echo "Scanning keys from old Redis..."
@@ -40,7 +41,7 @@ spec:
                 ttl_ms=0
                 if [ "$ttl" -gt 0 ] 2>/dev/null; then ttl_ms=$((ttl * 1000)); fi
                 redis-cli -h "$OLD_HOST" -p "$PORT" DUMP "$key" 2>/dev/null | \
-                  redis-cli -h "$NEW_HOST" -p "$PORT" -x RESTORE "$key" $ttl_ms REPLACE 2>/dev/null && migrated=$((migrated+1)) || true
+                  redis-cli -h "$NEW_HOST" -p "$PORT" -a "$NEW_PASS" -x RESTORE "$key" $ttl_ms REPLACE 2>/dev/null && migrated=$((migrated+1)) || true
               done
               
               echo "Migrated $migrated keys"
