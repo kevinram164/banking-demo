@@ -379,11 +379,251 @@ phase5-architecture-refactor/
 
 ---
 
+## Troubleshooting: Fix lỗi 502 khi Frontend gọi Kong
+
+Sau khi cutover xong, mở trình duyệt gọi `https://npd-banking.co/api/auth/health` — **502 Bad Gateway**. Mở DevTools thấy Frontend gọi `/api/*` đều trả 502.
+
+### Nguyên nhân
+
+HAProxy Ingress Controller **không hỗ trợ backend cross-namespace**. Ingress nằm trong ns `banking`, nhưng Kong proxy giờ ở ns `kong`. Khi Ingress trỏ `serviceName: kong-kong-proxy` — HAProxy tìm Service đó trong ns `banking`, không thấy → 502.
+
+### Giải pháp: ExternalName Service
+
+Tạo một **ExternalName Service** trong ns `banking` làm cầu nối DNS:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-proxy-ext
+  namespace: banking
+spec:
+  type: ExternalName
+  externalName: kong-kong-proxy.kong.svc.cluster.local
+  ports:
+    - port: 8000
+      protocol: TCP
+```
+
+Service `kong-proxy-ext` không có Pod nào — nó chỉ là DNS alias trỏ sang `kong-kong-proxy.kong.svc.cluster.local`. HAProxy resolve Service này trong cùng ns `banking`, rồi forward traffic qua DNS tới Kong ở ns `kong`.
+
+Cập nhật Ingress:
+
+```yaml
+ingress:
+  paths:
+    - path: /
+      serviceName: frontend
+      servicePort: 80
+    - path: /api
+      serviceName: kong-proxy-ext      # ← thay kong-kong-proxy
+      servicePort: 8000
+    - path: /ws
+      serviceName: kong-proxy-ext
+      servicePort: 8000
+```
+
+Trong Helm chart, thêm vào `common/values.yaml`:
+
+```yaml
+kongExternalService:
+  enabled: true
+  name: kong-proxy-ext
+  externalName: kong-kong-proxy.kong.svc.cluster.local
+  port: 8000
+```
+
+Template `ingress.yaml` render cả Ingress lẫn ExternalName Service:
+
+```yaml
+{{- if and .Values.kongExternalService .Values.kongExternalService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.kongExternalService.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ExternalName
+  externalName: {{ .Values.kongExternalService.externalName }}
+  ports:
+    - port: {{ .Values.kongExternalService.port }}
+      protocol: TCP
+{{- end }}
+```
+
+Sync lại ArgoCD → 502 biến mất. Flow sau khi fix:
+
+```
+Browser → HAProxy Ingress (ns banking)
+  /       → frontend:80                              (cùng ns)
+  /api/*  → kong-proxy-ext:8000                      (ExternalName, cùng ns)
+          → kong-kong-proxy.kong.svc:8000             (DNS resolve sang ns kong)
+          → auth-service.banking.svc:8001 (etc.)      (Kong route tới app)
+  /ws     → tương tự qua Kong → notification-service
+```
+
+> **Bài học**: Khi tách namespace, đừng quên rằng nhiều Ingress Controller (HAProxy, nginx-ingress community) không cho phép backend ở namespace khác. ExternalName Service là cách đơn giản nhất để bridge, không cần sửa Ingress Controller.
+
+---
+
+## CI/CD: Tự động update image tag (GitOps)
+
+Phase 4 đã có CI build + push image, nhưng sau khi push xong, phải **tay** sửa `tag` trong Helm values rồi commit. Phase 5 bổ sung thêm **Stage 5: Update Image Tags** trong CI — tự động cập nhật tag và commit lại repo, để ArgoCD tự detect và sync.
+
+### Thêm stage `update-manifests` trong CI
+
+```yaml
+# Stage 5: Update image tags in Helm values (GitOps)
+update-manifests:
+  name: Update Image Tags
+  runs-on: ubuntu-latest
+  needs: [detect-changes, push-images]
+  permissions:
+    contents: write
+  if: |
+    always() &&
+    needs.push-images.result == 'success' &&
+    github.ref == 'refs/heads/main'
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+
+    - name: Compute image tag
+      id: tag
+      run: echo "sha=$(git rev-parse --short=7 HEAD)" >> $GITHUB_OUTPUT
+
+    - name: Update Helm values
+      run: |
+        SERVICES="${{ needs.detect-changes.outputs.services-list }}"
+        TAG="${{ steps.tag.outputs.sha }}"
+        CHART_DIR="phase2-helm-chart/banking-demo/charts"
+
+        should_update() {
+          [ "$SERVICES" == "all" ] && return 0
+          echo "$SERVICES" | grep -q "$1" && return 0
+          return 1
+        }
+
+        update_tag() {
+          local svc="$1"
+          local file="$CHART_DIR/$svc/values.yaml"
+          if [ -f "$file" ]; then
+            sed -i "s|tag: .*|tag: $TAG|" "$file"
+            echo "Updated $svc → $TAG"
+          fi
+        }
+
+        for svc in auth-service account-service transfer-service \
+                    notification-service frontend; do
+          if should_update "$svc"; then
+            update_tag "$svc"
+          fi
+        done
+
+    - name: Commit and push
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add phase2-helm-chart/banking-demo/charts/*/values.yaml
+
+        if git diff --cached --quiet; then
+          echo "No tag changes, skipping commit"
+          exit 0
+        fi
+
+        TAG="${{ steps.tag.outputs.sha }}"
+        SERVICES="${{ needs.detect-changes.outputs.services-list }}"
+        git commit -m "ci: update image tags to ${TAG} [${SERVICES}] [skip ci]"
+        git push origin main
+```
+
+### Cách hoạt động
+
+1. CI build image, tag bằng **short SHA** (7 ký tự, ví dụ `927432e`).
+2. Push image lên GitLab Container Registry.
+3. Stage `update-manifests` chạy:
+   - Chỉ update **service nào thay đổi** (nhờ `detect-changes` ở đầu pipeline).
+   - Dùng `sed` sửa `tag: ...` trong `charts/<service>/values.yaml`.
+   - Commit với message `ci: update image tags to 927432e [auth-service,frontend] [skip ci]`.
+   - `[skip ci]` để tránh trigger lại chính nó.
+4. ArgoCD detect commit mới → tự sync → rollout Deployment mới.
+
+Kết quả: push code → CI tự build, push, update tag → ArgoCD tự deploy. Không cần đụng tay.
+
+---
+
+## Cập nhật Log Level cho các service
+
+Phase 4 đã thêm structured logging (JSON) qua `logging_utils.py`, nhưng log level mặc định cứng `INFO`. Phase 5 bổ sung khả năng **điều chỉnh log level qua environment variable** — hữu ích khi cần debug production mà không build lại image.
+
+### `logging_utils.py` — đọc `LOG_LEVEL` từ env
+
+```python
+def get_json_logger(service_name: str) -> logging.Logger:
+    logger = logging.getLogger(service_name)
+    if logger.handlers:
+        return logger
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(message)s"))
+
+    logger.addHandler(handler)
+    logger.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
+    logger.propagate = False
+    return logger
+```
+
+Mặc định `INFO`. Muốn bật `DEBUG` cho service nào, thêm env vào Helm values:
+
+```yaml
+auth-service:
+  extraEnv:
+    LOG_LEVEL: "DEBUG"
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector-..."
+```
+
+Hoặc patch nhanh bằng kubectl:
+
+```bash
+kubectl -n banking set env deployment/auth-service LOG_LEVEL=DEBUG
+```
+
+Khi debug xong, đổi lại `INFO` hoặc xoá env để về default. Không cần rebuild image, không cần sửa code.
+
+### Logging flow
+
+Mỗi service đều dùng chung pattern:
+
+```python
+logger = get_json_logger("auth-service")
+app.add_middleware(RequestLogMiddleware, logger=logger, service_name="auth-service")
+```
+
+- **RequestLogMiddleware**: tự động log mọi HTTP request (trừ `/health`, `/metrics`) dạng JSON — method, path, status, duration_ms, request_id.
+- **log_event()**: log sự kiện business — `login_success`, `transfer_failed`, `ws_connected`, …
+
+Output mỗi dòng là JSON, dễ parse bằng Loki/Promtail hoặc Elasticsearch:
+
+```json
+{"ts":"2025-02-07T10:30:15","event":"http_request","service":"auth-service","method":"POST","path":"/login","status":200,"duration_ms":45.12,"request_id":"abc-123"}
+{"ts":"2025-02-07T10:30:15","event":"login_success","user_id":42}
+```
+
+---
+
 ## Tóm tắt
 
-Phase 5 **refactor kiến trúc** chứ không thêm tính năng: tách namespace (banking, kong, redis, postgres), tách Helm chart (Kong/Redis/Postgres dùng chart có sẵn, banking-demo chỉ còn app), Kong chuyển sang DB mode, Postgres/Redis HA. App banking không sửa code, chỉ đổi connection string; cutover cần migrate data và cập nhật Secret + Ingress. Kiến trúc cũ Phase 2–4 có chủ đích đơn giản để học; đến Phase 5 mới nâng cấp cho gần production hơn.
+Phase 5 **refactor kiến trúc** chứ không thêm tính năng: tách namespace (banking, kong, redis, postgres), tách Helm chart (Kong/Redis/Postgres dùng chart có sẵn, banking-demo chỉ còn app), Kong chuyển sang DB mode, Postgres/Redis HA. App banking không sửa code, chỉ đổi connection string; cutover cần migrate data và cập nhật Secret + Ingress.
 
-Bài tiếp theo: **Security & Reliability** (Phase 7) — JWT hardening, Kong plugins, SLO/alerting.
+Ngoài ra, bài này cũng cover:
+
+- **Fix 502**: HAProxy Ingress không hỗ trợ cross-namespace backend → dùng ExternalName Service làm cầu nối.
+- **CI auto-update tag**: Thêm stage `update-manifests` trong GitHub Actions — tự sửa image tag trong Helm values và commit, để ArgoCD tự sync.
+- **Log level runtime**: Tất cả service đọc `LOG_LEVEL` từ env, mặc định `INFO`, có thể chuyển `DEBUG` mà không cần rebuild.
+
+Kiến trúc cũ Phase 2–4 có chủ đích đơn giản để học; đến Phase 5 mới nâng cấp cho gần production hơn.
 
 ---
 
@@ -397,4 +637,4 @@ Bài tiếp theo: **Security & Reliability** (Phase 7) — JWT hardening, Kong p
 
 ---
 
-*Tags: #architecture #refactor #kubernetes #helm #kong #postgres #redis #phase5*
+*Tags: #architecture #refactor #kubernetes #helm #kong #postgres #redis #phase5 #cicd #troubleshooting*
