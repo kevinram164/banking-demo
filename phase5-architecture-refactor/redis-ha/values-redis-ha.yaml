@@ -33,7 +33,7 @@ replica:
   podAntiAffinityPreset: soft
 
 ####################
-# SENTINEL
+# SENTINEL (HA auto-failover)
 ####################
 sentinel:
   enabled: true

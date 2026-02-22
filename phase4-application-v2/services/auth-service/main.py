@@ -12,7 +12,7 @@ from redis.asyncio import Redis
 from common.db import SessionLocal, engine, Base
 from common.models import User
 from common.auth import hash_password, verify_password
-from common.redis_utils import create_session
+from common.redis_utils import create_session, create_redis_client
 from common.observability import instrument_fastapi
 from common.logging_utils import get_json_logger, RequestLogMiddleware, log_event
 
@@ -28,7 +28,7 @@ redis: Redis | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global redis
-    redis = Redis.from_url(REDIS_URL, decode_responses=True)
+    redis = await create_redis_client(REDIS_URL)
     yield
     if redis:
         await redis.close()

@@ -1,9 +1,40 @@
 import os, uuid
+from urllib.parse import urlparse, parse_qs, unquote
 from redis.asyncio import Redis
+from redis.asyncio.sentinel import Sentinel
 from fastapi import HTTPException
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 SESSION_TTL = int(os.getenv("SESSION_TTL_SECONDS", "86400"))
+
+
+async def create_redis_client(url: str | None = None) -> Redis:
+    """
+    Tạo Redis client hỗ trợ cả 2 scheme:
+      - redis://[:password@]host:port/db          → kết nối trực tiếp
+      - sentinel://[:password@]host:port/db/name   → kết nối qua Sentinel
+    """
+    url = url or REDIS_URL
+
+    if url.startswith("sentinel://"):
+        parsed = urlparse(url)
+        password = unquote(parsed.password) if parsed.password else None
+        host = parsed.hostname or "localhost"
+        port = parsed.port or 26379
+        path_parts = parsed.path.strip("/").split("/")
+        db = int(path_parts[0]) if path_parts[0] else 0
+        service_name = path_parts[1] if len(path_parts) > 1 else "mymaster"
+
+        sentinel = Sentinel(
+            [(host, port)],
+            sentinel_kwargs={"password": password},
+            password=password,
+            db=db,
+            decode_responses=True,
+        )
+        return sentinel.master_for(service_name)
+
+    return Redis.from_url(url, decode_responses=True)
 
 async def create_session(redis: Redis, user_id: int) -> str:
     """Create a new session for a user"""
