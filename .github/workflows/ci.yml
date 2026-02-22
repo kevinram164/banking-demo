@@ -372,12 +372,77 @@ jobs:
           done
 
   # ============================================================
-  # Stage 5: Security scan
+  # Stage 5: Update image tags in Helm values (GitOps)
+  # ============================================================
+  update-manifests:
+    name: Update Image Tags
+    runs-on: ubuntu-latest
+    needs: [detect-changes, push-images]
+    if: |
+      always() &&
+      needs.push-images.result == 'success' &&
+      github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIT_TOKEN }}
+          ref: main
+
+      - name: Compute image tag
+        id: tag
+        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Update Helm values
+        run: |
+          SERVICES="${{ needs.detect-changes.outputs.services-list }}"
+          TAG="${{ steps.tag.outputs.sha }}"
+          CHART_DIR="phase2-helm-chart/banking-demo/charts"
+
+          should_update() {
+            [ "$SERVICES" == "all" ] && return 0
+            echo "$SERVICES" | grep -q "$1" && return 0
+            return 1
+          }
+
+          update_tag() {
+            local svc="$1"
+            local file="$CHART_DIR/$svc/values.yaml"
+            if [ -f "$file" ]; then
+              sed -i "s|tag: .*|tag: $TAG|" "$file"
+              echo "Updated $svc → $TAG"
+            fi
+          }
+
+          for svc in auth-service account-service transfer-service notification-service frontend; do
+            if should_update "$svc"; then
+              update_tag "$svc"
+            fi
+          done
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add phase2-helm-chart/banking-demo/charts/*/values.yaml
+
+          if git diff --cached --quiet; then
+            echo "No tag changes, skipping commit"
+            exit 0
+          fi
+
+          TAG="${{ steps.tag.outputs.sha }}"
+          SERVICES="${{ needs.detect-changes.outputs.services-list }}"
+          git commit -m "ci: update image tags to ${TAG} [${SERVICES}] [skip ci]"
+          git push origin main
+
+  # ============================================================
+  # Stage 6: Security scan
   # ============================================================
   security-scan:
     name: Scan ${{ matrix.service }}
     runs-on: ubuntu-latest
-    needs: [detect-changes, push-images]
+    needs: [detect-changes, push-images, update-manifests]
     if: |
       always() &&
       needs.push-images.result == 'success'
@@ -422,7 +487,7 @@ jobs:
   ci-summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [detect-changes, lint, test, build-images, push-images]
+    needs: [detect-changes, lint, test, build-images, push-images, update-manifests]
     if: always()
     steps:
       - name: Summary
@@ -437,6 +502,7 @@ jobs:
           echo "| Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Build | ${{ needs.build-images.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Push | ${{ needs.push-images.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Update Tags | ${{ needs.update-manifests.result }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Check status
         run: |

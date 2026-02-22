@@ -83,20 +83,14 @@ async def register(body: RegisterReq, db: Session = Depends(get_db)):
     phone = body.phone.strip()
     username = body.username.strip()
     if not phone.isdigit():
+        log_event(logger, "register_failed", reason="PHONE_NOT_DIGITS", phone=phone, username=username)
         raise HTTPException(400, "Phone must be digits only")
 
     exists_phone = db.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
     if exists_phone:
-        log_event(
-            logger,
-            "register_failed",
-            reason="PHONE_EXISTS",
-            phone=phone,
-            username=username,
-        )
+        log_event(logger, "register_failed", reason="PHONE_EXISTS", phone=phone, username=username)
         raise HTTPException(409, "Phone already exists")
 
-    # Sinh account_number random (unique)
     account_number = None
     for _ in range(20):
         candidate = _gen_account_number()
@@ -105,6 +99,7 @@ async def register(body: RegisterReq, db: Session = Depends(get_db)):
             account_number = candidate
             break
     if not account_number:
+        log_event(logger, "register_failed", reason="ACCOUNT_NUMBER_GENERATION_EXHAUSTED", phone=phone, username=username)
         raise HTTPException(503, "Cannot generate account number, retry later")
 
     u = User(
@@ -141,12 +136,13 @@ async def login(body: LoginReq, db: Session = Depends(get_db)):
 
     if phone:
         if not phone.isdigit():
+            log_event(logger, "login_failed", reason="PHONE_NOT_DIGITS", phone=phone)
             raise HTTPException(400, "Phone must be digits only")
         u = db.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
     elif username:
-        # Support old clients temporarily (v1 login payload)
         u = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
     else:
+        log_event(logger, "login_failed", reason="MISSING_IDENTIFIER")
         raise HTTPException(400, "Missing phone/username")
 
     if not u or not verify_password(body.password, u.password_hash):

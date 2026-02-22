@@ -54,7 +54,9 @@ async def me(x_session: str | None = Header(default=None), db: Session = Depends
     user_id = await get_user_id_from_session(redis, x_session)
     u = db.get(User, user_id)
     if not u:
+        log_event(logger, "me_failed", reason="USER_NOT_FOUND", user_id=user_id)
         raise HTTPException(404, "User not found")
+    log_event(logger, "me_success", user_id=u.id, username=u.username, account_number=u.account_number)
     return {
         "id": u.id,
         "phone": u.phone,
@@ -69,12 +71,9 @@ async def balance(x_session: str | None = Header(default=None), db: Session = De
     user_id = await get_user_id_from_session(redis, x_session)
     u = db.get(User, user_id)
     if not u:
-        log_event(
-            logger,
-            "balance_failed",
-            reason="USER_NOT_FOUND",
-        )
+        log_event(logger, "balance_failed", reason="USER_NOT_FOUND", user_id=user_id)
         raise HTTPException(404, "User not found")
+    log_event(logger, "balance_success", user_id=u.id, balance=u.balance)
     return {"balance": u.balance}
 
 
@@ -83,6 +82,7 @@ async def lookup(account_number: str, db: Session = Depends(get_db)):
     """Lookup receiver display name by account number (for transfer UI)."""
     acct = (account_number or "").strip()
     if not acct.isdigit():
+        log_event(logger, "account_lookup_failed", reason="ACCOUNT_NOT_DIGITS", account_number=acct)
         raise HTTPException(400, "account_number must be digits only")
 
     u = db.execute(select(User).where(User.account_number == acct)).scalar_one_or_none()

@@ -62,12 +62,7 @@ async def list_notifications(x_session: str | None = Header(default=None), db: S
         .all()
     )
 
-    log_event(
-        logger,
-        "notifications_list",
-        user_id=user_id,
-        count=len(items),
-    )
+    log_event(logger, "notifications_list_success", user_id=user_id, count=len(items))
 
     return [{
         "id": x.id,
@@ -81,16 +76,19 @@ async def ws(websocket: WebSocket):
     """WebSocket endpoint for real-time notifications"""
     session = websocket.query_params.get("session")
     if not session:
+        log_event(logger, "ws_rejected", reason="MISSING_SESSION", client=str(websocket.client))
         await websocket.close(code=1008)
         return
 
     try:
         user_id = await get_user_id_from_session(redis, session)
     except HTTPException:
+        log_event(logger, "ws_rejected", reason="INVALID_SESSION", client=str(websocket.client))
         await websocket.close(code=1008)
         return
 
     await websocket.accept()
+    log_event(logger, "ws_connected", user_id=user_id, client=str(websocket.client))
 
     pubsub = redis.pubsub()
     await pubsub.subscribe(f"notify:{user_id}")
@@ -99,7 +97,7 @@ async def ws(websocket: WebSocket):
         try:
             while True:
                 await set_presence(redis, user_id, True)
-                await asyncio.sleep(20)  # refresh TTL
+                await asyncio.sleep(20)
         except Exception:
             pass
 
@@ -109,6 +107,7 @@ async def ws(websocket: WebSocket):
                 msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
                 if msg and msg.get("type") == "message":
                     await websocket.send_json({"type": "notification", "message": msg["data"]})
+                    log_event(logger, "ws_push", user_id=user_id, message=msg["data"])
                 await asyncio.sleep(0.05)
         except Exception:
             pass
@@ -118,10 +117,9 @@ async def ws(websocket: WebSocket):
 
     try:
         while True:
-            # receive to keep connection alive (client can send ping)
             await websocket.receive_text()
     except WebSocketDisconnect:
-        pass
+        log_event(logger, "ws_disconnected", user_id=user_id)
     finally:
         p_task.cancel()
         n_task.cancel()
