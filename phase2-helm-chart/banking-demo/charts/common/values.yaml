@@ -78,11 +78,11 @@ ingress:
       servicePort: 80
     - path: /api
       pathType: Prefix
-      serviceName: kong-kong-proxy
-      serviceNamespace: kong
+      serviceName: kong-kong-proxy.kong.svc.cluster.local
+      #serviceNamespace: kong
       servicePort: 8000
     - path: /ws
       pathType: Prefix
-      serviceName: kong-kong-proxy
-      serviceNamespace: kong
+      serviceName: kong-kong-proxy.kong.svc.cluster.local
+      #serviceNamespace: kong
       servicePort: 8000
