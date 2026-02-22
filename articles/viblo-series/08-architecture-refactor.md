@@ -613,6 +613,125 @@ Output mỗi dòng là JSON, dễ parse bằng Loki/Promtail hoặc Elasticsearc
 
 ---
 
+## Admin Portal — Trang quản trị NPD Banking
+
+Phase 4 v2 thêm **Admin Panel** cho ứng dụng Banking — một trang quản trị để xem tổng quan hệ thống, danh sách users, chi tiết giao dịch. Sau khi refactor Phase 5, Admin Portal vẫn hoạt động bình thường vì không phụ thuộc vào kiến trúc hạ tầng — chỉ gọi API qua Kong như mọi request khác.
+
+### Kiến trúc
+
+Admin Portal gồm 2 phần:
+
+**Backend** — 3 endpoint trong `account-service`, bảo vệ bằng header `X-Admin-Secret`:
+
+```python
+ADMIN_SECRET = os.getenv("ADMIN_SECRET", "banking-admin-2025")
+
+def verify_admin(x_admin_secret: str | None = Header(default=None)):
+    if not x_admin_secret or x_admin_secret != ADMIN_SECRET:
+        raise HTTPException(403, "Forbidden")
+```
+
+| Endpoint | Mô tả |
+|----------|-------|
+| `GET /admin/stats` | Tổng users, tổng balance, tổng giao dịch, tổng giá trị chuyển khoản, tổng thông báo |
+| `GET /admin/users?page=&size=&search=` | Danh sách users phân trang, tìm kiếm theo tên/phone/số tài khoản |
+| `GET /admin/users/{user_id}` | Chi tiết 1 user + 20 giao dịch gần nhất (in/out) |
+
+Secret mặc định: `banking-admin-2025`. Override qua env `ADMIN_SECRET` trong Helm values nếu cần.
+
+**Frontend** — trang `Admin.js` gồm:
+
+- **AdminLogin**: nhập admin secret, validate bằng cách gọi `/admin/stats`, lưu vào `localStorage`.
+- **StatsCards**: 5 thẻ KPI — Total Users, Total Balance, Total Transfers, Transfer Volume, Notifications.
+- **User Table**: bảng phân trang (20/trang), có search bar tìm kiếm.
+- **UserDetailModal**: popup xem chi tiết user + lịch sử giao dịch (in/out, thời gian, số tiền).
+
+### Cách truy cập
+
+1. Mở `https://npd-banking.co` → trang Login.
+2. Click **"Admin"** ở footer hoặc vào Dashboard → sidebar → **"Admin Panel"**.
+3. Nhập admin secret (`banking-admin-2025`) → vào trang quản trị.
+
+### Luồng API
+
+```
+Browser → Ingress → Kong → account-service
+  GET /api/account/admin/stats          (Header: X-Admin-Secret)
+  GET /api/account/admin/users?page=1   (Header: X-Admin-Secret)
+  GET /api/account/admin/users/42       (Header: X-Admin-Secret)
+```
+
+Kong route `/api/account` trỏ tới `account-service` với `strip_path: true`, nên request đến account-service là `/admin/stats`, `/admin/users`, …
+
+---
+
+## Test tải với `seed_users.py`
+
+Sau khi refactor, cần verify hệ thống chịu tải. Script `scripts/seed_users.py` tạo hàng trăm/nghìn users giả lập với tên tiếng Việt, gọi API đăng ký song song qua nhiều luồng — vừa là load test, vừa tạo dữ liệu để Admin Portal có gì mà xem.
+
+### Cách chạy
+
+```bash
+cd scripts
+pip install requests
+
+# Tạo 500 users, 20 luồng song song
+python seed_users.py --count 500 --base-url http://npd-banking.co
+
+# Tạo 1000 users, lưu ra file JSON để dùng tiếp
+python seed_users.py -n 1000 -u http://npd-banking.co -o users.json
+
+# Self-signed cert? Thêm --no-verify
+python seed_users.py -n 500 -u https://npd-banking.co --no-verify
+
+# Test 1 request trước
+python seed_users.py --test -u http://npd-banking.co
+```
+
+### Tính năng chính
+
+- **Auto-detect API version**: tự phát hiện v1 (username) hay v2 (phone + username). Phase 4 v2 dùng v2 — script gửi `phone`, `username`, `password`.
+- **Tên tiếng Việt**: tổ hợp ngẫu nhiên từ Họ (Nguyễn, Trần, Lê…), Tên đệm (Văn, Thị, Minh…), Tên (An, Bình, Chi…) + số index để không trùng.
+- **Phone unique**: `09xxxxxxxx` — mỗi index một số phone khác nhau.
+- **Concurrent**: dùng `ThreadPoolExecutor` với `--workers` (mặc định 20 luồng).
+- **Seed offset**: `--seed 1000` để chạy batch 2 không trùng batch 1.
+- **Output JSON**: `--output users.json` lưu danh sách users đã tạo (phone, username, password, account_number) — dùng cho test login/transfer sau.
+
+### Kết quả mẫu
+
+```
+=== Seed Users (Python) ===
+Count:    500
+Base URL: http://npd-banking.co
+Workers:  20
+
+Đang phát hiện API version...
+API: v2
+  Progress: 100/500  (ok=98 skip=2 fail=0)
+  Progress: 200/500  (ok=198 skip=2 fail=0)
+  Progress: 300/500  (ok=298 skip=2 fail=0)
+  Progress: 400/500  (ok=398 skip=2 fail=0)
+  Progress: 500/500  (ok=498 skip=2 fail=0)
+
+=== Kết quả ===
+Thành công: 498
+Bỏ qua:    2  (đã tồn tại)
+Thất bại:   0
+```
+
+### Kết hợp Admin Portal
+
+Sau khi seed xong, mở Admin Portal → thấy:
+
+- **Total Users** tăng lên (vd: 498 users mới).
+- **User Table** có hàng trăm users với tên tiếng Việt, phone, account number.
+- Search thử `"Nguyễn"` → lọc ra tất cả users họ Nguyễn.
+- Click **Detail** trên 1 user → xem balance (mặc định 10,000₫) và chưa có giao dịch.
+
+Đây là cách nhanh nhất để có dữ liệu test thực tế cho Admin Portal, đồng thời verify rằng auth-service + account-service chịu được burst 500 requests đăng ký đồng thời sau khi refactor hạ tầng.
+
+---
+
 ## Tóm tắt
 
 Phase 5 **refactor kiến trúc** chứ không thêm tính năng: tách namespace (banking, kong, redis, postgres), tách Helm chart (Kong/Redis/Postgres dùng chart có sẵn, banking-demo chỉ còn app), Kong chuyển sang DB mode, Postgres/Redis HA. App banking không sửa code, chỉ đổi connection string; cutover cần migrate data và cập nhật Secret + Ingress.
@@ -622,6 +741,8 @@ Ngoài ra, bài này cũng cover:
 - **Fix 502**: HAProxy Ingress không hỗ trợ cross-namespace backend → dùng ExternalName Service làm cầu nối.
 - **CI auto-update tag**: Thêm stage `update-manifests` trong GitHub Actions — tự sửa image tag trong Helm values và commit, để ArgoCD tự sync.
 - **Log level runtime**: Tất cả service đọc `LOG_LEVEL` từ env, mặc định `INFO`, có thể chuyển `DEBUG` mà không cần rebuild.
+- **Admin Portal**: Trang quản trị NPD Banking — xem stats, danh sách users phân trang, chi tiết giao dịch, bảo vệ bằng `X-Admin-Secret`.
+- **Load test `seed_users.py`**: Script Python tạo hàng trăm/nghìn users giả lập (tên Việt, phone unique) song song 20 luồng — vừa test tải, vừa tạo dữ liệu cho Admin Portal.
 
 Kiến trúc cũ Phase 2–4 có chủ đích đơn giản để học; đến Phase 5 mới nâng cấp cho gần production hơn.
 
@@ -637,4 +758,4 @@ Kiến trúc cũ Phase 2–4 có chủ đích đơn giản để học; đến P
 
 ---
 
-*Tags: #architecture #refactor #kubernetes #helm #kong #postgres #redis #phase5 #cicd #troubleshooting*
+*Tags: #architecture #refactor #kubernetes #helm #kong #postgres #redis #phase5 #cicd #troubleshooting #admin-portal #load-test #seed-users*
