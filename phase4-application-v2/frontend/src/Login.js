@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { api, setSession } from "./api";
 
-export default function Login({ onOk, onGoRegister }) {
+export default function Login({ onOk, onGoRegister, onGoAdmin }) {
   const [phone, setPhone] = useState("");
   const [password, setP] = useState("");
   const [err, setErr] = useState("");
@@ -71,8 +71,13 @@ export default function Login({ onOk, onGoRegister }) {
           </div>
         )}
 
-        <div className="mt-5 text-xs text-slate-400">
-          © Banking Demo Lab • Postgres + Redis
+        <div className="mt-5 flex items-center justify-between text-xs text-slate-400">
+          <span>© Banking Demo Lab • Postgres + Redis</span>
+          {onGoAdmin && (
+            <button onClick={onGoAdmin} className="text-amber-600 hover:text-amber-700 font-semibold">
+              Admin
+            </button>
+          )}
         </div>
       </div>
     </div>

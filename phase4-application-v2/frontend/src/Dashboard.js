@@ -3,7 +3,7 @@ import Layout from "./ui/Layout";
 import Card from "./ui/Card";
 import { api, getSession, clearSession } from "./api";
 
-export default function Dashboard({ onLogout }) {
+export default function Dashboard({ onLogout, onGoAdmin }) {
   const [me, setMe] = useState(null);
   const [toAccount, setToAccount] = useState("");
   const [toName, setToName] = useState("");
@@ -109,7 +109,7 @@ export default function Dashboard({ onLogout }) {
       : "bg-slate-50 text-slate-600 border-slate-200";
 
   return (
-    <Layout user={me?.username} env="LAB" onLogout={logout}>
+    <Layout user={me?.username} env="LAB" onLogout={logout} onGoAdmin={onGoAdmin} activePage="dashboard">
       <div className="space-y-6">
         <div className="grid gap-6 md:grid-cols-3">
           <Card

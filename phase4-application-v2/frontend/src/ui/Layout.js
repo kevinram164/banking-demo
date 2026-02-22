@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function Layout({ user, env = "LAB", onLogout, children }) {
+export default function Layout({ user, env = "LAB", onLogout, onBack, onGoAdmin, activePage = "dashboard", children }) {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Topbar */}
@@ -17,13 +17,23 @@ export default function Layout({ user, env = "LAB", onLogout, children }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              env === "ADMIN" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-700"
+            }`}>
               {env}
             </span>
             {user && (
               <span className="text-xs text-slate-600">
                 Signed in as <span className="font-semibold text-slate-900">{user}</span>
               </span>
+            )}
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="rounded-xl border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Back
+              </button>
             )}
             <button
               onClick={onLogout}
@@ -41,9 +51,20 @@ export default function Layout({ user, env = "LAB", onLogout, children }) {
           <div className="rounded-2xl border bg-white p-4 shadow-sm">
             <div className="text-xs font-semibold text-slate-500">MENU</div>
             <div className="mt-3 space-y-2 text-sm">
-              <div className="rounded-xl bg-blue-50 px-3 py-2 font-semibold text-blue-700">Dashboard</div>
+              <div className={`rounded-xl px-3 py-2 font-semibold ${activePage === "dashboard" ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"}`}>Dashboard</div>
               <div className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Transfers</div>
               <div className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Notifications</div>
+              {onGoAdmin && (
+                <div
+                  onClick={onGoAdmin}
+                  className={`rounded-xl px-3 py-2 font-semibold cursor-pointer ${activePage === "admin" ? "bg-amber-50 text-amber-700" : "text-slate-700 hover:bg-amber-50"}`}
+                >
+                  Admin Panel
+                </div>
+              )}
+              {activePage === "admin" && !onGoAdmin && (
+                <div className="rounded-xl bg-amber-50 px-3 py-2 font-semibold text-amber-700">Admin Panel</div>
+              )}
             </div>
             <div className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-600">
               Demo focus: <span className="font-semibold">Session in Redis</span>, realtime notify via{" "}
