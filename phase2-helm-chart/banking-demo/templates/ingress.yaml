@@ -8,9 +8,7 @@ metadata:
     {{- include "banking-demo.labels" . | nindent 4 }}
   {{- if eq .Values.ingress.className "haproxy" }}
   annotations:
-    # Enable WebSocket support for HAProxy Ingress
     haproxy.org/backend-protocol: "http"
-    # HAProxy automatically detects WebSocket from Upgrade header, but ensure headers are forwarded
     haproxy.org/forwardfor: "true"
   {{- end }}
 spec:
@@ -25,10 +23,23 @@ spec:
             backend:
               service:
                 name: {{ .serviceName }}
-                {{- if .serviceNamespace }}
-                namespace: {{ .serviceNamespace }}
-                {{- end }}
                 port:
                   number: {{ .servicePort }}
         {{- end }}
+{{- end }}
+---
+{{- if and .Values.kongExternalService .Values.kongExternalService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.kongExternalService.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "banking-demo.labels" . | nindent 4 }}
+spec:
+  type: ExternalName
+  externalName: {{ .Values.kongExternalService.externalName }}
+  ports:
+    - port: {{ .Values.kongExternalService.port }}
+      protocol: TCP
 {{- end }}

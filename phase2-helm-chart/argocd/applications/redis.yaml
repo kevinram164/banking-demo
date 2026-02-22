@@ -1,0 +1,61 @@
+# Redis Application
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banking-demo-redis
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: banking-demo
+    app.kubernetes.io/component: redis
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"  # Deploy sau namespace (infrastructure)
+spec:
+  project: banking-demo
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: main
+    path: phase2-helm-chart/banking-demo
+    helm:
+      releaseName: banking-demo-redis
+      valueFiles:
+        - charts/common/values.yaml
+        - charts/redis/values.yaml
+      parameters:
+        # Disable các services khác
+        - name: namespace.enabled
+          value: "false"  # Namespace đã được tạo bởi namespace.yaml
+        - name: secret.enabled
+          value: "false"  # Secret đã được tạo bởi namespace.yaml
+        - name: postgres.enabled
+          value: "false"
+        - name: kong.enabled
+          value: "false"
+        - name: auth-service.enabled
+          value: "false"
+        - name: account-service.enabled
+          value: "false"
+        - name: transfer-service.enabled
+          value: "false"
+        - name: notification-service.enabled
+          value: "false"
+        - name: frontend.enabled
+          value: "false"
+        - name: ingress.enabled
+          value: "false"
+        # redis.enabled đã có trong charts/redis/values.yaml, không cần override
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: banking
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions: []
+      # Không cần CreateNamespace=true vì namespace đã được tạo bởi namespace.yaml
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
