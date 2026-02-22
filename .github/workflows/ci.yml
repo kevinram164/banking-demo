@@ -392,7 +392,7 @@ jobs:
 
       - name: Compute image tag
         id: tag
-        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        run: echo "sha=$(git rev-parse --short=7 HEAD)" >> $GITHUB_OUTPUT
 
       - name: Update Helm values
         run: |
