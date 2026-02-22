@@ -378,6 +378,8 @@ jobs:
     name: Update Image Tags
     runs-on: ubuntu-latest
     needs: [detect-changes, push-images]
+    permissions:
+      contents: write
     if: |
       always() &&
       needs.push-images.result == 'success' &&
@@ -385,7 +387,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GIT_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           ref: main
 
       - name: Compute image tag
