@@ -7,7 +7,7 @@ auth-service:
     tag: 7c94dd8
     pullPolicy: Always
   imagePullSecrets: []
-  replicas: 1
+  replicas: 2
   service:
     port: 8001
     portName: http
