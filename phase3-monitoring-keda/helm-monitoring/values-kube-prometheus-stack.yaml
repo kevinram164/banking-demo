@@ -60,11 +60,11 @@ prometheus:
           - source_labels: [__address__]
             target_label: instance
             replacement: redis
-      # PostgreSQL HA (Phase 5 — Bitnami metrics sidecar, namespace postgres)
+      # PostgreSQL HA primary (Phase 5 — Bitnami metrics sidecar, namespace postgres)
       - job_name: postgres
         metrics_path: /metrics
         static_configs:
-          - targets: ['postgres-postgresql-metrics.postgres.svc.cluster.local:9187']
+          - targets: ['postgres-postgresql-primary-metrics.postgres.svc.cluster.local:9187']
         relabel_configs:
           - source_labels: [__address__]
             target_label: instance
