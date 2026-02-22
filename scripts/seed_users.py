@@ -62,20 +62,26 @@ def random_password(length: int = 12) -> str:
     return "".join(random.choices(chars, k=length))
 
 
+RESULT_OK = "ok"
+RESULT_SKIP = "skip"
+RESULT_FAIL = "fail"
+
+
 def register_v2(
     base_url: str, session: requests.Session, verify: bool = True, index: int = 0
-) -> tuple[dict | None, str | None]:
-    """Đăng ký qua API v2 (phone, username, password)."""
+) -> tuple[str, dict | None, str | None]:
+    """Đăng ký qua API v2. Returns (status, data, error)."""
     url = f"{base_url.rstrip('/')}/api/auth/register"
     phone = random_phone(index)
     username = random_name()
     password = random_password()
     payload = {"phone": phone, "username": username, "password": password}
     try:
-        r = session.post(url, json=payload, timeout=10, verify=verify)
+        r = session.post(url, json=payload, timeout=15, verify=verify)
         if r.status_code == 200:
             data = r.json()
             return (
+                RESULT_OK,
                 {
                     "phone": phone,
                     "username": username,
@@ -86,25 +92,28 @@ def register_v2(
                 },
                 None,
             )
+        if r.status_code == 409:
+            return RESULT_SKIP, None, f"Exists: phone={phone} username={username}"
         err = f"HTTP {r.status_code}: {r.text[:200]}"
-        return None, err
+        return RESULT_FAIL, None, err
     except Exception as e:
-        return None, str(e)
+        return RESULT_FAIL, None, str(e)
 
 
 def register_v1(
     base_url: str, session: requests.Session, verify: bool = True, index: int = 0
-) -> tuple[dict | None, str | None]:
-    """Đăng ký qua API v1 (username, password)."""
+) -> tuple[str, dict | None, str | None]:
+    """Đăng ký qua API v1. Returns (status, data, error)."""
     url = f"{base_url.rstrip('/')}/api/auth/register"
     username = random_username(index=index)
     password = random_password()
     payload = {"username": username, "password": password}
     try:
-        r = session.post(url, json=payload, timeout=10, verify=verify)
+        r = session.post(url, json=payload, timeout=15, verify=verify)
         if r.status_code == 200:
             data = r.json()
             return (
+                RESULT_OK,
                 {
                     "username": username,
                     "password": password,
@@ -113,10 +122,12 @@ def register_v1(
                 },
                 None,
             )
+        if r.status_code == 409:
+            return RESULT_SKIP, None, f"Exists: username={username}"
         err = f"HTTP {r.status_code}: {r.text[:200]}"
-        return None, err
+        return RESULT_FAIL, None, err
     except Exception as e:
-        return None, str(e)
+        return RESULT_FAIL, None, str(e)
 
 
 def detect_api_version(base_url: str, verify: bool = True) -> str:
@@ -211,40 +222,43 @@ def main():
     register_fn = register_v2 if api_version == "v2" else register_v1
     first_errors: list[str] = []
 
-    def do_register(idx: int) -> tuple[dict | None, str | None]:
+    def do_register(idx: int) -> tuple[str, dict | None, str | None]:
         with requests.Session() as s:
             return register_fn(base_url, s, verify, args.seed + idx)
 
     if args.test:
         print("Chạy 1 request test...")
-        result, err = do_register(0)
+        status, result, err = do_register(0)
         if result:
             print("OK:", json.dumps(result, ensure_ascii=False, indent=2))
         else:
-            print("LỖI:", err)
+            print(f"[{status}]:", err)
         return
 
     success = 0
+    skipped = 0
     failed = 0
     users: list[dict] = []
 
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
         futures = {ex.submit(do_register, i): i for i in range(args.count)}
         for i, future in enumerate(as_completed(futures)):
-            result, err = future.result()
-            if result:
+            status, result, err = future.result()
+            if status == RESULT_OK:
                 success += 1
                 users.append(result)
+            elif status == RESULT_SKIP:
+                skipped += 1
             else:
                 failed += 1
-                if len(first_errors) < 3:
+                if len(first_errors) < 5:
                     first_errors.append(err or "Unknown")
             if (i + 1) % 100 == 0:
-                print(f"  Progress: {i + 1}/{args.count}")
+                print(f"  Progress: {i + 1}/{args.count}  (ok={success} skip={skipped} fail={failed})")
 
     if first_errors:
-        print("\n--- Chi tiết lỗi (mẫu) ---")
-        for i, e in enumerate(first_errors[:3], 1):
+        print("\n--- Lỗi thật (mẫu) ---")
+        for i, e in enumerate(first_errors[:5], 1):
             print(f"  {i}. {e}")
         if failed == args.count:
             print("\nGợi ý: Thử https và --no-verify nếu dùng self-signed cert:")
@@ -253,6 +267,7 @@ def main():
     print()
     print("=== Kết quả ===")
     print(f"Thành công: {success}")
+    print(f"Bỏ qua:    {skipped}  (đã tồn tại)")
     print(f"Thất bại:   {failed}")
     print()
 
