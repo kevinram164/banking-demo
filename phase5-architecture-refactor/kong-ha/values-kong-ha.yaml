@@ -28,7 +28,7 @@ env:
   nginx_worker_processes: "2"
   # Kong Manager gọi Admin API qua path /admin-api (Ingress proxy tới ClusterIP)
   # Sửa host nếu dùng domain khác
-  admin_gui_api_url: "http://kong-manager.co/admin-api"
+  admin_gui_api_url: "https://kong-manager.co/admin-api"
 
 # HA: 2 replica
 replicaCount: 2
