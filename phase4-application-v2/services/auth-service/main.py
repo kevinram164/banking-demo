@@ -3,6 +3,7 @@ import secrets
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -110,7 +111,17 @@ async def register(body: RegisterReq, db: Session = Depends(get_db)):
         password_hash=hash_password(body.password),
     )
     db.add(u)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        detail = str(exc.orig) if exc.orig else str(exc)
+        log_event(logger, "register_failed", reason="DUPLICATE_KEY", phone=phone, username=username, detail=detail)
+        if "phone" in detail:
+            raise HTTPException(409, "Phone already exists")
+        if "username" in detail:
+            raise HTTPException(409, "Username already exists")
+        raise HTTPException(409, "User already exists")
     db.refresh(u)
 
     log_event(

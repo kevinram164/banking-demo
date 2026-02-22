@@ -40,12 +40,15 @@ def random_phone(seed: int = 0) -> str:
     return f"09{n:08d}"
 
 
-def random_name() -> str:
-    """Tên đầy đủ tiếng Việt."""
+def random_name(index: int | None = None) -> str:
+    """Tên đầy đủ tiếng Việt, thêm số để tránh trùng."""
     ho = random.choice(HO)
     dem = random.choice(TEN_DEM)
     ten = random.choice(TEN)
-    return f"{ho} {dem} {ten}".replace("  ", " ").strip()
+    name = f"{ho} {dem} {ten}".replace("  ", " ").strip()
+    if index is not None:
+        name = f"{name} {index}"
+    return name
 
 
 def random_username(prefix: str = "user", index: int | None = None) -> str:
@@ -73,7 +76,7 @@ def register_v2(
     """Đăng ký qua API v2. Returns (status, data, error)."""
     url = f"{base_url.rstrip('/')}/api/auth/register"
     phone = random_phone(index)
-    username = random_name()
+    username = random_name(index)
     password = random_password()
     payload = {"phone": phone, "username": username, "password": password}
     try:
