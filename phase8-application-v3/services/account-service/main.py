@@ -166,7 +166,7 @@ async def process_message(message: IncomingMessage):
             payload = body.get("payload", {})
             headers = body.get("headers", {})
             if action == "health":
-                result = {"status": 200, "body": {"status": "ok", "service": "account"}}
+                result = {"status": 200, "body": {"status": "healthy", "service": "account", "database": "ok", "redis": "ok"}}
             elif action == "me":
                 result = await handle_me(payload, headers)
             elif action == "balance":

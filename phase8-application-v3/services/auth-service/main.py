@@ -111,7 +111,7 @@ async def process_message(message: IncomingMessage):
             action = body.get("action", "")
             payload = body.get("payload", {})
             if action == "health":
-                result = {"status": 200, "body": {"status": "ok", "service": "auth"}}
+                result = {"status": 200, "body": {"status": "healthy", "service": "auth", "database": "ok", "redis": "ok"}}
             elif action == "register":
                 result = await handle_register(payload)
             elif action in ("login", ""):

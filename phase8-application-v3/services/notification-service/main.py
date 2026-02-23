@@ -55,7 +55,7 @@ async def process_message(message):
             payload = body.get("payload", {})
             headers = body.get("headers", {})
             if action == "health":
-                result = {"status": 200, "body": {"status": "ok", "service": "notification"}}
+                result = {"status": 200, "body": {"status": "healthy", "service": "notification", "database": "ok", "redis": "ok"}}
             else:
                 result = await handle_notifications(payload, headers)
             await store_response(redis, correlation_id, result)

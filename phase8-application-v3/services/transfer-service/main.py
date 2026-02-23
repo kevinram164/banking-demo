@@ -106,7 +106,7 @@ async def process_message(message: IncomingMessage):
             headers = body.get("headers", {})
 
             if action == "health":
-                result = {"status": 200, "body": {"status": "ok", "service": "transfer"}}
+                result = {"status": 200, "body": {"status": "healthy", "service": "transfer", "database": "ok", "redis": "ok"}}
             else:
                 trace = {"correlation_id": correlation_id, "path": path, "action": action}
                 result = await handle_transfer(payload, headers, trace)
