@@ -16,6 +16,10 @@ account-service:
     keys:
       databaseUrl: DATABASE_URL
       redisUrl: REDIS_URL
+  # Phase 8: RABBITMQ_URL từ Secret (consumer v3)
+  rabbitmqSecretRef:
+    name: rabbitmq-connection-secret
+    key: RABBITMQ_URL
   corsOrigins: "http://localhost:3000"
   # OpenTelemetry tracing → gửi traces về otel-collector → Tempo
   extraEnv:
