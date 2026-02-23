@@ -3,8 +3,9 @@
 #
 # Cách chạy:
 #   kubectl apply -f phase8-application-v3/kong-ha/kong-import-job.yaml
+#   kubectl rollout restart deployment -n kong -l app.kubernetes.io/name=kong
 #
-# Lưu ý: Job này REPLACE config trong Kong DB. Chạy lại khi cần cập nhật routing.
+# Lưu ý: Bắt buộc RESTART Kong sau khi Job xong để Kong load config mới từ DB.
 #        Nếu Kong đã có config cũ (Phase 4/5), chạy job này sẽ thêm/merge - có thể cần
 #        xóa services/routes cũ qua Admin API trước nếu bị trùng path.
 ---

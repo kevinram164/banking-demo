@@ -90,9 +90,12 @@ Nếu traffic đi qua **Kong trong ns `kong`** (ingress backend: kong-proxy-ext 
 **Cách apply (giống Phase 5) — Job import config vào Kong DB:**
 ```bash
 kubectl apply -f phase8-application-v3/kong-ha/kong-import-job.yaml
+# Đợi Job chạy xong, sau đó RESTART Kong để load config mới
+kubectl rollout restart deployment -n kong -l app.kubernetes.io/name=kong
+# (hoặc statefulset nếu Kong dùng StatefulSet)
 ```
 
-Job tạo ConfigMap `kong-declarative-config-phase8` và chạy `kong config db_import` vào Kong PostgreSQL. Cần chỉnh env `KONG_PG_*` trong Job nếu Kong dùng DB khác.
+Job tạo ConfigMap `kong-declarative-config-phase8` và chạy `kong config db_import` vào Kong PostgreSQL. **Bắt buộc restart Kong** để áp dụng config. Cần chỉnh env `KONG_PG_*` trong Job nếu Kong dùng DB khác.
 
 **Nếu đang từ Phase 5:** Kong có thể còn services cũ (auth, account, transfer). Để tránh conflict path, xóa services cũ qua Admin API trước khi chạy Phase 8 import:
 ```bash
