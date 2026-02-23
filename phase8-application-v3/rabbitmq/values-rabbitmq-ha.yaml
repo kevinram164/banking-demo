@@ -1,0 +1,140 @@
+
+# =============================================================================
+# RabbitMQ HA — Bitnami Helm Chart (triển khai bằng Helm, KHÔNG dùng ArgoCD)
+# =============================================================================
+#
+# CÁCH TRIỂN KHAI:
+#
+# 1. Tạo namespace:
+#    kubectl create namespace rabbit
+#
+# 2. Tạo Secret chứa password và Erlang cookie (BẮT BUỘC, KHÔNG ghi vào values):
+#    kubectl create secret generic rabbitmq-secret -n rabbit \
+#      --from-literal=rabbitmq-password='Mbfs@2025' \
+#      --from-literal=rabbitmq-erlang-cookie='banking-rabbitmq-ha-cookie'
+#
+# 3. Add Helm repo và cài đặt:
+#    helm repo add bitnami https://charts.bitnami.com/bitnami
+#    helm repo update
+#
+#    helm install rabbitmq bitnami/rabbitmq \
+#      -n rabbit \
+#      -f phase2-helm-chart/rabbitmq-ha/values-rabbitmq-ha.yaml
+#
+# 4. Hoặc dùng OCI (nếu bitnami/rabbitmq lỗi):
+#    helm install rabbitmq oci://registry-1.docker.io/bitnamicharts/rabbitmq \
+#      -n rabbit \
+#      -f phase2-helm-chart/rabbitmq-ha/values-rabbitmq-ha.yaml
+#
+# 5. SAU KHI DEPLOY — Tạo Secret connection cho banking-demo (ns banking):
+#    kubectl create secret generic rabbitmq-connection-secret \
+#      --from-literal=RABBITMQ_URL='amqp://banking:Mbfs%402025@rabbitmq.rabbit.svc.cluster.local:5672/' \
+#      -n banking
+#
+#    (Thay Mbfs@2025 bằng password đã dùng ở bước 2; @ → %40 trong URL)
+#
+# 6. Kiểm tra:
+#    kubectl get pods -n rabbit -w
+#    kubectl logs -n rabbit -l app.kubernetes.io/name=rabbitmq -f
+#
+# LƯU Ý: File này đã tích hợp cấu hình probe exec + podManagementPolicy=Parallel
+#        đã verify hoạt động ổn định.
+#
+# =============================================================================
+
+fullnameOverride: rabbitmq
+
+# --- Auth: dùng Secret, KHÔNG ghi password vào values ---
+auth:
+  username: banking
+  password: ""
+  securePassword: false
+  existingPasswordSecret: rabbitmq-secret
+  existingSecretPasswordKey: rabbitmq-password
+  existingErlangSecret: rabbitmq-secret
+  existingSecretErlangKey: rabbitmq-erlang-cookie
+  enableLoopbackUser: false
+
+# --- HA Clustering ---
+replicaCount: 3
+clustering:
+  enabled: true
+  rebalance: false
+  forceBoot: false
+  partitionHandling: autoheal
+  addressType: hostname
+
+# --- Plugins: management + K8s peer discovery, BỎ LDAP (tránh lỗi auth) ---
+plugins: "rabbitmq_management rabbitmq_peer_discovery_k8s"
+extraPlugins: ""
+
+# --- Persistence ---
+persistence:
+  enabled: true
+  storageClass: "nfs-client"
+  size: 8Gi
+
+# --- StatefulSet: Parallel để tránh deadlock (pod 1 chờ peer, K8s chờ pod 1 ready)
+statefulset:
+  podManagementPolicy: Parallel
+
+# --- Probes: exec (tránh HTTP 401 từ management API), đã verify OK
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 120
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 6
+  exec:
+    command:
+      - rabbitmq-diagnostics
+      - -q
+      - ping
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 10
+  failureThreshold: 6
+  exec:
+    command:
+      - rabbitmq-diagnostics
+      - -q
+      - check_running
+
+# --- Resources ---
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+# --- Pod anti-affinity: trải pods lên nhiều node cho HA ---
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: rabbitmq
+          topologyKey: kubernetes.io/hostname
+
+# --- Metrics (Prometheus) — optional ---
+metrics:
+  enabled: false
+
+# --- Fallback: nếu ImagePullBackOff với Bitnami, uncomment block dưới
+#    (Official image KHÔNG support clustering, chỉ dùng standalone)
+#
+# image:
+#   registry: docker.io
+#   repository: rabbitmq
+#   tag: 3.12-management
+#   pullPolicy: IfNotPresent
+# clustering:
+#   enabled: false
+# replicaCount: 1

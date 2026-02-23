@@ -1,0 +1,95 @@
+# Job import config declarative Phase 8 vào Kong DB
+# Chạy SAU KHI Kong đã deploy (ns kong), api-producer + consumers đã chạy (ns banking)
+#
+# Cách chạy:
+#   kubectl apply -f phase8-application-v3/kong-ha/kong-import-job.yaml
+#
+# Lưu ý: Job này REPLACE config trong Kong DB. Chạy lại khi cần cập nhật routing.
+#        Nếu Kong đã có config cũ (Phase 4/5), chạy job này sẽ thêm/merge - có thể cần
+#        xóa services/routes cũ qua Admin API trước nếu bị trùng path.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-declarative-config-phase8
+  namespace: kong
+data:
+  kong.yml: |
+    _format_version: "3.0"
+    _transform: true
+    services:
+      # Phase 8: /api/* → api-producer (RabbitMQ → consumers)
+      - name: api-producer
+        url: "http://api-producer.banking.svc.cluster.local:8080"
+        routes:
+          - name: api-route
+            paths: ["/api"]
+            strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["http://localhost:3000", "https://npd-banking.co", "http://npd-banking.co"]
+              credentials: true
+              methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Session", "X-Admin-Secret"]
+      # /ws → notification-service (WebSocket, bypass queue)
+      - name: notification-service
+        url: "http://notification-service.banking.svc.cluster.local:8004"
+        routes:
+          - name: notification-ws-route
+            paths: ["/ws"]
+            strip_path: false
+            protocols: ["http", "https"]
+        plugins:
+          - name: cors
+            config:
+              origins: ["http://localhost:3000", "https://npd-banking.co", "http://npd-banking.co"]
+              credentials: true
+              methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Session"]
+    plugins:
+      - name: prometheus
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kong-config-import-phase8
+  namespace: kong
+  labels:
+    app: kong-config-import
+    phase: "8"
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: import
+          image: kong:3.4
+          env:
+            - name: KONG_DATABASE
+              value: "postgres"
+            - name: KONG_PG_HOST
+              value: "postgres-postgresql-primary.postgres.svc.cluster.local"
+            - name: KONG_PG_PORT
+              value: "5432"
+            - name: KONG_PG_DATABASE
+              value: "kong"
+            - name: KONG_PG_USER
+              value: "kong"
+            - name: KONG_PG_PASSWORD
+              value: "kongpass"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              kong config db_import /kong/kong.yml && echo "Phase 8 import done"
+          volumeMounts:
+            - name: config
+              mountPath: /kong
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: kong-declarative-config-phase8

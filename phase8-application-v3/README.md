@@ -83,6 +83,32 @@ flowchart TB
 
 WebSocket `/ws` đi trực tiếp tới notification-service (không qua queue).
 
+## Kong (ns kong) — QUAN TRỌNG khi dùng Ingress kong-proxy-ext
+
+Nếu traffic đi qua **Kong trong ns `kong`** (ingress backend: kong-proxy-ext → kong-kong-proxy.kong), phải cấu hình Kong route `/api` → **api-producer** (không route trực tiếp tới auth/account/transfer).
+
+**Cách apply (giống Phase 5) — Job import config vào Kong DB:**
+```bash
+kubectl apply -f phase8-application-v3/kong-ha/kong-import-job.yaml
+```
+
+Job tạo ConfigMap `kong-declarative-config-phase8` và chạy `kong config db_import` vào Kong PostgreSQL. Cần chỉnh env `KONG_PG_*` trong Job nếu Kong dùng DB khác.
+
+**Nếu đang từ Phase 5:** Kong có thể còn services cũ (auth, account, transfer). Để tránh conflict path, xóa services cũ qua Admin API trước khi chạy Phase 8 import:
+```bash
+kubectl port-forward -n kong svc/kong-kong-admin 8001:8001 &
+# Xóa services cũ (thay ID nếu khác)
+curl -s -X DELETE http://localhost:8001/services/auth-service
+curl -s -X DELETE http://localhost:8001/services/account-service
+curl -s -X DELETE http://localhost:8001/services/transfer-service
+# Giữ notification-service nếu cần /ws
+kill %1
+```
+
+Sau đó chạy `kubectl apply -f phase8-application-v3/kong-ha/kong-import-job.yaml`.
+
+**File config tham khảo:** `phase8-application-v3/kong-phase8.yml`
+
 ## Triển khai RabbitMQ
 
 RabbitMQ triển khai **riêng** trên namespace `rabbit`. Credentials lưu trong **Secret riêng**, **không** ghi vào values file.
@@ -195,7 +221,7 @@ Producer và consumers đọc `RABBITMQ_URL` từ Secret `rabbitmq-connection-se
 # Thay <PASSWORD> bằng password đã dùng ở bước 1
 kubectl create secret generic rabbitmq-connection-secret \
   --from-literal=RABBITMQ_URL='amqp://banking:<PASSWORD>@rabbitmq.rabbit.svc.cluster.local:5672/' \
-  -n banking-demo
+  -n banking
 ```
 
 Values-phase8.yaml chỉ khai báo `rabbitmqSecretRef.name` và `key`, không chứa URL hay password.
