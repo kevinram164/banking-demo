@@ -14,6 +14,7 @@ spec:
     - type: prometheus
       metadata:
         serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
-        query: sum(rate(http_requests_total{job="transfer-service"}[2m]))
+        # Loại trừ /health để tránh probe Kubernetes kích hoạt scale
+        query: sum(rate(http_requests_total{job="transfer-service",endpoint!="/health"}[2m]))
         threshold: "5"
         activationThreshold: "1"
