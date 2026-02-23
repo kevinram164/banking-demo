@@ -14,7 +14,7 @@
       "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service\"}[5m])) by (job)",
+          "expr": "sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service|api-producer\"}[5m])) by (job)",
           "legendFormat": "{{job}}",
           "refId": "A"
         }
@@ -29,7 +29,7 @@
       "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"auth-service|account-service|transfer-service|notification-service\"}[5m])) by (job, le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"auth-service|account-service|transfer-service|notification-service|api-producer\"}[5m])) by (job, le))",
           "legendFormat": "{{job}} p95",
           "refId": "A"
         }
@@ -44,7 +44,7 @@
       "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service\",status=~\"5..\"}[5m])) by (job) / sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service\"}[5m])) by (job) * 100",
+          "expr": "sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service|api-producer\",status=~\"5..\"}[5m])) by (job) / sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service|api-producer\"}[5m])) by (job) * 100",
           "legendFormat": "{{job}} %",
           "refId": "A"
         }
@@ -59,7 +59,7 @@
       "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"auth-service\"}[5m]))",
+          "expr": "sum(rate(http_requests_total{job=\"auth-service\"}[5m])) or sum(rate(http_requests_total{job=\"api-producer\",endpoint=~\"/api/auth.*\"}[5m]))",
           "refId": "A"
         }
       ],
@@ -73,7 +73,7 @@
       "gridPos": {"x": 18, "y": 8, "w": 6, "h": 4},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"account-service\"}[5m]))",
+          "expr": "sum(rate(http_requests_total{job=\"account-service\"}[5m])) or sum(rate(http_requests_total{job=\"api-producer\",endpoint=~\"/api/account.*\"}[5m]))",
           "refId": "A"
         }
       ],
@@ -87,7 +87,7 @@
       "gridPos": {"x": 12, "y": 12, "w": 6, "h": 4},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"transfer-service\"}[5m]))",
+          "expr": "sum(rate(http_requests_total{job=\"transfer-service\"}[5m])) or sum(rate(http_requests_total{job=\"api-producer\",endpoint=~\"/api/transfer.*\"}[5m]))",
           "refId": "A"
         }
       ],
@@ -101,7 +101,7 @@
       "gridPos": {"x": 18, "y": 12, "w": 6, "h": 4},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"notification-service\"}[5m]))",
+          "expr": "sum(rate(http_requests_total{job=\"notification-service\"}[5m])) or sum(rate(http_requests_total{job=\"api-producer\",endpoint=~\"/api/notifications.*\"}[5m]))",
           "refId": "A"
         }
       ],
@@ -115,7 +115,7 @@
       "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"auth-service\"}[5m])) by (endpoint)",
+          "expr": "(sum(rate(http_requests_total{job=\"auth-service\"}[5m])) by (endpoint)) or (sum(rate(http_requests_total{job=\"api-producer\",endpoint=~\"/api/auth.*\"}[5m])) by (endpoint))",
           "legendFormat": "{{endpoint}}",
           "refId": "A"
         }
@@ -130,7 +130,7 @@
       "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service\"}[5m])) by (job, status)",
+          "expr": "sum(rate(http_requests_total{job=~\"auth-service|account-service|transfer-service|notification-service|api-producer\"}[5m])) by (job, status)",
           "legendFormat": "{{job}} {{status}}",
           "refId": "A"
         }
@@ -145,17 +145,17 @@
       "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\",status=~\"2..\"}[5m]))",
+          "expr": "sum(rate(http_requests_total{job=~\"transfer-service|api-producer\",endpoint=~\"/transfer|/api/transfer.*\",status=~\"2..\"}[5m]))",
           "legendFormat": "Thành công (2xx)",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\",status=~\"4..\"}[5m]))",
+          "expr": "sum(rate(http_requests_total{job=~\"transfer-service|api-producer\",endpoint=~\"/transfer|/api/transfer.*\",status=~\"4..\"}[5m]))",
           "legendFormat": "Thất bại (4xx)",
           "refId": "B"
         },
         {
-          "expr": "sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\",status=~\"5..\"}[5m]))",
+          "expr": "sum(rate(http_requests_total{job=~\"transfer-service|api-producer\",endpoint=~\"/transfer|/api/transfer.*\",status=~\"5..\"}[5m]))",
           "legendFormat": "Lỗi server (5xx)",
           "refId": "C"
         }
@@ -170,7 +170,7 @@
       "gridPos": {"x": 12, "y": 24, "w": 6, "h": 8},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\",status=~\"2..\"}[5m])) / sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\"}[5m])) * 100 or vector(0)",
+          "expr": "sum(rate(http_requests_total{job=~\"transfer-service|api-producer\",endpoint=~\"/transfer|/api/transfer.*\",status=~\"2..\"}[5m])) / sum(rate(http_requests_total{job=~\"transfer-service|api-producer\",endpoint=~\"/transfer|/api/transfer.*\"}[5m])) * 100 or vector(0)",
           "refId": "A"
         }
       ],
@@ -184,7 +184,7 @@
       "gridPos": {"x": 18, "y": 24, "w": 6, "h": 8},
       "targets": [
         {
-          "expr": "(sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\",status=~\"[45]..\"}[5m])) / sum(rate(http_requests_total{job=\"transfer-service\",endpoint=\"/transfer\"}[5m])) * 100) or vector(0)",
+          "expr": "(sum(rate(http_requests_total{job=~\"transfer-service|api-producer\",endpoint=~\"/transfer|/api/transfer.*\",status=~\"[45]..\"}[5m])) / sum(rate(http_requests_total{job=~\"transfer-service|api-producer\",endpoint=~\"/transfer|/api/transfer.*\"}[5m])) * 100) or vector(0)",
           "refId": "A"
         }
       ],

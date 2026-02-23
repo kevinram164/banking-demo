@@ -97,18 +97,15 @@ kubectl rollout restart deployment -n kong -l app.kubernetes.io/name=kong
 
 Job tạo ConfigMap `kong-declarative-config-phase8` và chạy `kong config db_import` vào Kong PostgreSQL. **Bắt buộc restart Kong** để áp dụng config. Cần chỉnh env `KONG_PG_*` trong Job nếu Kong dùng DB khác.
 
-**Nếu đang từ Phase 5:** Kong có thể còn services cũ (auth, account, transfer). Để tránh conflict path, xóa services cũ qua Admin API trước khi chạy Phase 8 import:
+**Nếu đang từ Phase 5:** Kong có thể còn routes cũ. **Disable** các route auth/account/transfer/notification (giữ để rollback):
 ```bash
-kubectl port-forward -n kong svc/kong-kong-admin 8001:8001 &
-# Xóa services cũ (thay ID nếu khác)
-curl -s -X DELETE http://localhost:8001/services/auth-service
-curl -s -X DELETE http://localhost:8001/services/account-service
-curl -s -X DELETE http://localhost:8001/services/transfer-service
-# Giữ notification-service nếu cần /ws
-kill %1
+# Trong curl pod (kubectl run curl-tmp --rm -it ... -n kong -- sh):
+curl -s -X PATCH http://kong-kong-admin:8001/routes/auth-route -d '{"enabled":false}' -H "Content-Type: application/json"
+curl -s -X PATCH http://kong-kong-admin:8001/routes/account-route -d '{"enabled":false}' -H "Content-Type: application/json"
+curl -s -X PATCH http://kong-kong-admin:8001/routes/transfer-route -d '{"enabled":false}' -H "Content-Type: application/json"
+curl -s -X PATCH http://kong-kong-admin:8001/routes/notification-route -d '{"enabled":false}' -H "Content-Type: application/json"
 ```
-
-Sau đó chạy `kubectl apply -f phase8-application-v3/kong-ha/kong-import-job.yaml`.
+**Lưu ý:** Phải disable cả `notification-route` (/api/notifications). Trong Phase 8, GET /notifications đi qua api-producer → queue, không trực tiếp tới notification-service. Giữ `notification-ws-route` (/ws) enabled.
 
 **File config tham khảo:** `phase8-application-v3/kong-phase8.yml`
 
@@ -277,6 +274,18 @@ helm upgrade --install banking-demo . -n banking-demo \
 helm upgrade banking-demo . -n banking-demo -f charts/common/values.yaml -f charts/auth-service/values.yaml ...
 # (không dùng values-phase8.yaml)
 ```
+
+## Monitoring (Grafana)
+
+Phase 8 dùng **api-producer** làm entry point cho toàn bộ HTTP API; consumers không expose `/metrics` HTTP nữa. Dashboard "Banking Services" cần:
+
+1. **Prometheus scrape** api-producer:8080 — đã thêm job `api-producer` trong `phase3-monitoring-keda/helm-monitoring/values-kube-prometheus-stack.yaml`
+2. **Dashboard** — `banking-services.json` đã cập nhật để:
+   - Thêm `api-producer` vào job selector
+   - Stat panels (Auth/Account/Transfer/Notification RPS) dùng `or` để lấy cả Phase 4/5 (job trực tiếp) và Phase 8 (api-producer + endpoint regex)
+   - Transfer panels dùng `endpoint=~"/transfer|/api/transfer.*"` cho cả hai phase
+
+Sau khi upgrade helm-monitoring, đợi Prometheus scrape xong (1–2 phút) rồi refresh Grafana dashboard.
 
 ## Cấu trúc
 

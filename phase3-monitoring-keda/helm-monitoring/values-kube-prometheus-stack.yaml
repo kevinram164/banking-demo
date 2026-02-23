@@ -42,6 +42,15 @@ prometheus:
           - source_labels: [__address__]
             target_label: instance
             replacement: notification-service
+      # Phase 8: api-producer nhận toàn bộ HTTP API (RabbitMQ → consumers)
+      - job_name: api-producer
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['api-producer.banking.svc.cluster.local:8080']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: api-producer
       # Kong API Gateway (Phase 5 — namespace kong)
       - job_name: kong
         metrics_path: /metrics

@@ -37,7 +37,7 @@ auth-service:
       cpu: "100m"
     limits:
       memory: "512Mi"
-      cpu: "600m"
+      cpu: "2000m"
   securityContext:
     pod:
       seccompProfile:
