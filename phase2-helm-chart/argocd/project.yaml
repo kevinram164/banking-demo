@@ -18,6 +18,8 @@ spec:
   destinations:
     - namespace: banking
       server: https://kubernetes.default.svc
+    - namespace: rabbit
+      server: https://kubernetes.default.svc
     # Thêm namespace khác nếu dùng multi-env (vd: banking-staging)
     # - namespace: banking-staging
     #   server: https://kubernetes.default.svc

@@ -10,7 +10,6 @@ on:
       - 'frontend/**'
       - 'phase4-application-v2/**'
       - 'phase8-application-v3/**'
-      - '.github/workflows/ci.yml'
       # KHÔNG trigger khi đổi:
       # - phase2-helm-chart/**
       # - phase3-monitoring-keda/**
@@ -238,7 +237,7 @@ jobs:
   # Stage 3: Build Docker images (selective)
   # ============================================================
   build-images:
-    name: Build ${{ matrix.service }}
+    name: Build ${{ matrix.name }} (${{ matrix.version }})
     runs-on: ubuntu-latest
     needs: [detect-changes, test]
     if: |
@@ -273,8 +272,8 @@ jobs:
         run: |
           SERVICES="${{ needs.detect-changes.outputs.services-list }}"
           VERSION="${{ needs.detect-changes.outputs.version }}"
-          SERVICE="${{ matrix.service.name }}"
-          MATRIX_VERSION="${{ matrix.service.version }}"
+          SERVICE="${{ matrix.name }}"
+          MATRIX_VERSION="${{ matrix.version }}"
 
           # Chỉ build khi version khớp
           if [ "$MATRIX_VERSION" != "$VERSION" ]; then
@@ -307,31 +306,31 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.name }}
           tags: |
-            type=sha,prefix=${{ matrix.service.version == 'v3' && 'v3-' || '' }}
+            type=sha,prefix=${{ matrix.version == 'v3' && 'v3-' || '' }}
             type=ref,event=branch
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && matrix.service.version == 'v2' }}
-            type=raw,value=v3,enable=${{ github.ref == 'refs/heads/main' && matrix.service.version == 'v3' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && matrix.version == 'v2' }}
+            type=raw,value=v3,enable=${{ github.ref == 'refs/heads/main' && matrix.version == 'v3' }}
 
       - name: Build image
         if: steps.should-build.outputs.build == 'true'
         uses: docker/build-push-action@v5
         with:
-          context: ${{ matrix.service.context }}
-          file: ${{ matrix.service.dockerfile }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: false
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/${{ matrix.service.name }}.tar
+          outputs: type=docker,dest=/tmp/${{ matrix.name }}.tar
 
       - name: Upload image artifact
         if: steps.should-build.outputs.build == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: image-${{ matrix.service.name }}
-          path: /tmp/${{ matrix.service.name }}.tar
+          name: image-${{ matrix.name }}
+          path: /tmp/${{ matrix.name }}.tar
           retention-days: 1
 
   # ============================================================

@@ -19,6 +19,7 @@ spec:
       valueFiles:
         - charts/common/values.yaml
         - charts/kong/values.yaml
+        - values-phase8.yaml  # Kong backends → api-producer (Phase 8)
       parameters:
         # QUAN TRỌNG: Disable namespace và secret để tránh conflict
         - name: namespace.enabled

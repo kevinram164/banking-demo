@@ -1,15 +1,16 @@
-# Notification Service Application
+# API Producer — Phase 8 (Kong → Producer → RabbitMQ → Consumers)
+# Bắt buộc: Secret rabbitmq-connection-secret trong ns banking (tạo thủ công)
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: banking-demo-notification-service
+  name: banking-demo-api-producer
   namespace: argocd
   labels:
     app.kubernetes.io/name: banking-demo
-    app.kubernetes.io/component: notification-service
+    app.kubernetes.io/component: api-producer
   annotations:
-    argocd.argoproj.io/sync-wave: "2"  # Deploy sau kong (microservices)
+    argocd.argoproj.io/sync-wave: "1"  # Cùng wave với Kong
 spec:
   project: banking-demo
   source:
@@ -17,23 +18,24 @@ spec:
     targetRevision: main
     path: phase2-helm-chart/banking-demo
     helm:
-      releaseName: banking-demo-notification-service
+      releaseName: banking-demo-api-producer
       valueFiles:
         - charts/common/values.yaml
-        - charts/notification-service/values.yaml
-        - values-phase8.yaml  # v3 consumer, rabbitmqSecretRef (Phase 8)
+        - charts/api-producer/values.yaml
+        - values-phase8.yaml
       parameters:
-        # QUAN TRỌNG: Disable namespace và secret để tránh conflict
         - name: namespace.enabled
-          value: "false"  # Namespace đã được tạo bởi namespace.yaml
+          value: "false"
         - name: secret.enabled
-          value: "false"  # Secret đã được tạo bởi namespace.yaml
+          value: "false"
         - name: postgres.enabled
           value: "false"
         - name: redis.enabled
           value: "false"
         - name: kong.enabled
           value: "false"
+        - name: api-producer.enabled
+          value: "true"
         - name: auth-service.enabled
           value: "false"
         - name: account-service.enabled
@@ -41,7 +43,7 @@ spec:
         - name: transfer-service.enabled
           value: "false"
         - name: notification-service.enabled
-          value: "true"
+          value: "false"
         - name: frontend.enabled
           value: "false"
         - name: ingress.enabled
@@ -53,8 +55,6 @@ spec:
     automated:
       prune: false
       selfHeal: true
-    syncOptions:
-      - ApplyOutOfSyncOnly=true
     retry:
       limit: 3
       backoff:

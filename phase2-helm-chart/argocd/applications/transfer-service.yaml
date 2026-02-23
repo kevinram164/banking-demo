@@ -21,6 +21,7 @@ spec:
       valueFiles:
         - charts/common/values.yaml
         - charts/transfer-service/values.yaml
+        - values-phase8.yaml  # v3 consumer, rabbitmqSecretRef (Phase 8)
       parameters:
         # QUAN TRỌNG: Disable namespace và secret để tránh conflict
         - name: namespace.enabled
