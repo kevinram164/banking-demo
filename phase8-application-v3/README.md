@@ -107,7 +107,7 @@ kubectl create secret generic rabbitmq-secret \
 kubectl apply -f phase8-application-v3/rabbitmq/k8s-rabbitmq-standalone.yaml
 ```
 
-Dùng image `rabbitmq:3.12-management`, persistence với StorageClass `nfs-client` (8Gi).
+Dùng image `rabbitmq:3.12-management`, persistence với StorageClass `nfs-client` (8Gi). Resources: limits memory 1Gi, cpu 1000m.
 
 **Option B — Bitnami Legacy** (image tại `bitnamilegacy/rabbitmq`, không còn cập nhật):
 
@@ -116,6 +116,10 @@ helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
 
 helm install rabbitmq bitnami/rabbitmq -n rabbit -f - <<EOF
+global:
+  security:
+    allowInsecureImages: true  # Cần khi dùng bitnamilegacy
+
 image:
   registry: docker.io
   repository: bitnamilegacy/rabbitmq
@@ -135,6 +139,14 @@ persistence:
   enabled: true
   storageClass: "nfs-client"
   size: 8Gi
+
+resources:
+  limits:
+    memory: 1Gi
+    cpu: "1000m"
+  requests:
+    memory: 256Mi
+    cpu: "100m"
 
 metrics:
   enabled: true
@@ -159,6 +171,14 @@ persistence:
   enabled: true
   storageClass: "nfs-client"
   size: 8Gi
+
+resources:
+  limits:
+    memory: 1Gi
+    cpu: "1000m"
+  requests:
+    memory: 256Mi
+    cpu: "100m"
 
 metrics:
   enabled: true
