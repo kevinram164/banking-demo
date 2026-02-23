@@ -36,6 +36,8 @@ spec:
           value: "false"
         - name: auth-service.enabled
           value: "true"
+        - name: api-producer.enabled
+          value: "false"  # Chỉ deploy auth-service, values-phase8 có api-producer.enabled=true
         - name: account-service.enabled
           value: "false"
         - name: transfer-service.enabled

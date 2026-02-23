@@ -40,6 +40,8 @@ spec:
           value: "false"
         - name: transfer-service.enabled
           value: "true"
+        - name: api-producer.enabled
+          value: "false"  # Chỉ deploy transfer-service, values-phase8 có api-producer.enabled=true
         - name: notification-service.enabled
           value: "false"
         - name: frontend.enabled

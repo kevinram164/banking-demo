@@ -49,6 +49,17 @@ app.add_middleware(
 )
 
 
+@app.get("/health")
+async def health():
+    """Health check — phải định nghĩa TRƯỚC catch-all /{path:path}."""
+    try:
+        if redis:
+            await redis.ping()
+        return {"status": "healthy", "service": "api-producer", "redis": "ok"}
+    except Exception as e:
+        return JSONResponse(status_code=503, content={"status": "unhealthy", "error": str(e)})
+
+
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def proxy_to_queue(request: Request, path: str):
     """Forward all requests to appropriate queue based on path."""
@@ -101,14 +112,3 @@ async def proxy_to_queue(request: Request, path: str):
     status = result.get("status", 200)
     resp_body = result.get("body", result)
     return JSONResponse(status_code=status, content=resp_body)
-
-
-@app.get("/health")
-async def health():
-    """Health check."""
-    try:
-        if redis:
-            await redis.ping()
-        return {"status": "healthy", "service": "api-producer", "redis": "ok"}
-    except Exception as e:
-        return JSONResponse(status_code=503, content={"status": "unhealthy", "error": str(e)})

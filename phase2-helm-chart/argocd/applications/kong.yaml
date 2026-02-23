@@ -32,6 +32,8 @@ spec:
           value: "false"
         - name: kong.enabled
           value: "true"
+        - name: api-producer.enabled
+          value: "false"  # Kong chỉ deploy Kong, api-producer deploy riêng
         - name: auth-service.enabled
           value: "false"
         - name: account-service.enabled

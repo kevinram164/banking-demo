@@ -38,6 +38,8 @@ spec:
           value: "false"
         - name: account-service.enabled
           value: "true"
+        - name: api-producer.enabled
+          value: "false"  # Chỉ deploy account-service, values-phase8 có api-producer.enabled=true
         - name: transfer-service.enabled
           value: "false"
         - name: notification-service.enabled
