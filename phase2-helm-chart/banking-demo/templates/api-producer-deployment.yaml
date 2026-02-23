@@ -1,0 +1,56 @@
+{{- $svc := index .Values "api-producer" }}
+{{- if $svc.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "banking-demo.api-producer.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "banking-demo.api-producer.fullname" . }}
+    {{- include "banking-demo.api-producer.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $svc.replicas }}
+  selector:
+    matchLabels:
+      {{- include "banking-demo.api-producer.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "banking-demo.api-producer.fullname" . }}
+        {{- include "banking-demo.api-producer.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: api-producer
+          image: "{{ $svc.image.repository }}:{{ $svc.image.tag }}"
+          imagePullPolicy: {{ $svc.image.pullPolicy }}
+          ports:
+            - containerPort: {{ $svc.service.port }}
+              name: {{ $svc.service.portName }}
+          env:
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $svc.secretRef.name }}
+                  key: {{ $svc.secretRef.keys.redisUrl }}
+            {{- if $svc.rabbitmqSecretRef }}
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $svc.rabbitmqSecretRef.name }}
+                  key: {{ $svc.rabbitmqSecretRef.key }}
+            {{- end }}
+            {{- range $k, $v := $svc.extraEnv }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          {{- if $svc.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ $svc.readinessProbe.path }}
+              port: {{ $svc.readinessProbe.port }}
+            initialDelaySeconds: {{ $svc.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $svc.readinessProbe.periodSeconds }}
+          {{- end }}
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+{{- end }}

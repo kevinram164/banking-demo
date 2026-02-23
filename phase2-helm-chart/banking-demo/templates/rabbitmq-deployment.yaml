@@ -1,0 +1,38 @@
+{{- $rmq := index .Values "rabbitmq" }}
+{{- if $rmq.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "banking-demo.rabbitmq.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "banking-demo.rabbitmq.fullname" . }}
+    {{- include "banking-demo.rabbitmq.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $rmq.replicas }}
+  selector:
+    matchLabels:
+      {{- include "banking-demo.rabbitmq.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "banking-demo.rabbitmq.fullname" . }}
+        {{- include "banking-demo.rabbitmq.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: rabbitmq
+          image: "{{ $rmq.image.repository }}:{{ $rmq.image.tag }}"
+          imagePullPolicy: {{ $rmq.image.pullPolicy }}
+          ports:
+            - containerPort: {{ $rmq.service.port }}
+              name: amqp
+            - containerPort: {{ $rmq.service.managementPort }}
+              name: management
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: guest
+            - name: RABBITMQ_DEFAULT_PASS
+              value: guest
+          resources:
+            {{- toYaml $rmq.resources | nindent 12 }}
+{{- end }}

@@ -1,0 +1,19 @@
+# RabbitMQ — Phase 8 (message queue)
+rabbitmq:
+  fullnameOverride: rabbitmq
+  enabled: false  # Bật khi dùng values-phase8.yaml
+  image:
+    repository: rabbitmq
+    tag: "3.12-management"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    port: 5672
+    managementPort: 15672
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"

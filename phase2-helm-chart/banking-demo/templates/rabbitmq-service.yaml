@@ -1,0 +1,21 @@
+{{- $rmq := index .Values "rabbitmq" }}
+{{- if $rmq.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "banking-demo.rabbitmq.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "banking-demo.rabbitmq.fullname" . }}
+    {{- include "banking-demo.rabbitmq.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "banking-demo.rabbitmq.selectorLabels" . | nindent 4 }}
+  ports:
+    - port: {{ $rmq.service.port }}
+      targetPort: {{ $rmq.service.port }}
+      name: amqp
+    - port: {{ $rmq.service.managementPort }}
+      targetPort: {{ $rmq.service.managementPort }}
+      name: management
+{{- end }}

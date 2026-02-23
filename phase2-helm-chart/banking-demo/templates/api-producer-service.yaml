@@ -1,0 +1,18 @@
+{{- $svc := index .Values "api-producer" }}
+{{- if $svc.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "banking-demo.api-producer.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "banking-demo.api-producer.fullname" . }}
+    {{- include "banking-demo.api-producer.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "banking-demo.api-producer.selectorLabels" . | nindent 4 }}
+  ports:
+    - port: {{ $svc.service.port }}
+      targetPort: {{ $svc.service.port }}
+      name: {{ $svc.service.portName }}
+{{- end }}

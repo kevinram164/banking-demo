@@ -9,6 +9,7 @@ on:
       - 'services/**'
       - 'frontend/**'
       - 'phase4-application-v2/**'
+      - 'phase8-application-v3/**'
       - '.github/workflows/ci.yml'
       # KHÔNG trigger khi đổi:
       # - phase2-helm-chart/**
@@ -23,12 +24,22 @@ on:
       - 'services/**'
       - 'frontend/**'
       - 'phase4-application-v2/**'
+      - 'phase8-application-v3/**'
 
-  # Manual trigger - cho phép chọn services cần build
+  # Manual trigger - chọn version V1/V2/V3 và services
   workflow_dispatch:
     inputs:
+      version:
+        description: 'Version to build'
+        required: true
+        default: 'v2'
+        type: choice
+        options:
+          - v1
+          - v2
+          - v3
       services:
-        description: 'Services to build (comma-separated or "all")'
+        description: 'Services (all hoặc chọn lẻ)'
         required: true
         default: 'all'
         type: choice
@@ -39,8 +50,7 @@ on:
           - transfer-service
           - notification-service
           - frontend
-          - auth-service,account-service
-          - auth-service,frontend
+          - api-producer
       skip_tests:
         description: 'Skip tests (for hotfix)'
         required: false
@@ -70,9 +80,12 @@ jobs:
       transfer-service: ${{ steps.filter.outputs.transfer-service }}
       notification-service: ${{ steps.filter.outputs.notification-service }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      api-producer: ${{ steps.filter.outputs.api-producer }}
+      phase8: ${{ steps.filter.outputs.phase8 }}
       common: ${{ steps.filter.outputs.common }}
       any-service: ${{ steps.filter.outputs.any-service }}
       services-list: ${{ steps.build-list.outputs.services }}
+      version: ${{ steps.build-list.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -84,56 +97,84 @@ jobs:
             auth-service:
               - 'services/auth-service/**'
               - 'phase4-application-v2/services/auth-service/**'
+              - 'phase8-application-v3/services/auth-service/**'
             account-service:
               - 'services/account-service/**'
               - 'phase4-application-v2/services/account-service/**'
+              - 'phase8-application-v3/services/account-service/**'
             transfer-service:
               - 'services/transfer-service/**'
               - 'phase4-application-v2/services/transfer-service/**'
+              - 'phase8-application-v3/services/transfer-service/**'
             notification-service:
               - 'services/notification-service/**'
               - 'phase4-application-v2/services/notification-service/**'
+              - 'phase8-application-v3/services/notification-service/**'
             frontend:
               - 'frontend/**'
               - 'phase4-application-v2/frontend/**'
+            api-producer:
+              - 'phase8-application-v3/producer/**'
+            phase8:
+              - 'phase8-application-v3/**'
             common:
               - 'common/**'
               - 'phase4-application-v2/common/**'
+              - 'phase8-application-v3/common/**'
             any-service:
               - 'services/**'
               - 'frontend/**'
               - 'common/**'
               - 'phase4-application-v2/**'
+              - 'phase8-application-v3/**'
 
       - name: Build services list
         id: build-list
         run: |
-          # Manual trigger - use input
+          # Manual trigger - use version + services
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
             SERVICES="${{ github.event.inputs.services }}"
-            echo "services=$SERVICES" >> $GITHUB_OUTPUT
-            echo "Manual trigger: $SERVICES"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            if [ "$SERVICES" == "all" ]; then
+              if [ "$VERSION" == "v1" ]; then
+                echo "services=auth-service,account-service,transfer-service,notification-service,frontend" >> $GITHUB_OUTPUT
+              elif [ "$VERSION" == "v2" ]; then
+                echo "services=auth-service,account-service,transfer-service,notification-service,frontend" >> $GITHUB_OUTPUT
+              else
+                echo "services=api-producer,auth-service,account-service,transfer-service,notification-service" >> $GITHUB_OUTPUT
+              fi
+            else
+              echo "services=$SERVICES" >> $GITHUB_OUTPUT
+            fi
+            echo "Manual trigger: version=$VERSION, services=$SERVICES"
             exit 0
           fi
 
-          # Auto detect - build changed services
-          # If common changed, build ALL services
+          # Auto detect - version theo path đổi; services theo filter
+          if [ "${{ steps.filter.outputs.phase8 }}" == "true" ]; then
+            echo "version=v3" >> $GITHUB_OUTPUT
+          else
+            echo "version=v2" >> $GITHUB_OUTPUT
+          fi
+
           if [ "${{ steps.filter.outputs.common }}" == "true" ]; then
             echo "services=all" >> $GITHUB_OUTPUT
             echo "Common changed - will build all"
             exit 0
           fi
 
-          # Build list of changed services
           SERVICES=""
           [ "${{ steps.filter.outputs.auth-service }}" == "true" ] && SERVICES="$SERVICES,auth-service"
           [ "${{ steps.filter.outputs.account-service }}" == "true" ] && SERVICES="$SERVICES,account-service"
           [ "${{ steps.filter.outputs.transfer-service }}" == "true" ] && SERVICES="$SERVICES,transfer-service"
           [ "${{ steps.filter.outputs.notification-service }}" == "true" ] && SERVICES="$SERVICES,notification-service"
           [ "${{ steps.filter.outputs.frontend }}" == "true" ] && SERVICES="$SERVICES,frontend"
+          [ "${{ steps.filter.outputs.api-producer }}" == "true" ] && SERVICES="$SERVICES,api-producer"
+          [ "${{ steps.filter.outputs.phase8 }}" == "true" ] && SERVICES="${SERVICES},api-producer"
 
-          # Remove leading comma
           SERVICES="${SERVICES#,}"
+          SERVICES=$(echo "$SERVICES" | tr ',' '\n' | sort -u | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
           [ -z "$SERVICES" ] && SERVICES="none"
 
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
@@ -184,10 +225,11 @@ jobs:
           pip install -r common/requirements.txt
           pip install -r phase4-application-v2/requirements-dev.txt
 
-      - name: Syntax check (v1 + v2)
+      - name: Syntax check (v1 + v2 + v3)
         run: |
           python -m compileall common services
           python -m compileall phase4-application-v2/common phase4-application-v2/services
+          python -m compileall phase8-application-v3/common phase8-application-v3/services phase8-application-v3/producer || true
 
       - name: Run tests (v2)
         run: pytest -q phase4-application-v2/tests || true
@@ -206,39 +248,51 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Phase 4 (v2) — build từ phase4-application-v2/
-        service:
-          - name: auth-service
-            context: .
-            dockerfile: phase4-application-v2/services/auth-service/Dockerfile
-          - name: account-service
-            context: .
-            dockerfile: phase4-application-v2/services/account-service/Dockerfile
-          - name: transfer-service
-            context: .
-            dockerfile: phase4-application-v2/services/transfer-service/Dockerfile
-          - name: notification-service
-            context: .
-            dockerfile: phase4-application-v2/services/notification-service/Dockerfile
-          - name: frontend
-            context: phase4-application-v2/frontend
-            dockerfile: frontend/Dockerfile
+        include:
+          # V1 — services/ + frontend/
+          - { name: auth-service, version: v1, context: ., dockerfile: services/auth-service/Dockerfile }
+          - { name: account-service, version: v1, context: ., dockerfile: services/account-service/Dockerfile }
+          - { name: transfer-service, version: v1, context: ., dockerfile: services/transfer-service/Dockerfile }
+          - { name: notification-service, version: v1, context: ., dockerfile: services/notification-service/Dockerfile }
+          - { name: frontend, version: v1, context: ., dockerfile: frontend/Dockerfile }
+          # V2 — phase4-application-v2/
+          - { name: auth-service, version: v2, context: ., dockerfile: phase4-application-v2/services/auth-service/Dockerfile }
+          - { name: account-service, version: v2, context: ., dockerfile: phase4-application-v2/services/account-service/Dockerfile }
+          - { name: transfer-service, version: v2, context: ., dockerfile: phase4-application-v2/services/transfer-service/Dockerfile }
+          - { name: notification-service, version: v2, context: ., dockerfile: phase4-application-v2/services/notification-service/Dockerfile }
+          - { name: frontend, version: v2, context: phase4-application-v2/frontend, dockerfile: frontend/Dockerfile }
+          # V3 — phase8-application-v3/
+          - { name: api-producer, version: v3, context: ., dockerfile: phase8-application-v3/producer/Dockerfile }
+          - { name: auth-service, version: v3, context: ., dockerfile: phase8-application-v3/services/auth-service/Dockerfile }
+          - { name: account-service, version: v3, context: ., dockerfile: phase8-application-v3/services/account-service/Dockerfile }
+          - { name: transfer-service, version: v3, context: ., dockerfile: phase8-application-v3/services/transfer-service/Dockerfile }
+          - { name: notification-service, version: v3, context: ., dockerfile: phase8-application-v3/services/notification-service/Dockerfile }
     steps:
       - name: Check if should build
         id: should-build
         run: |
           SERVICES="${{ needs.detect-changes.outputs.services-list }}"
+          VERSION="${{ needs.detect-changes.outputs.version }}"
           SERVICE="${{ matrix.service.name }}"
+          MATRIX_VERSION="${{ matrix.service.version }}"
 
+          # Chỉ build khi version khớp
+          if [ "$MATRIX_VERSION" != "$VERSION" ]; then
+            echo "build=false" >> $GITHUB_OUTPUT
+            echo "Skip $SERVICE (version $MATRIX_VERSION != $VERSION)"
+            exit 0
+          fi
+
+          # Check service trong list
           if [ "$SERVICES" == "all" ]; then
             echo "build=true" >> $GITHUB_OUTPUT
-            echo "Will build $SERVICE (all requested)"
+            echo "Will build $SERVICE ($MATRIX_VERSION)"
           elif echo "$SERVICES" | grep -q "$SERVICE"; then
             echo "build=true" >> $GITHUB_OUTPUT
-            echo "Will build $SERVICE (in changed list)"
+            echo "Will build $SERVICE ($MATRIX_VERSION)"
           else
             echo "build=false" >> $GITHUB_OUTPUT
-            echo "Skip $SERVICE (not changed)"
+            echo "Skip $SERVICE (not in list)"
           fi
 
       - uses: actions/checkout@v4
@@ -255,9 +309,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}
           tags: |
-            type=sha,prefix=
+            type=sha,prefix=${{ matrix.service.version == 'v3' && 'v3-' || '' }}
             type=ref,event=branch
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && matrix.service.version == 'v2' }}
+            type=raw,value=v3,enable=${{ github.ref == 'refs/heads/main' && matrix.service.version == 'v3' }}
 
       - name: Build image
         if: steps.should-build.outputs.build == 'true'
@@ -302,6 +357,7 @@ jobs:
           - transfer-service
           - notification-service
           - frontend
+          - api-producer
     steps:
       - name: Check if should push
         id: should-push
@@ -415,7 +471,7 @@ jobs:
             fi
           }
 
-          for svc in auth-service account-service transfer-service notification-service frontend; do
+          for svc in auth-service account-service transfer-service notification-service frontend api-producer; do
             if should_update "$svc"; then
               update_tag "$svc"
             fi

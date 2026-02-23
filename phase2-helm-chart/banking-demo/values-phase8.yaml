@@ -1,0 +1,74 @@
+# Phase 8 — Kong → API Producer → RabbitMQ → Consumers
+# RabbitMQ triển khai RIÊNG trên ns rabbit (xem README). KHÔNG dùng inline.
+# RABBITMQ_URL lấy từ Secret rabbitmq-connection-secret (tạo thủ công), KHÔNG ghi vào values.
+
+# 1. API Producer (RabbitMQ deploy riêng ns rabbit)
+api-producer:
+  enabled: true
+  image:
+    repository: registry.gitlab.com/kiettt164/banking-demo-payment/api-producer
+    tag: latest  # CI cập nhật khi push phase8-application-v3/producer
+  rabbitmqSecretRef:
+    name: rabbitmq-connection-secret
+    key: RABBITMQ_URL
+
+rabbitmq:
+  enabled: false  # RabbitMQ deploy riêng ns rabbit
+
+# 2. Kong: /api/* → api-producer (strip_path: false), /ws → notification-service
+kong:
+  backends:
+    - name: api-producer
+      url: "http://api-producer:8080"
+      routes:
+        - name: api-route
+          paths: ["/api"]
+          strip_path: false
+    - name: notification-service
+      url: "http://notification-service:8004"
+      routes:
+        - name: notification-ws-route
+          paths: ["/ws"]
+          strip_path: false
+          protocols: ["http", "https"]
+
+# 3. V3 consumers: RABBITMQ_URL từ Secret, port 9999 cho health
+auth-service:
+  image:
+    tag: v3
+  service:
+    port: 9999
+  readinessProbe:
+    port: 9999
+  rabbitmqSecretRef:
+    name: rabbitmq-connection-secret
+    key: RABBITMQ_URL
+
+account-service:
+  image:
+    tag: v3
+  service:
+    port: 9999
+  readinessProbe:
+    port: 9999
+  rabbitmqSecretRef:
+    name: rabbitmq-connection-secret
+    key: RABBITMQ_URL
+
+transfer-service:
+  image:
+    tag: v3
+  service:
+    port: 9999
+  readinessProbe:
+    port: 9999
+  rabbitmqSecretRef:
+    name: rabbitmq-connection-secret
+    key: RABBITMQ_URL
+
+notification-service:
+  image:
+    tag: v3
+  rabbitmqSecretRef:
+    name: rabbitmq-connection-secret
+    key: RABBITMQ_URL

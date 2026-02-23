@@ -1,0 +1,33 @@
+# API Producer — Phase 8 (Kong → Producer → RabbitMQ → Consumers)
+api-producer:
+  fullnameOverride: api-producer
+  enabled: false  # Bật khi dùng values-phase8.yaml
+  image:
+    repository: registry.gitlab.com/kiettt164/banking-demo-payment/api-producer
+    tag: latest
+    pullPolicy: Always
+  replicas: 2
+  service:
+    port: 8080
+    portName: http
+  secretRef:
+    name: banking-db-secret
+    keys:
+      redisUrl: REDIS_URL
+  # RabbitMQ: dùng Secret riêng (tạo thủ công), KHÔNG ghi URL/password vào values
+  rabbitmqSecretRef:
+    name: rabbitmq-connection-secret
+    key: RABBITMQ_URL
+  readinessProbe:
+    enabled: true
+    path: /health
+    port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 15
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"

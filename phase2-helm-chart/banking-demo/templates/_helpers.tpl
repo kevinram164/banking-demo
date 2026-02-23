@@ -105,6 +105,28 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "banking-demo.frontend.fullname" -}}{{- .Values.frontend.fullnameOverride | default "frontend" -}}{{- end -}}
+
+{{- define "banking-demo.api-producer.fullname" -}}{{- (index .Values "api-producer").fullnameOverride | default "api-producer" -}}{{- end -}}
+{{- define "banking-demo.api-producer.labels" -}}
+app.kubernetes.io/name: {{ include "banking-demo.api-producer.fullname" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: api-producer
+{{- end -}}
+{{- define "banking-demo.api-producer.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "banking-demo.api-producer.fullname" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
+
+{{- define "banking-demo.rabbitmq.fullname" -}}{{- (index .Values "rabbitmq").fullnameOverride | default "rabbitmq" -}}{{- end -}}
+{{- define "banking-demo.rabbitmq.labels" -}}
+app.kubernetes.io/name: {{ include "banking-demo.rabbitmq.fullname" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: rabbitmq
+{{- end -}}
+{{- define "banking-demo.rabbitmq.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "banking-demo.rabbitmq.fullname" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
 {{- define "banking-demo.frontend.labels" -}}
 app.kubernetes.io/name: {{ include "banking-demo.frontend.fullname" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}

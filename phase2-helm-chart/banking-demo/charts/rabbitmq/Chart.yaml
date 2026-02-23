@@ -1,0 +1,5 @@
+apiVersion: v2
+name: rabbitmq
+description: RabbitMQ - Phase 8
+version: 0.1.0
+type: application
