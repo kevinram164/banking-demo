@@ -141,7 +141,7 @@ jobs:
               elif [ "$VERSION" == "v2" ]; then
                 echo "services=auth-service,account-service,transfer-service,notification-service,frontend" >> $GITHUB_OUTPUT
               else
-                echo "services=api-producer,auth-service,account-service,transfer-service,notification-service" >> $GITHUB_OUTPUT
+                echo "services=api-producer,auth-service,account-service,transfer-service,notification-service,frontend" >> $GITHUB_OUTPUT
               fi
             else
               echo "services=$SERVICES" >> $GITHUB_OUTPUT
@@ -157,6 +157,8 @@ jobs:
             echo "version=v2" >> $GITHUB_OUTPUT
           fi
 
+          # common thay đổi → build all (vì shared code ảnh hưởng mọi service)
+          # Lưu ý: update-manifests sẽ cập nhật tag TẤT CẢ services → đảm bảo commit không có common/ nếu chỉ muốn update 1 service
           if [ "${{ steps.filter.outputs.common }}" == "true" ]; then
             echo "services=all" >> $GITHUB_OUTPUT
             echo "Common changed - will build all"
@@ -170,7 +172,6 @@ jobs:
           [ "${{ steps.filter.outputs.notification-service }}" == "true" ] && SERVICES="$SERVICES,notification-service"
           [ "${{ steps.filter.outputs.frontend }}" == "true" ] && SERVICES="$SERVICES,frontend"
           [ "${{ steps.filter.outputs.api-producer }}" == "true" ] && SERVICES="$SERVICES,api-producer"
-          [ "${{ steps.filter.outputs.phase8 }}" == "true" ] && SERVICES="${SERVICES},api-producer"
 
           SERVICES="${SERVICES#,}"
           SERVICES=$(echo "$SERVICES" | tr ',' '\n' | sort -u | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
@@ -260,12 +261,13 @@ jobs:
           - { name: transfer-service, version: v2, context: ., dockerfile: phase4-application-v2/services/transfer-service/Dockerfile }
           - { name: notification-service, version: v2, context: ., dockerfile: phase4-application-v2/services/notification-service/Dockerfile }
           - { name: frontend, version: v2, context: phase4-application-v2/frontend, dockerfile: frontend/Dockerfile }
-          # V3 — phase8-application-v3/
+          # V3 — phase8-application-v3/ (frontend dùng chung phase4-application-v2)
           - { name: api-producer, version: v3, context: ., dockerfile: phase8-application-v3/producer/Dockerfile }
           - { name: auth-service, version: v3, context: ., dockerfile: phase8-application-v3/services/auth-service/Dockerfile }
           - { name: account-service, version: v3, context: ., dockerfile: phase8-application-v3/services/account-service/Dockerfile }
           - { name: transfer-service, version: v3, context: ., dockerfile: phase8-application-v3/services/transfer-service/Dockerfile }
           - { name: notification-service, version: v3, context: ., dockerfile: phase8-application-v3/services/notification-service/Dockerfile }
+          - { name: frontend, version: v3, context: phase4-application-v2/frontend, dockerfile: frontend/Dockerfile }
     steps:
       - name: Check if should build
         id: should-build
