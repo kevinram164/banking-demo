@@ -32,43 +32,40 @@ kong:
           strip_path: false
           protocols: ["http", "https"]
 
-# 3. V3 consumers: RABBITMQ_URL từ Secret, port 9999 cho health
+# 3. Consumers: RABBITMQ_URL từ Secret (dùng tag từ base chart: 7d06aac, KHÔNG override v3)
+# Lưu ý: Khi có image v3 consumer (RabbitMQ) thì mới override tag + port 9999
 auth-service:
-  image:
-    tag: v3
   service:
-    port: 9999
+    port: 8001
   readinessProbe:
-    port: 9999
+    port: 8001
   rabbitmqSecretRef:
     name: rabbitmq-connection-secret
     key: RABBITMQ_URL
 
 account-service:
-  image:
-    tag: v3
   service:
-    port: 9999
+    port: 8002
   readinessProbe:
-    port: 9999
+    port: 8002
   rabbitmqSecretRef:
     name: rabbitmq-connection-secret
     key: RABBITMQ_URL
 
 transfer-service:
-  image:
-    tag: v3
   service:
-    port: 9999
+    port: 8003
   readinessProbe:
-    port: 9999
+    port: 8003
   rabbitmqSecretRef:
     name: rabbitmq-connection-secret
     key: RABBITMQ_URL
 
 notification-service:
-  image:
-    tag: v3
+  service:
+    port: 8004
+  readinessProbe:
+    port: 8004
   rabbitmqSecretRef:
     name: rabbitmq-connection-secret
     key: RABBITMQ_URL
