@@ -79,12 +79,17 @@ export const api = {
       headers: { "X-Admin-Secret": secret },
     }),
 
-  // Health check notification service (no auth required) — returns { status, ... } or { error }
+  // Health checks (no auth) — returns { status, database, redis, ... } or { error }
+  async authServiceHealth() {
+    try { return await req("/api/auth/health"); } catch (e) { return { error: e.message || "Unreachable" }; }
+  },
+  async accountServiceHealth() {
+    try { return await req("/api/account/health"); } catch (e) { return { error: e.message || "Unreachable" }; }
+  },
+  async transferServiceHealth() {
+    try { return await req("/api/transfer/health"); } catch (e) { return { error: e.message || "Unreachable" }; }
+  },
   async notificationServiceHealth() {
-    try {
-      return await req("/api/notifications/health");
-    } catch (e) {
-      return { error: e.message || "Unreachable" };
-    }
+    try { return await req("/api/notifications/health"); } catch (e) { return { error: e.message || "Unreachable" }; }
   },
 };

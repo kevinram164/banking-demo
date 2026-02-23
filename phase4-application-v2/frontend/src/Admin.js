@@ -183,6 +183,10 @@ export default function Admin({ onBack }) {
   const [notificationsPages, setNotificationsPages] = useState(0);
   const [notificationsPage, setNotificationsPage] = useState(1);
   const [notificationServiceStatus, setNotificationServiceStatus] = useState(null);
+  const [authServiceStatus, setAuthServiceStatus] = useState(null);
+  const [accountServiceStatus, setAccountServiceStatus] = useState(null);
+  const [transferServiceStatus, setTransferServiceStatus] = useState(null);
+  const [adminSubPage, setAdminSubPage] = useState("overview");
 
   const loadStats = useCallback(async (s) => {
     try {
@@ -226,9 +230,17 @@ export default function Admin({ onBack }) {
     }
   }, []);
 
-  const loadNotificationServiceHealth = useCallback(async () => {
-    const res = await api.notificationServiceHealth();
-    setNotificationServiceStatus(res);
+  const loadAllServiceHealth = useCallback(async () => {
+    const [auth, account, transfer, notif] = await Promise.all([
+      api.authServiceHealth(),
+      api.accountServiceHealth(),
+      api.transferServiceHealth(),
+      api.notificationServiceHealth(),
+    ]);
+    setAuthServiceStatus(auth);
+    setAccountServiceStatus(account);
+    setTransferServiceStatus(transfer);
+    setNotificationServiceStatus(notif);
   }, []);
 
   useEffect(() => {
@@ -247,8 +259,8 @@ export default function Admin({ onBack }) {
     loadUsers(secret, page, search);
     loadTransfers(secret, transfersPage);
     loadNotifications(secret, notificationsPage);
-    loadNotificationServiceHealth();
-  }, [authed, page, search, secret, transfersPage, notificationsPage, loadStats, loadUsers, loadTransfers, loadNotifications, loadNotificationServiceHealth]);
+    loadAllServiceHealth();
+  }, [authed, page, search, secret, transfersPage, notificationsPage, loadStats, loadUsers, loadTransfers, loadNotifications, loadAllServiceHealth]);
 
   const doSearch = (e) => {
     e.preventDefault();
@@ -266,42 +278,32 @@ export default function Admin({ onBack }) {
     return <AdminLogin onAuth={(s) => { setSecret(s); setAuthed(true); }} />;
   }
 
+  const renderServiceStatus = (name, status) => {
+    const ok = status?.status === "healthy";
+    return (
+      <div key={name} className="flex items-center gap-2 flex-wrap">
+        <span className={`inline-block h-3 w-3 rounded-full shrink-0 ${
+          status === null ? "bg-slate-300 animate-pulse" : ok ? "bg-emerald-500" : "bg-red-500"
+        }`} />
+        <span className="text-sm font-semibold">
+          {name}: {status === null ? "Checking..." : ok ? "OK" : status?.error || "Unhealthy"}
+        </span>
+        {ok && (
+          <span className="text-sm font-semibold text-slate-600">
+            · <span className="font-bold">DB:</span> {status?.database} · <span className="font-bold">Redis:</span> {status?.redis}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <Layout user="Admin" env="ADMIN" onLogout={logout} onBack={onBack} activePage="admin">
+    <Layout user="Admin" env="ADMIN" onLogout={logout} onBack={onBack} activePage="admin" adminSubPage={adminSubPage} onAdminSubPage={setAdminSubPage}>
       <div className="space-y-6">
-        {stats && <StatsCards stats={stats} />}
-
-        {/* Service Health */}
-        <Card title="Service Health" desc="Notification service status">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className={`inline-block h-3 w-3 rounded-full ${
-                notificationServiceStatus === null ? "bg-slate-300 animate-pulse" :
-                notificationServiceStatus?.status === "healthy" ? "bg-emerald-500" : "bg-red-500"
-              }`} />
-              <span className="text-sm font-semibold">
-                Notification Service: {notificationServiceStatus === null
-                  ? "Checking..."
-                  : notificationServiceStatus?.status === "healthy"
-                    ? "OK"
-                    : notificationServiceStatus?.error || "Unhealthy"}
-              </span>
-            </div>
-            {notificationServiceStatus?.status === "healthy" && (
-              <span className="text-xs text-slate-500">
-                DB: {notificationServiceStatus?.database} · Redis: {notificationServiceStatus?.redis}
-              </span>
-            )}
-            <button
-              onClick={loadNotificationServiceHealth}
-              className="rounded-lg border px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-            >
-              Refresh
-            </button>
-          </div>
-        </Card>
-
-        <Card title="Users" desc={`${total} total users`}>
+        {adminSubPage === "overview" && (
+          <>
+            {stats && <StatsCards stats={stats} />}
+            <Card title="Users" desc={`${total} total users`}>
           <form onSubmit={doSearch} className="mb-4 flex gap-2">
             <input
               className="flex-1 rounded-xl border px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
@@ -391,9 +393,11 @@ export default function Admin({ onBack }) {
             </div>
           )}
         </Card>
+          </>
+        )}
 
-        {/* Transactions Dashboard */}
-        <Card title="Transactions" desc={`${transfersTotal} total transfers`}>
+        {adminSubPage === "transfers" && (
+        <Card title="Transfers History" desc={`${transfersTotal} total transfers`}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -445,8 +449,9 @@ export default function Admin({ onBack }) {
             </div>
           )}
         </Card>
+        )}
 
-        {/* Notifications Dashboard */}
+        {adminSubPage === "notifications" && (
         <Card title="Notifications" desc={`${notificationsTotal} total notifications`}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -499,6 +504,26 @@ export default function Admin({ onBack }) {
             </div>
           )}
         </Card>
+        )}
+
+        {adminSubPage === "health" && (
+        <Card title="Service Health" desc="All backend services status">
+          <div className="space-y-4">
+            <div className="space-y-3">
+              {renderServiceStatus("Auth Service", authServiceStatus)}
+              {renderServiceStatus("Account Service", accountServiceStatus)}
+              {renderServiceStatus("Transfer Service", transferServiceStatus)}
+              {renderServiceStatus("Notification Service", notificationServiceStatus)}
+            </div>
+            <button
+              onClick={loadAllServiceHealth}
+              className="rounded-lg border px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Refresh
+            </button>
+          </div>
+        </Card>
+        )}
       </div>
 
       {selectedUser && (

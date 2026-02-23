@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function Layout({ user, env = "LAB", onLogout, onBack, onGoAdmin, activePage = "dashboard", children }) {
+export default function Layout({ user, env = "LAB", onLogout, onBack, onGoAdmin, activePage = "dashboard", adminSubPage, onAdminSubPage, children }) {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Topbar */}
@@ -52,9 +52,40 @@ export default function Layout({ user, env = "LAB", onLogout, onBack, onGoAdmin,
             <div className="text-xs font-semibold text-slate-500">MENU</div>
             <div className="mt-3 space-y-2 text-sm">
               <div className={`rounded-xl px-3 py-2 font-semibold ${activePage === "dashboard" ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"}`}>Dashboard</div>
-              <div className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Transfers</div>
-              <div className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Notifications</div>
-              {onGoAdmin && (
+              {env === "ADMIN" && onAdminSubPage ? (
+                <>
+                  <div
+                    onClick={() => onAdminSubPage("overview")}
+                    className={`rounded-xl px-3 py-2 font-semibold cursor-pointer ${adminSubPage === "overview" ? "bg-amber-50 text-amber-700" : "text-slate-700 hover:bg-amber-50"}`}
+                  >
+                    Overview
+                  </div>
+                  <div
+                    onClick={() => onAdminSubPage("transfers")}
+                    className={`rounded-xl px-3 py-2 font-semibold cursor-pointer ${adminSubPage === "transfers" ? "bg-amber-50 text-amber-700" : "text-slate-700 hover:bg-amber-50"}`}
+                  >
+                    Transfers History
+                  </div>
+                  <div
+                    onClick={() => onAdminSubPage("notifications")}
+                    className={`rounded-xl px-3 py-2 font-semibold cursor-pointer ${adminSubPage === "notifications" ? "bg-amber-50 text-amber-700" : "text-slate-700 hover:bg-amber-50"}`}
+                  >
+                    Notifications
+                  </div>
+                  <div
+                    onClick={() => onAdminSubPage("health")}
+                    className={`rounded-xl px-3 py-2 font-semibold cursor-pointer ${adminSubPage === "health" ? "bg-amber-50 text-amber-700" : "text-slate-700 hover:bg-amber-50"}`}
+                  >
+                    Service Health
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-xl px-3 py-2 text-slate-700">Transfers</div>
+                  <div className="rounded-xl px-3 py-2 text-slate-700">Notifications</div>
+                </>
+              )}
+              {onGoAdmin && !(env === "ADMIN" && onAdminSubPage) && (
                 <div
                   onClick={onGoAdmin}
                   className={`rounded-xl px-3 py-2 font-semibold cursor-pointer ${activePage === "admin" ? "bg-amber-50 text-amber-700" : "text-slate-700 hover:bg-amber-50"}`}
