@@ -177,6 +177,87 @@ async def admin_stats(_: None = Depends(verify_admin), db: Session = Depends(get
     }
 
 
+@app.get("/admin/transfers")
+async def admin_list_transfers(
+    page: int = 1,
+    size: int = 20,
+    _: None = Depends(verify_admin),
+    db: Session = Depends(get_db),
+):
+    """List all transfers (transactions) with pagination."""
+    total_count = db.execute(select(func.count(Transfer.id))).scalar()
+    transfers = (
+        db.execute(
+            select(Transfer).order_by(Transfer.created_at.desc()).offset((page - 1) * size).limit(size)
+        )
+        .scalars()
+        .all()
+    )
+    user_ids = {t.from_user for t in transfers} | {t.to_user for t in transfers}
+    users = {u.id: u.username for u in db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()} if user_ids else {}
+    result = [
+        {
+            "id": t.id,
+            "from_user": t.from_user,
+            "from_username": users.get(t.from_user, f"#{t.from_user}"),
+            "to_user": t.to_user,
+            "to_username": users.get(t.to_user, f"#{t.to_user}"),
+            "amount": t.amount,
+            "created_at": t.created_at.isoformat() + "Z",
+        }
+        for t in transfers
+    ]
+    log_event(logger, "admin_list_transfers", page=page, size=size, total=total_count)
+    return {
+        "transfers": result,
+        "total": total_count,
+        "page": page,
+        "size": size,
+        "pages": (total_count + size - 1) // size,
+    }
+
+
+@app.get("/admin/notifications")
+async def admin_list_notifications(
+    page: int = 1,
+    size: int = 20,
+    user_id: int | None = None,
+    _: None = Depends(verify_admin),
+    db: Session = Depends(get_db),
+):
+    """List all notifications with pagination."""
+    query = select(Notification).order_by(Notification.created_at.desc())
+    if user_id:
+        query = query.where(Notification.user_id == user_id)
+    total = db.execute(select(func.count()).select_from(query.subquery())).scalar()
+    items = (
+        db.execute(query.offset((page - 1) * size).limit(size))
+        .scalars()
+        .all()
+    )
+    user_ids = {n.user_id for n in items}
+    users = {u.id: u.username for u in db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()} if user_ids else {}
+    result = [
+        {
+            "id": n.id,
+            "user_id": n.user_id,
+            "username": users.get(n.user_id, f"#{n.user_id}"),
+            "message": n.message,
+            "is_read": n.is_read,
+            "created_at": n.created_at.isoformat() + "Z",
+        }
+        for n in items
+    ]
+    log_event(logger, "admin_list_notifications", page=page, size=size, total=total)
+    return {
+        "notifications": result,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size,
+    }
+
+
 @app.get("/admin/users/{user_id}")
 async def admin_user_detail(
     user_id: int,

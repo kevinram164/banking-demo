@@ -174,6 +174,15 @@ export default function Admin({ onBack }) {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
+  const [transfers, setTransfers] = useState([]);
+  const [transfersTotal, setTransfersTotal] = useState(0);
+  const [transfersPages, setTransfersPages] = useState(0);
+  const [transfersPage, setTransfersPage] = useState(1);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsTotal, setNotificationsTotal] = useState(0);
+  const [notificationsPages, setNotificationsPages] = useState(0);
+  const [notificationsPage, setNotificationsPage] = useState(1);
+  const [notificationServiceStatus, setNotificationServiceStatus] = useState(null);
 
   const loadStats = useCallback(async (s) => {
     try {
@@ -195,6 +204,33 @@ export default function Admin({ onBack }) {
     }
   }, []);
 
+  const loadTransfers = useCallback(async (s, p) => {
+    try {
+      const data = await api.adminTransfers(s, p, 20);
+      setTransfers(data.transfers);
+      setTransfersTotal(data.total);
+      setTransfersPages(data.pages);
+    } catch {
+      setTransfers([]);
+    }
+  }, []);
+
+  const loadNotifications = useCallback(async (s, p) => {
+    try {
+      const data = await api.adminNotifications(s, p, 20);
+      setNotifications(data.notifications);
+      setNotificationsTotal(data.total);
+      setNotificationsPages(data.pages);
+    } catch {
+      setNotifications([]);
+    }
+  }, []);
+
+  const loadNotificationServiceHealth = useCallback(async () => {
+    const res = await api.notificationServiceHealth();
+    setNotificationServiceStatus(res);
+  }, []);
+
   useEffect(() => {
     if (!authed) {
       if (secret) {
@@ -209,7 +245,10 @@ export default function Admin({ onBack }) {
     }
     loadStats(secret);
     loadUsers(secret, page, search);
-  }, [authed, page, search, secret, loadStats, loadUsers]);
+    loadTransfers(secret, transfersPage);
+    loadNotifications(secret, notificationsPage);
+    loadNotificationServiceHealth();
+  }, [authed, page, search, secret, transfersPage, notificationsPage, loadStats, loadUsers, loadTransfers, loadNotifications, loadNotificationServiceHealth]);
 
   const doSearch = (e) => {
     e.preventDefault();
@@ -231,6 +270,36 @@ export default function Admin({ onBack }) {
     <Layout user="Admin" env="ADMIN" onLogout={logout} onBack={onBack} activePage="admin">
       <div className="space-y-6">
         {stats && <StatsCards stats={stats} />}
+
+        {/* Service Health */}
+        <Card title="Service Health" desc="Notification service status">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className={`inline-block h-3 w-3 rounded-full ${
+                notificationServiceStatus === null ? "bg-slate-300 animate-pulse" :
+                notificationServiceStatus?.status === "healthy" ? "bg-emerald-500" : "bg-red-500"
+              }`} />
+              <span className="text-sm font-semibold">
+                Notification Service: {notificationServiceStatus === null
+                  ? "Checking..."
+                  : notificationServiceStatus?.status === "healthy"
+                    ? "OK"
+                    : notificationServiceStatus?.error || "Unhealthy"}
+              </span>
+            </div>
+            {notificationServiceStatus?.status === "healthy" && (
+              <span className="text-xs text-slate-500">
+                DB: {notificationServiceStatus?.database} · Redis: {notificationServiceStatus?.redis}
+              </span>
+            )}
+            <button
+              onClick={loadNotificationServiceHealth}
+              className="rounded-lg border px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Refresh
+            </button>
+          </div>
+        </Card>
 
         <Card title="Users" desc={`${total} total users`}>
           <form onSubmit={doSearch} className="mb-4 flex gap-2">
@@ -314,6 +383,114 @@ export default function Admin({ onBack }) {
                 <button
                   disabled={page >= pages}
                   onClick={() => setPage((p) => p + 1)}
+                  className="rounded-lg border px-3 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        {/* Transactions Dashboard */}
+        <Card title="Transactions" desc={`${transfersTotal} total transfers`}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs font-semibold text-slate-500">
+                  <th className="px-3 py-2">ID</th>
+                  <th className="px-3 py-2">From</th>
+                  <th className="px-3 py-2">To</th>
+                  <th className="px-3 py-2 text-right">Amount</th>
+                  <th className="px-3 py-2">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transfers.map((t) => (
+                  <tr key={t.id} className="border-b hover:bg-slate-50">
+                    <td className="px-3 py-2 text-slate-500">{t.id}</td>
+                    <td className="px-3 py-2">{t.from_username} <span className="text-slate-400">#{t.from_user}</span></td>
+                    <td className="px-3 py-2">{t.to_username} <span className="text-slate-400">#{t.to_user}</span></td>
+                    <td className="px-3 py-2 text-right font-semibold text-emerald-700">{t.amount?.toLocaleString()} ₫</td>
+                    <td className="px-3 py-2 text-xs text-slate-500">{t.created_at ? new Date(t.created_at).toLocaleString() : ""}</td>
+                  </tr>
+                ))}
+                {transfers.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-6 text-center text-slate-400">No transfers yet</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          {transfersPages > 1 && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-xs text-slate-500">Page {transfersPage} of {transfersPages}</div>
+              <div className="flex gap-2">
+                <button
+                  disabled={transfersPage <= 1}
+                  onClick={() => setTransfersPage((p) => Math.max(1, p - 1))}
+                  className="rounded-lg border px-3 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <button
+                  disabled={transfersPage >= transfersPages}
+                  onClick={() => setTransfersPage((p) => p + 1)}
+                  className="rounded-lg border px-3 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        {/* Notifications Dashboard */}
+        <Card title="Notifications" desc={`${notificationsTotal} total notifications`}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs font-semibold text-slate-500">
+                  <th className="px-3 py-2">ID</th>
+                  <th className="px-3 py-2">User</th>
+                  <th className="px-3 py-2">Message</th>
+                  <th className="px-3 py-2">Read</th>
+                  <th className="px-3 py-2">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {notifications.map((n) => (
+                  <tr key={n.id} className="border-b hover:bg-slate-50">
+                    <td className="px-3 py-2 text-slate-500">{n.id}</td>
+                    <td className="px-3 py-2">{n.username} <span className="text-slate-400">#{n.user_id}</span></td>
+                    <td className="px-3 py-2 max-w-xs truncate">{n.message}</td>
+                    <td className="px-3 py-2">{n.is_read ? "✓" : "—"}</td>
+                    <td className="px-3 py-2 text-xs text-slate-500">{n.created_at ? new Date(n.created_at).toLocaleString() : ""}</td>
+                  </tr>
+                ))}
+                {notifications.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-6 text-center text-slate-400">No notifications yet</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          {notificationsPages > 1 && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-xs text-slate-500">Page {notificationsPage} of {notificationsPages}</div>
+              <div className="flex gap-2">
+                <button
+                  disabled={notificationsPage <= 1}
+                  onClick={() => setNotificationsPage((p) => Math.max(1, p - 1))}
+                  className="rounded-lg border px-3 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <button
+                  disabled={notificationsPage >= notificationsPages}
+                  onClick={() => setNotificationsPage((p) => p + 1)}
                   className="rounded-lg border px-3 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
                 >
                   Next

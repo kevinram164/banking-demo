@@ -68,4 +68,23 @@ export const api = {
     req(`/api/account/admin/users/${userId}`, {
       headers: { "X-Admin-Secret": secret },
     }),
+
+  adminTransfers: (secret, page = 1, size = 20) =>
+    req(`/api/account/admin/transfers?page=${page}&size=${size}`, {
+      headers: { "X-Admin-Secret": secret },
+    }),
+
+  adminNotifications: (secret, page = 1, size = 20, userId = "") =>
+    req(`/api/account/admin/notifications?page=${page}&size=${size}${userId ? `&user_id=${userId}` : ""}`, {
+      headers: { "X-Admin-Secret": secret },
+    }),
+
+  // Health check notification service (no auth required) — returns { status, ... } or { error }
+  async notificationServiceHealth() {
+    try {
+      return await req("/api/notifications/health");
+    } catch (e) {
+      return { error: e.message || "Unreachable" };
+    }
+  },
 };
