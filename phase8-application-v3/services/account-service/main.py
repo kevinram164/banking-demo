@@ -165,7 +165,9 @@ async def process_message(message: IncomingMessage):
             action = body.get("action", "")
             payload = body.get("payload", {})
             headers = body.get("headers", {})
-            if action == "me":
+            if action == "health":
+                result = {"status": 200, "body": {"status": "ok", "service": "account"}}
+            elif action == "me":
                 result = await handle_me(payload, headers)
             elif action == "balance":
                 result = await handle_balance(payload, headers)
@@ -179,9 +181,9 @@ async def process_message(message: IncomingMessage):
                     result = await handle_admin_user_detail(uid, headers)
                 else:
                     result = await handle_admin_users(payload, headers)
-            elif "admin/transfers" in path:
+            elif "admin/transfers" in (path or ""):
                 result = await handle_admin_transfers(payload, headers)
-            elif "admin/notifications" in path:
+            elif "admin/notifications" in (path or ""):
                 result = await handle_admin_notifications(payload, headers)
             else:
                 result = {"status": 404, "body": {"detail": f"Unknown action: {action}"}}

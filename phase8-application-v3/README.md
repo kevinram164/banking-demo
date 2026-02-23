@@ -97,15 +97,37 @@ kubectl rollout restart deployment -n kong -l app.kubernetes.io/name=kong
 
 Job tạo ConfigMap `kong-declarative-config-phase8` và chạy `kong config db_import` vào Kong PostgreSQL. **Bắt buộc restart Kong** để áp dụng config. Cần chỉnh env `KONG_PG_*` trong Job nếu Kong dùng DB khác.
 
-**Nếu đang từ Phase 5:** Kong có thể còn routes cũ. **Disable** các route auth/account/transfer/notification (giữ để rollback):
+**Nếu đang từ Phase 5:** Kong có thể còn routes cũ. Kong OSS **Route không có field `enabled`** — phải **xóa** routes:
 ```bash
-# Trong curl pod (kubectl run curl-tmp --rm -it ... -n kong -- sh):
-curl -s -X PATCH http://kong-kong-admin:8001/routes/auth-route -d '{"enabled":false}' -H "Content-Type: application/json"
-curl -s -X PATCH http://kong-kong-admin:8001/routes/account-route -d '{"enabled":false}' -H "Content-Type: application/json"
-curl -s -X PATCH http://kong-kong-admin:8001/routes/transfer-route -d '{"enabled":false}' -H "Content-Type: application/json"
-curl -s -X PATCH http://kong-kong-admin:8001/routes/notification-route -d '{"enabled":false}' -H "Content-Type: application/json"
+curl -s -X DELETE http://kong-kong-admin:8001/routes/auth-route
+curl -s -X DELETE http://kong-kong-admin:8001/routes/account-route
+curl -s -X DELETE http://kong-kong-admin:8001/routes/transfer-route
+curl -s -X DELETE http://kong-kong-admin:8001/routes/notification-route
 ```
-**Lưu ý:** Phải disable cả `notification-route` (/api/notifications). Trong Phase 8, GET /notifications đi qua api-producer → queue, không trực tiếp tới notification-service. Giữ `notification-ws-route` (/ws) enabled.
+Sau khi xóa, api-route nhận toàn bộ /api/*. notification-ws-route (/ws) vẫn giữ nguyên.
+
+**Rollback:** Import lại kong-phase5.yml hoặc tạo lại 4 routes từ config Phase 5.
+
+**Thêm route /ws nếu thiếu** (WebSocket notification):
+```bash
+# Lấy service id của notification-service
+SVC_ID=$(curl -s http://kong-kong-admin:8001/services/notification-service | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+# Tạo route /ws (nếu SVC_ID rỗng thì tạo service trước)
+curl -s -X POST http://kong-kong-admin:8001/services/notification-service/routes \
+  -H "Content-Type: application/json" \
+  -d '{"name":"notification-ws-route","paths":["/ws"],"strip_path":false,"protocols":["http","https"]}'
+```
+
+Nếu chưa có service `notification-service`, tạo trước:
+```bash
+curl -s -X POST http://kong-kong-admin:8001/services \
+  -H "Content-Type: application/json" \
+  -d '{"name":"notification-service","url":"http://notification-service.banking.svc.cluster.local:8004"}' && \
+curl -s -X POST http://kong-kong-admin:8001/services/notification-service/routes \
+  -H "Content-Type: application/json" \
+  -d '{"name":"notification-ws-route","paths":["/ws"],"strip_path":false,"protocols":["http","https"]}'
+```
 
 **File config tham khảo:** `phase8-application-v3/kong-phase8.yml`
 

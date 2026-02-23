@@ -51,9 +51,13 @@ async def process_message(message):
         try:
             body = json.loads(message.body.decode())
             correlation_id = body.get("correlation_id")
+            action = body.get("action", "")
             payload = body.get("payload", {})
             headers = body.get("headers", {})
-            result = await handle_notifications(payload, headers)
+            if action == "health":
+                result = {"status": 200, "body": {"status": "ok", "service": "notification"}}
+            else:
+                result = await handle_notifications(payload, headers)
             await store_response(redis, correlation_id, result)
         except Exception as e:
             log_event(logger, "consumer_error", error=str(e))

@@ -63,7 +63,8 @@ async def handle_register(payload: dict) -> dict:
                 break
         if not account_number:
             return {"status": 503, "body": {"detail": "Cannot generate account number"}}
-        u = User(phone=phone, account_number=account_number, username=username, password_hash=hash_password(password))
+        pw_hash = await asyncio.to_thread(hash_password, password)
+        u = User(phone=phone, account_number=account_number, username=username, password_hash=pw_hash)
         db.add(u)
         db.commit()
         db.refresh(u)
@@ -91,7 +92,7 @@ async def handle_login(payload: dict) -> dict:
             u = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
         else:
             return {"status": 400, "body": {"detail": "Missing phone/username"}}
-        if not u or not verify_password(password, u.password_hash):
+        if not u or not await asyncio.to_thread(verify_password, password, u.password_hash):
             return {"status": 401, "body": {"detail": "Invalid credentials"}}
         sid = await create_session(redis, u.id)
         log_event(logger, "login_success", user_id=u.id, username=u.username)
@@ -109,7 +110,9 @@ async def process_message(message: IncomingMessage):
             correlation_id = body.get("correlation_id")
             action = body.get("action", "")
             payload = body.get("payload", {})
-            if action == "register":
+            if action == "health":
+                result = {"status": 200, "body": {"status": "ok", "service": "auth"}}
+            elif action == "register":
                 result = await handle_register(payload)
             elif action in ("login", ""):
                 result = await handle_login(payload)

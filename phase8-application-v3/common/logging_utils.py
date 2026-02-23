@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -5,6 +6,13 @@ import time
 import traceback
 import uuid
 from typing import Any, Dict
+
+
+def mask_amount(amount: int | float) -> str:
+    """Hash amount for logs — không ghi số tiền thật để bảo mật."""
+    secret = os.getenv("LOG_AMOUNT_SECRET", "banking-demo-default")
+    h = hashlib.sha256(f"{amount}:{secret}".encode()).hexdigest()
+    return f"amt:{h[:12]}"
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse

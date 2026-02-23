@@ -10,6 +10,8 @@ metadata:
   annotations:
     haproxy.org/backend-protocol: "http"
     haproxy.org/forwardfor: "true"
+    # WebSocket /ws — giữ kết nối lâu (haproxy-ingress: timeout-tunnel)
+    haproxy.org/timeout-tunnel: "1h"
   {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
