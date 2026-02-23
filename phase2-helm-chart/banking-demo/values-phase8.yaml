@@ -32,35 +32,36 @@ kong:
           strip_path: false
           protocols: ["http", "https"]
 
-# 3. Consumers: RABBITMQ_URL từ Secret (dùng tag từ base chart: 7d06aac, KHÔNG override v3)
-# Lưu ý: Khi có image v3 consumer (RabbitMQ) thì mới override tag + port 9999
+# 3. Consumers: auth/account/transfer = v3 RabbitMQ consumer (health port 9999)
+#    notification = FastAPI + WebSocket (port 8004 cho /ws)
 auth-service:
   service:
-    port: 8001
+    port: 9999
   readinessProbe:
-    port: 8001
+    port: 9999
   rabbitmqSecretRef:
     name: rabbitmq-connection-secret
     key: RABBITMQ_URL
 
 account-service:
   service:
-    port: 8002
+    port: 9999
   readinessProbe:
-    port: 8002
+    port: 9999
   rabbitmqSecretRef:
     name: rabbitmq-connection-secret
     key: RABBITMQ_URL
 
 transfer-service:
   service:
-    port: 8003
+    port: 9999
   readinessProbe:
-    port: 8003
+    port: 9999
   rabbitmqSecretRef:
     name: rabbitmq-connection-secret
     key: RABBITMQ_URL
 
+# notification: FastAPI + WebSocket /ws, port 8004
 notification-service:
   service:
     port: 8004
