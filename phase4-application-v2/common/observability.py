@@ -83,7 +83,8 @@ def instrument_fastapi(app, service_name: str) -> None:
 
     class PrometheusMiddleware(BaseHTTPMiddleware):
         async def dispatch(self, request, call_next):
-            if request.url.path == "/metrics":
+            # Không ghi metric cho /health, /metrics — tránh probe k8s kích hoạt KEDA scale
+            if request.url.path in ("/metrics", "/health"):
                 return await call_next(request)
             start = time.perf_counter()
             response = await call_next(request)
