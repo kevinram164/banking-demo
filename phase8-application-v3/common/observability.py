@@ -1,5 +1,7 @@
 """
 Observability: OpenTelemetry tracing + Prometheus metrics.
+- Tracing: OTLP export to collector (optional via OTEL_EXPORTER_OTLP_ENDPOINT).
+- Metrics: Prometheus /metrics endpoint.
 """
 import os
 from prometheus_client import Counter, Histogram, generate_latest, CollectorRegistry
@@ -7,6 +9,26 @@ from prometheus_client import Counter, Histogram, generate_latest, CollectorRegi
 _metrics_registry: CollectorRegistry | None = None
 _request_count: Counter | None = None
 _request_latency: Histogram | None = None
+
+
+def init_tracing(service_name: str) -> None:
+    """Initialize OpenTelemetry tracer; export to OTLP if OTEL_EXPORTER_OTLP_ENDPOINT is set."""
+    endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
+    if not endpoint:
+        return
+    try:
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+        from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+
+        resource = Resource.create({SERVICE_NAME: service_name})
+        provider = TracerProvider(resource=resource)
+        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(insecure=True)))
+        trace.set_tracer_provider(provider)
+    except Exception:
+        pass
 
 
 def setup_metrics(service_name: str) -> None:
@@ -33,6 +55,7 @@ def get_metrics_content() -> bytes:
 
 
 def instrument_fastapi(app, service_name: str) -> None:
+    init_tracing(service_name)
     setup_metrics(service_name)
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor

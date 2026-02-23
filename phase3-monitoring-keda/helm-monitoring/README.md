@@ -108,13 +108,15 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
 
 ## Dashboard Banking Services
 
-Để xem metrics của các service (auth, account, transfer, notification) trong Grafana, apply ConfigMap dashboard:
+Để xem metrics của các service trong Grafana, apply ConfigMap dashboard:
 
 ```bash
 kubectl apply -f grafana-dashboard-banking-services.yaml
 ```
 
 Grafana sidecar (kube-prometheus-stack) sẽ tự động load dashboard có label `grafana_dashboard=1`. Vào Grafana → Dashboards → **Banking Services**.
+
+**Phase 8 (v3):** Dashboard dùng `api-producer` (job) — toàn bộ HTTP API đi qua api-producer, metrics được nhóm theo endpoint (`/api/auth.*`, `/api/account.*`, `/api/transfer.*`, `/api/notifications.*`).
 
 Dashboard gồm:
 - **Request Rate (RPS)** theo từng service
@@ -123,8 +125,24 @@ Dashboard gồm:
 - **Stat panels** RPS cho từng service
 - **Request Rate by Endpoint** (Auth)
 - **Request Rate by Status Code**
+- **Transfer** — tỷ lệ thành công / thất bại
 
-Yêu cầu: Prometheus đã scrape `/metrics` của các banking services (đã cấu hình trong `additionalScrapeConfigs`).
+Yêu cầu: Prometheus đã scrape `/metrics` (đã cấu hình trong `additionalScrapeConfigs`). Phase 8: scrape `api-producer.banking.svc.cluster.local:8080`.
+
+### Dashboard không cập nhật / No data
+
+1. **Apply lại ConfigMap và reload Grafana:**
+   ```bash
+   kubectl apply -f grafana-dashboard-banking-services.yaml
+   kubectl rollout restart deployment -n monitoring kube-prometheus-stack-grafana
+   ```
+2. **Kiểm tra Prometheus scrape api-producer:**
+   ```bash
+   kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090
+   # Mở http://localhost:9090/targets — target api-producer phải "UP"
+   ```
+3. **Có traffic:** Dashboard cần HTTP request để có `http_requests_total`. Thử login, chuyển khoản trên frontend hoặc chạy load test (`load-test/k6-*.js`).
+4. **Time range:** Dùng "Last 15 minutes" hoặc "Last 1 hour"; đảm bảo "Refresh" bật (ví dụ 10s).
 
 ---
 

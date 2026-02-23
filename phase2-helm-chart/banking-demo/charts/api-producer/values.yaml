@@ -18,6 +18,9 @@ api-producer:
   rabbitmqSecretRef:
     name: rabbitmq-connection-secret
     key: RABBITMQ_URL
+  # OpenTelemetry tracing → gửi traces về otel-collector → Tempo
+  extraEnv:
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4317"
   readinessProbe:
     enabled: true
     path: /health
