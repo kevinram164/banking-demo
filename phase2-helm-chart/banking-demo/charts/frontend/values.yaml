@@ -4,7 +4,7 @@ frontend:
   enabled: true
   image:
     repository: registry.gitlab.com/kiettt164/banking-demo-payment/frontend
-    tag: 6450712
+    tag: e4a9ece
     pullPolicy: IfNotPresent
   imagePullSecrets: []
   replicas: 1
