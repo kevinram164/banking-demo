@@ -108,15 +108,22 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
 
 ## Dashboard Banking Services
 
-Để xem metrics của các service trong Grafana, apply ConfigMap dashboard:
+Có 2 bản dashboard; apply theo phase đang chạy:
+
+| Phase | File | Ghi chú |
+|-------|------|---------|
+| **Phase 5** | `grafana-dashboard-banking-services.yaml` | auth/account/transfer/notification expose HTTP trực tiếp |
+| **Phase 8** | `grafana-dashboard-banking-services-phase8.yaml` | api-producer nhận HTTP, RabbitMQ → consumers |
 
 ```bash
+# Phase 5 (mặc định, rollback)
 kubectl apply -f grafana-dashboard-banking-services.yaml
+
+# Phase 8
+kubectl apply -f grafana-dashboard-banking-services-phase8.yaml
 ```
 
-Grafana sidecar (kube-prometheus-stack) sẽ tự động load dashboard có label `grafana_dashboard=1`. Vào Grafana → Dashboards → **Banking Services**.
-
-**Phase 8 (v3):** Dashboard dùng `api-producer` (job) — toàn bộ HTTP API đi qua api-producer, metrics được nhóm theo endpoint (`/api/auth.*`, `/api/account.*`, `/api/transfer.*`, `/api/notifications.*`).
+Grafana sidecar load ConfigMap có label `grafana_dashboard=1`. Vào Grafana → Dashboards → **Banking Services**.
 
 Dashboard gồm:
 - **Request Rate (RPS)** theo từng service
@@ -127,7 +134,7 @@ Dashboard gồm:
 - **Request Rate by Status Code**
 - **Transfer** — tỷ lệ thành công / thất bại
 
-Yêu cầu: Prometheus đã scrape `/metrics` (đã cấu hình trong `additionalScrapeConfigs`). Phase 8: scrape `api-producer.banking.svc.cluster.local:8080`.
+Yêu cầu: Prometheus đã scrape `/metrics` (đã cấu hình trong `additionalScrapeConfigs`). Phase 5: auth/account/transfer/notification :8001-8004. Phase 8: api-producer :8080.
 
 ### Dashboard không cập nhật / No data
 
