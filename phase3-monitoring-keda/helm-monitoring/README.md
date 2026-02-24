@@ -136,6 +136,20 @@ Dashboard gồm:
 
 Yêu cầu: Prometheus đã scrape `/metrics` (đã cấu hình trong `additionalScrapeConfigs`). Phase 5: auth/account/transfer/notification :8001-8004. Phase 8: api-producer :8080.
 
+---
+
+## Dashboard RabbitMQ (Phase 8)
+
+```bash
+kubectl apply -f grafana-dashboard-rabbitmq.yaml
+```
+
+Yêu cầu:
+- RabbitMQ Helm chart (Bitnami) với `metrics.enabled: true` (port 9419).
+- Prometheus scrape job `rabbitmq` (đã cấu hình trong `values-kube-prometheus-stack.yaml`).
+
+Dashboard gồm: Queues, Consumers, Connections, Channels, Messages Ready/Unacked, Message Rate (Published/Delivered), Memory, Disk Space, File Descriptors.
+
 ### Dashboard không cập nhật / No data
 
 1. **Apply lại ConfigMap và reload Grafana:**

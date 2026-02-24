@@ -123,9 +123,9 @@ affinity:
               app.kubernetes.io/name: rabbitmq
           topologyKey: kubernetes.io/hostname
 
-# --- Metrics (Prometheus) — optional ---
+# --- Metrics (Prometheus) — port 9419, rabbitmq_prometheus ---
 metrics:
-  enabled: false
+  enabled: true
 
 # --- Fallback: nếu ImagePullBackOff với Bitnami, uncomment block dưới
 #    (Official image KHÔNG support clustering, chỉ dùng standalone)

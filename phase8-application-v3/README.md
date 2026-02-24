@@ -243,7 +243,7 @@ Producer và consumers đọc `RABBITMQ_URL` từ Secret `rabbitmq-connection-se
 # Thay <PASSWORD> bằng password đã dùng ở bước 1
 kubectl create secret generic rabbitmq-connection-secret \
   --from-literal=RABBITMQ_URL='amqp://banking:<PASSWORD>@rabbitmq.rabbit.svc.cluster.local:5672/' \
-  -n banking
+  -n banking-demo
 ```
 
 Values-phase8.yaml chỉ khai báo `rabbitmqSecretRef.name` và `key`, không chứa URL hay password.
@@ -299,10 +299,15 @@ helm upgrade banking-demo . -n banking-demo -f charts/common/values.yaml -f char
 
 ## Monitoring (Grafana)
 
-Phase 8 dùng **api-producer** làm entry point cho toàn bộ HTTP API; consumers không expose `/metrics` HTTP nữa. Dashboard "Banking Services" cần:
+Phase 8 dùng **api-producer** làm entry point cho toàn bộ HTTP API; consumers không expose `/metrics` HTTP nữa.
 
-1. **Prometheus scrape** api-producer:8080 — đã thêm job `api-producer` trong `phase3-monitoring-keda/helm-monitoring/values-kube-prometheus-stack.yaml`
-2. **Dashboard** — `banking-services.json` đã cập nhật để:
+**Dashboards cần apply:**
+1. **Banking Services** — `phase3-monitoring-keda/helm-monitoring/grafana-dashboard-banking-services-phase8.yaml`
+2. **RabbitMQ** — `phase3-monitoring-keda/helm-monitoring/grafana-dashboard-rabbitmq.yaml` (queues, consumers, message rate, memory, disk)
+
+**Cấu hình:**
+1. **Prometheus scrape** api-producer:8080, rabbitmq:9419 — đã thêm job trong `values-kube-prometheus-stack.yaml`
+2. **Dashboard Banking Services** — `banking-services.json` đã cập nhật để:
    - Thêm `api-producer` vào job selector
    - Stat panels (Auth/Account/Transfer/Notification RPS) dùng `or` để lấy cả Phase 4/5 (job trực tiếp) và Phase 8 (api-producer + endpoint regex)
    - Transfer panels dùng `endpoint=~"/transfer|/api/transfer.*"` cho cả hai phase
