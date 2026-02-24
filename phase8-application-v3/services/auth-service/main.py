@@ -6,7 +6,7 @@ import os
 import asyncio
 import json
 import secrets
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, nullcontext
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -21,6 +21,7 @@ from common.redis_utils import create_session, create_redis_client, get_user_for
 from common.rabbitmq_utils import store_response
 from common.logging_utils import get_json_logger, log_event, log_error_event, should_log_request_flow
 from common.health_server import start_health_background
+from common.observability import init_tracing, get_tracer
 
 Base.metadata.create_all(bind=engine)
 
@@ -124,17 +125,20 @@ async def process_message(message: IncomingMessage):
             correlation_id = body.get("correlation_id")
             action = body.get("action", "")
             payload = body.get("payload", {})
-            if should_log_request_flow():
-                log_event(logger, "rmq_message_received", queue="auth.requests", correlation_id=correlation_id, action=action)
-            if action == "health":
-                result = {"status": 200, "body": {"status": "healthy", "service": "auth", "database": "ok", "redis": "ok"}}
-            elif action == "register":
-                result = await handle_register(payload)
-            elif action in ("login", ""):
-                result = await handle_login(payload)
-            else:
-                result = {"status": 404, "body": {"detail": f"Unknown action: {action}"}}
-            await store_response(redis, correlation_id, result, logger=logger)
+            tracer = get_tracer("auth-service")
+            span_ctx = tracer.start_as_current_span("auth.process", attributes={"messaging.operation": "process", "action": action, "correlation_id": str(correlation_id or "")}) if tracer else nullcontext()
+            with span_ctx:
+                if should_log_request_flow():
+                    log_event(logger, "rmq_message_received", queue="auth.requests", correlation_id=correlation_id, action=action)
+                if action == "health":
+                    result = {"status": 200, "body": {"status": "healthy", "service": "auth", "database": "ok", "redis": "ok"}}
+                elif action == "register":
+                    result = await handle_register(payload)
+                elif action in ("login", ""):
+                    result = await handle_login(payload)
+                else:
+                    result = {"status": 404, "body": {"detail": f"Unknown action: {action}"}}
+                await store_response(redis, correlation_id, result, logger=logger)
         except Exception as e:
             log_error_event(logger, "consumer_error", exc=e, correlation_id=body.get("correlation_id"), service="auth-service", queue="auth.requests")
             if body.get("correlation_id"):
@@ -154,6 +158,7 @@ async def consume():
 
 
 async def main():
+    init_tracing("auth-service")
     global redis
     redis = await create_redis_client(REDIS_URL, logger=logger)
     log_db_pool_status(logger)

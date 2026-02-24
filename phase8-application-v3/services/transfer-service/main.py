@@ -5,6 +5,7 @@ Consumes from transfer.requests, processes, stores response in Redis.
 import os
 import asyncio
 import json
+from contextlib import nullcontext
 from sqlalchemy import select
 from redis.asyncio import Redis
 from aio_pika import IncomingMessage
@@ -15,6 +16,7 @@ from common.redis_utils import get_user_id_from_session, publish_notify, create_
 from common.rabbitmq_utils import store_response
 from common.logging_utils import get_json_logger, log_event, log_error_event, mask_amount, mask_account_number, should_log_request_flow
 from common.health_server import start_health_background
+from common.observability import init_tracing, get_tracer
 
 Base.metadata.create_all(bind=engine)
 
@@ -108,14 +110,17 @@ async def process_message(message: IncomingMessage):
             action = body.get("action", "")
             payload = body.get("payload", {})
             headers = body.get("headers", {})
-            if should_log_request_flow():
-                log_event(logger, "rmq_message_received", queue="transfer.requests", correlation_id=correlation_id, action=action, path=path)
-            if action == "health":
-                result = {"status": 200, "body": {"status": "healthy", "service": "transfer", "database": "ok", "redis": "ok"}}
-            else:
-                trace = {"correlation_id": correlation_id, "path": path, "action": action}
-                result = await handle_transfer(payload, headers, trace)
-            await store_response(redis, correlation_id, result)
+            tracer = get_tracer("transfer-service")
+            span_ctx = tracer.start_as_current_span("transfer.process", attributes={"messaging.operation": "process", "action": action, "correlation_id": str(correlation_id or "")}) if tracer else nullcontext()
+            with span_ctx:
+                if should_log_request_flow():
+                    log_event(logger, "rmq_message_received", queue="transfer.requests", correlation_id=correlation_id, action=action, path=path)
+                if action == "health":
+                    result = {"status": 200, "body": {"status": "healthy", "service": "transfer", "database": "ok", "redis": "ok"}}
+                else:
+                    trace = {"correlation_id": correlation_id, "path": path, "action": action}
+                    result = await handle_transfer(payload, headers, trace)
+                await store_response(redis, correlation_id, result)
         except Exception as e:
             log_error_event(
                 logger,
@@ -150,6 +155,7 @@ async def consume():
 
 
 async def main():
+    init_tracing("transfer-service")
     global redis
     redis = await create_redis_client(REDIS_URL, logger=logger)
     log_db_pool_status(logger)

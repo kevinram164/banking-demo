@@ -5,6 +5,7 @@ Consumes from account.requests, processes, stores response in Redis.
 import os
 import asyncio
 import json
+from contextlib import nullcontext
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from redis.asyncio import Redis
@@ -16,6 +17,7 @@ from common.redis_utils import get_user_id_from_session, create_redis_client
 from common.rabbitmq_utils import store_response
 from common.logging_utils import get_json_logger, log_event, log_error_event, should_log_request_flow
 from common.health_server import start_health_background
+from common.observability import init_tracing, get_tracer
 
 Base.metadata.create_all(bind=engine)
 
@@ -165,31 +167,34 @@ async def process_message(message: IncomingMessage):
             action = body.get("action", "")
             payload = body.get("payload", {})
             headers = body.get("headers", {})
-            if should_log_request_flow():
-                log_event(logger, "rmq_message_received", queue="account.requests", correlation_id=correlation_id, action=action, path=path)
-            if action == "health":
-                result = {"status": 200, "body": {"status": "healthy", "service": "account", "database": "ok", "redis": "ok"}}
-            elif action == "me":
-                result = await handle_me(payload, headers)
-            elif action == "balance":
-                result = await handle_balance(payload, headers)
-            elif action == "lookup":
-                result = await handle_lookup(payload, headers)
-            elif action == "admin/stats" or "admin/stats" in path:
-                result = await handle_admin_stats(payload, headers)
-            elif action == "admin/users" or "admin/users" in path:
-                if "/admin/users/" in path and path.split("/admin/users/")[-1].isdigit():
-                    uid = int(path.split("/admin/users/")[-1].split("/")[0])
-                    result = await handle_admin_user_detail(uid, headers)
+            tracer = get_tracer("account-service")
+            span_ctx = tracer.start_as_current_span("account.process", attributes={"messaging.operation": "process", "action": action, "correlation_id": str(correlation_id or "")}) if tracer else nullcontext()
+            with span_ctx:
+                if should_log_request_flow():
+                    log_event(logger, "rmq_message_received", queue="account.requests", correlation_id=correlation_id, action=action, path=path)
+                if action == "health":
+                    result = {"status": 200, "body": {"status": "healthy", "service": "account", "database": "ok", "redis": "ok"}}
+                elif action == "me":
+                    result = await handle_me(payload, headers)
+                elif action == "balance":
+                    result = await handle_balance(payload, headers)
+                elif action == "lookup":
+                    result = await handle_lookup(payload, headers)
+                elif action == "admin/stats" or "admin/stats" in path:
+                    result = await handle_admin_stats(payload, headers)
+                elif action == "admin/users" or "admin/users" in path:
+                    if "/admin/users/" in path and path.split("/admin/users/")[-1].isdigit():
+                        uid = int(path.split("/admin/users/")[-1].split("/")[0])
+                        result = await handle_admin_user_detail(uid, headers)
+                    else:
+                        result = await handle_admin_users(payload, headers)
+                elif "admin/transfers" in (path or ""):
+                    result = await handle_admin_transfers(payload, headers)
+                elif "admin/notifications" in (path or ""):
+                    result = await handle_admin_notifications(payload, headers)
                 else:
-                    result = await handle_admin_users(payload, headers)
-            elif "admin/transfers" in (path or ""):
-                result = await handle_admin_transfers(payload, headers)
-            elif "admin/notifications" in (path or ""):
-                result = await handle_admin_notifications(payload, headers)
-            else:
-                result = {"status": 404, "body": {"detail": f"Unknown action: {action}"}}
-            await store_response(redis, correlation_id, result, logger=logger)
+                    result = {"status": 404, "body": {"detail": f"Unknown action: {action}"}}
+                await store_response(redis, correlation_id, result, logger=logger)
         except Exception as e:
             log_error_event(logger, "consumer_error", exc=e, correlation_id=body.get("correlation_id"), service="account-service", queue="account.requests")
             if body.get("correlation_id"):
@@ -209,6 +214,7 @@ async def consume():
 
 
 async def main():
+    init_tracing("account-service")
     global redis
     redis = await create_redis_client(REDIS_URL, logger=logger)
     log_db_pool_status(logger)

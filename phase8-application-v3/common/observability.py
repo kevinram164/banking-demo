@@ -31,6 +31,15 @@ def init_tracing(service_name: str) -> None:
         pass
 
 
+def get_tracer(service_name: str):
+    """Get tracer for manual spans. Returns None if tracing not initialized."""
+    try:
+        from opentelemetry import trace
+        return trace.get_tracer(service_name, "1.0")
+    except Exception:
+        return None
+
+
 def setup_metrics(service_name: str) -> None:
     global _metrics_registry, _request_count, _request_latency
     _metrics_registry = CollectorRegistry()

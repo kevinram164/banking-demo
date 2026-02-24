@@ -44,6 +44,20 @@ data:
               policy: local    # per Kong pod (2 replica = ~2x limit)
               fault_tolerant: true
               hide_client_headers: false  # trả X-RateLimit-* headers
+      # /api/notifications → notification-service (GET notifications trực tiếp, tránh 404)
+      - name: notification-service-http
+        url: "http://notification-service.banking.svc.cluster.local:8004"
+        routes:
+          - name: notification-http-route
+            paths: ["/api/notifications"]
+            strip_path: true
+        plugins:
+          - name: cors
+            config:
+              origins: ["http://localhost:3000", "https://npd-banking.co", "http://npd-banking.co"]
+              credentials: true
+              methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Content-Type", "X-Session"]
       # /ws → notification-service (WebSocket, bypass queue)
       - name: notification-service
         url: "http://notification-service.banking.svc.cluster.local:8004"

@@ -6,8 +6,8 @@ Notification Service — Phase 8 Consumer + WebSocket
 import os
 import asyncio
 import json
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from contextlib import asynccontextmanager, nullcontext
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -18,6 +18,7 @@ from common.models import Notification
 from common.redis_utils import get_user_id_from_session, set_presence, create_redis_client
 from common.rabbitmq_utils import store_response
 from common.logging_utils import get_json_logger, log_event, log_error_event, should_log_request_flow
+from common.observability import instrument_fastapi, get_tracer
 
 Base.metadata.create_all(bind=engine)
 
@@ -54,13 +55,16 @@ async def process_message(message):
             action = body.get("action", "")
             payload = body.get("payload", {})
             headers = body.get("headers", {})
-            if should_log_request_flow():
-                log_event(logger, "rmq_message_received", queue="notification.requests", correlation_id=correlation_id, action=action)
-            if action == "health":
-                result = {"status": 200, "body": {"status": "healthy", "service": "notification", "database": "ok", "redis": "ok"}}
-            else:
-                result = await handle_notifications(payload, headers)
-            await store_response(redis, correlation_id, result, logger=logger)
+            tracer = get_tracer("notification-service")
+            span_ctx = tracer.start_as_current_span("notification.process", attributes={"messaging.operation": "process", "action": action, "correlation_id": str(correlation_id or "")}) if tracer else nullcontext()
+            with span_ctx:
+                if should_log_request_flow():
+                    log_event(logger, "rmq_message_received", queue="notification.requests", correlation_id=correlation_id, action=action)
+                if action == "health":
+                    result = {"status": 200, "body": {"status": "healthy", "service": "notification", "database": "ok", "redis": "ok"}}
+                else:
+                    result = await handle_notifications(payload, headers)
+                await store_response(redis, correlation_id, result, logger=logger)
         except Exception as e:
             log_error_event(logger, "consumer_error", exc=e, correlation_id=body.get("correlation_id"), service="notification-service", queue="notification.requests")
             if body.get("correlation_id"):
@@ -96,6 +100,7 @@ async def lifespan(app: FastAPI):
         await redis.close()
 
 app = FastAPI(title="Notification Service", lifespan=lifespan)
+instrument_fastapi(app, "notification-service")
 app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in CORS_ORIGINS], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
@@ -168,5 +173,32 @@ async def health():
         return {"status": "healthy", "service": "notification-service", "database": db_status, "redis": "ok"}
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
+
+
+async def _get_notifications(x_session: str | None) -> list:
+    """Lấy danh sách notifications theo session."""
+    from fastapi import HTTPException
+    try:
+        user_id = await get_user_id_from_session(redis, x_session)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid/expired session")
+    db = SessionLocal()
+    try:
+        items = db.execute(
+            select(Notification)
+            .where(Notification.user_id == user_id)
+            .order_by(Notification.created_at.desc())
+            .limit(50)
+        ).scalars().all()
+        return [{"id": x.id, "message": x.message, "is_read": x.is_read, "created_at": x.created_at.isoformat() + "Z"} for x in items]
+    finally:
+        db.close()
+
+
+@app.get("/notifications")
+@app.get("/api/notifications/notifications")
+async def get_notifications(x_session: str | None = Header(None, alias="X-Session")):
+    """GET notifications — hỗ trợ cả Kong route trực tiếp và qua api-producer."""
+    return await _get_notifications(x_session)
 
 
