@@ -16,6 +16,9 @@ architecture: replication
 
 primary:
   replicaCount: 1
+  # max_connections: 500 CCU→300, 1000 CCU→500-600 (consumers × pool + overhead)
+  extendedConfiguration: |-
+    max_connections = 500
   persistence:
     enabled: true
     size: 1Gi
