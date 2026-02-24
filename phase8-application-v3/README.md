@@ -2,6 +2,8 @@
 
 Kiến trúc: Kong nhận HTTP → API Producer publish → RabbitMQ → Consumers (auth, account, transfer, notification) → Response qua Redis.
 
+![Phase 8 Architecture](phase8-architecture.png)
+
 ## Luồng
 
 1. **Kong** route `/api/*` → api-producer:8080, `/ws` → notification-service:8004

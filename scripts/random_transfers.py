@@ -6,6 +6,7 @@ Login tất cả users → chọn ngẫu nhiên cặp (sender, receiver) → chu
 Dùng:
   python random_transfers.py --password 123456
   python random_transfers.py --password 123456 --rounds 50 --workers 5
+  python random_transfers.py --password 123456 --rounds 1000 --workers 500 --login-workers 50
   python random_transfers.py --password 123456 --base-url https://npd-banking.co --no-verify
 
 Cài đặt:
@@ -16,6 +17,7 @@ import argparse
 import json
 import random
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -25,24 +27,42 @@ except ImportError:
     print("Cần cài: pip install requests")
     sys.exit(1)
 
+_thread_local = threading.local()
 
-def login(base_url: str, phone: str, password: str, verify: bool = True) -> dict | None:
-    """Login và trả về session + account info."""
+
+def _get_session() -> requests.Session:
+    """Session per thread — connection pooling, thread-safe."""
+    if not hasattr(_thread_local, "session"):
+        _thread_local.session = requests.Session()
+    return _thread_local.session
+
+
+def login(base_url: str, phone: str, password: str, verify: bool = True, session: requests.Session | None = None, retries: int = 3) -> dict | None:
+    """Login và trả về session + account info. Retry khi Connection reset."""
     url = f"{base_url}/api/auth/login"
-    try:
-        r = requests.post(url, json={"phone": phone, "password": password}, timeout=10, verify=verify)
-        if r.status_code == 200:
-            data = r.json()
-            return {
-                "phone": phone,
-                "session": data["session"],
-                "username": data.get("username", ""),
-                "account_number": data.get("account_number", ""),
-                "balance": data.get("balance", 0),
-            }
-        return None
-    except Exception:
-        return None
+    s = session or requests.Session()
+    for attempt in range(retries):
+        try:
+            r = s.post(url, json={"phone": phone, "password": password}, timeout=30, verify=verify)
+            if r.status_code == 200:
+                data = r.json()
+                return {
+                    "phone": phone,
+                    "session": data["session"],
+                    "username": data.get("username", ""),
+                    "account_number": data.get("account_number", ""),
+                    "balance": data.get("balance", 0),
+                }
+            return None
+        except (requests.exceptions.ConnectionError, ConnectionResetError, OSError) as e:
+            if "Connection reset" in str(e) or "Remote end closed" in str(e) or "Connection aborted" in str(e):
+                if attempt < retries - 1:
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
+            return None
+        except Exception:
+            return None
+    return None
 
 
 def get_balance(base_url: str, session: str, verify: bool = True) -> int | None:
@@ -56,22 +76,32 @@ def get_balance(base_url: str, session: str, verify: bool = True) -> int | None:
     return None
 
 
-def transfer(base_url: str, session: str, to_account: str, amount: int, verify: bool = True) -> dict:
-    """Thực hiện chuyển khoản. Trả về dict {ok, detail}."""
+def transfer(base_url: str, session: str, to_account: str, amount: int, verify: bool = True, http_session: requests.Session | None = None, retries: int = 3) -> dict:
+    """Thực hiện chuyển khoản. Trả về dict {ok, detail}. Retry khi Connection reset."""
     url = f"{base_url}/api/transfer/transfer"
-    try:
-        r = requests.post(
-            url,
-            json={"to_account_number": to_account, "amount": amount},
-            headers={"X-Session": session},
-            timeout=15,
-            verify=verify,
-        )
-        if r.status_code == 200:
-            return {"ok": True, "detail": r.json()}
-        return {"ok": False, "detail": f"HTTP {r.status_code}: {r.text[:200]}"}
-    except Exception as e:
-        return {"ok": False, "detail": str(e)}
+    s = http_session or requests.Session()
+    for attempt in range(retries):
+        try:
+            r = s.post(
+                url,
+                json={"to_account_number": to_account, "amount": amount},
+                headers={"X-Session": session},
+                timeout=60,
+                verify=verify,
+            )
+            if r.status_code == 200:
+                return {"ok": True, "detail": r.json()}
+            return {"ok": False, "detail": f"HTTP {r.status_code}: {r.text[:200]}"}
+        except (requests.exceptions.ConnectionError, ConnectionResetError, OSError) as e:
+            err_str = str(e)
+            if "Connection reset" in err_str or "Remote end closed" in err_str or "Connection aborted" in err_str:
+                if attempt < retries - 1:
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
+            return {"ok": False, "detail": str(e)}
+        except Exception as e:
+            return {"ok": False, "detail": str(e)}
+    return {"ok": False, "detail": "Max retries exceeded"}
 
 
 def fetch_users_from_db(base_url: str, admin_secret: str, verify: bool = True) -> list[dict]:
@@ -99,7 +129,8 @@ def main():
     parser.add_argument("--base-url", "-u", default="http://npd-banking.co", help="Base URL")
     parser.add_argument("--password", "-p", required=True, help="Password chung của tất cả users")
     parser.add_argument("--rounds", "-r", type=int, default=20, help="Số lượt chuyển khoản (default: 20)")
-    parser.add_argument("--workers", "-w", type=int, default=5, help="Số workers song song (default: 5)")
+    parser.add_argument("--workers", "-w", type=int, default=5, help="Số workers song song cho transfer (default: 5)")
+    parser.add_argument("--login-workers", type=int, default=None, help="Số workers cho login (default: = workers, nên nhỏ hơn khi load cao)")
     parser.add_argument("--min-amount", type=int, default=1000, help="Số tiền tối thiểu (default: 1000)")
     parser.add_argument("--max-amount", type=int, default=10000, help="Số tiền tối đa (default: 10000)")
     parser.add_argument("--delay", "-d", type=float, default=0.5, help="Delay giữa các round (giây, default: 0.5)")
@@ -129,13 +160,15 @@ def main():
     print(f"  Found {len(db_users)} users")
 
     # --- Bước 2: Login tất cả users ---
-    print(f"[2/3] Logging in {len(db_users)} users...")
+    login_workers = args.login_workers if args.login_workers is not None else min(args.workers, 50)
+    print(f"[2/3] Logging in {len(db_users)} users (workers={login_workers})...")
     sessions = []
 
     def do_login(user):
-        return login(base_url, user["phone"], args.password, verify)
+        s = _get_session()
+        return login(base_url, user["phone"], args.password, verify, session=s)
 
-    with ThreadPoolExecutor(max_workers=args.workers) as ex:
+    with ThreadPoolExecutor(max_workers=login_workers) as ex:
         futures = {ex.submit(do_login, u): u for u in db_users}
         for f in as_completed(futures):
             result = f.result()
@@ -163,8 +196,8 @@ def main():
         sender = random.choice(sessions)
         receiver = random.choice([s for s in sessions if s["phone"] != sender["phone"]])
         amount = random.randint(args.min_amount, args.max_amount)
-
-        result = transfer(base_url, sender["session"], receiver["account_number"], amount, verify)
+        s = _get_session()
+        result = transfer(base_url, sender["session"], receiver["account_number"], amount, verify, http_session=s)
         return {
             "round": round_idx + 1,
             "from": sender["username"],
