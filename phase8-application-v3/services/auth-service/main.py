@@ -17,7 +17,7 @@ from aio_pika import IncomingMessage
 from common.db import SessionLocal, engine, Base, log_db_pool_status
 from common.models import User
 from common.auth import hash_password, verify_password
-from common.redis_utils import create_session, create_redis_client
+from common.redis_utils import create_session, create_redis_client, get_user_for_login, set_user_for_login_cache
 from common.rabbitmq_utils import store_response
 from common.logging_utils import get_json_logger, log_event, log_error_event, should_log_request_flow
 from common.health_server import start_health_background
@@ -78,27 +78,41 @@ async def handle_register(payload: dict) -> dict:
 
 
 async def handle_login(payload: dict) -> dict:
-    """Business logic — same as v2."""
+    """Business logic — same as v2. User lookup cached in Redis."""
     phone = (payload.get("phone") or "").strip()
     username = (payload.get("username") or "").strip()
     password = payload.get("password", "")
-    db = SessionLocal()
-    try:
-        if phone:
-            if not phone.isdigit():
-                return {"status": 400, "body": {"detail": "Phone must be digits only"}}
-            u = db.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
-        elif username:
-            u = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
-        else:
-            return {"status": 400, "body": {"detail": "Missing phone/username"}}
-        if not u or not await asyncio.to_thread(verify_password, password, u.password_hash):
-            return {"status": 401, "body": {"detail": "Invalid credentials"}}
-        sid = await create_session(redis, u.id)
-        log_event(logger, "login_success", user_id=u.id, username=u.username)
-        return {"status": 200, "body": {"session": sid, "phone": _mask_phone(u.phone), "username": u.username, "account_number": u.account_number, "balance": u.balance}}
-    finally:
-        db.close()
+    lookup_key = f"phone:{phone}" if phone else f"username:{username}"
+
+    if not phone and not username:
+        log_event(logger, "login_failed", reason="missing_input", detail="Missing phone/username")
+        return {"status": 400, "body": {"detail": "Missing phone/username"}}
+    if phone and not phone.isdigit():
+        log_event(logger, "login_failed", reason="invalid_format", lookup=lookup_key, detail="Phone must be digits only")
+        return {"status": 400, "body": {"detail": "Phone must be digits only"}}
+
+    u = await get_user_for_login(redis, phone, username)
+    if u is None:
+        db = SessionLocal()
+        try:
+            if phone:
+                row = db.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
+            else:
+                row = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+            if not row:
+                log_event(logger, "login_failed", reason="user_not_found", lookup=lookup_key)
+                return {"status": 401, "body": {"detail": "Invalid credentials"}}
+            u = {"id": row.id, "phone": row.phone, "username": row.username, "account_number": row.account_number, "password_hash": row.password_hash, "balance": row.balance}
+            await set_user_for_login_cache(redis, u)
+        finally:
+            db.close()
+    if not await asyncio.to_thread(verify_password, password, u["password_hash"]):
+        log_event(logger, "login_failed", reason="invalid_password", user_id=u["id"], lookup=lookup_key)
+        return {"status": 401, "body": {"detail": "Invalid credentials"}}
+
+    sid = await create_session(redis, u["id"])
+    log_event(logger, "login_success", user_id=u["id"], username=u["username"])
+    return {"status": 200, "body": {"session": sid, "phone": _mask_phone(u["phone"]), "username": u["username"], "account_number": u["account_number"], "balance": u["balance"]}}
 
 
 async def process_message(message: IncomingMessage):

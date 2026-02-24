@@ -1,6 +1,7 @@
+import json
 import os
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse, unquote
 from redis.asyncio import Redis
 from redis.asyncio.sentinel import Sentinel
@@ -11,6 +12,7 @@ if TYPE_CHECKING:
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 SESSION_TTL = int(os.getenv("SESSION_TTL_SECONDS", "86400"))
+USER_CACHE_TTL = int(os.getenv("USER_CACHE_TTL_SECONDS", "300"))  # 5 phút
 
 
 async def create_redis_client(url: str | None = None, logger: "Logger | None" = None) -> Redis:
@@ -42,6 +44,39 @@ async def create_redis_client(url: str | None = None, logger: "Logger | None" = 
         except Exception:
             pass  # Don't fail startup if ping fails
     return client
+
+
+async def get_user_for_login(redis: Redis, phone: str, username: str) -> dict[str, Any] | None:
+    """
+    Lấy user để verify login — ưu tiên Redis cache, miss thì query DB (caller xử lý).
+    Trả về dict {id, phone, username, account_number, password_hash, balance} hoặc None.
+    """
+    if phone:
+        key = f"user_cache:phone:{phone}"
+    elif username:
+        key = f"user_cache:username:{username}"
+    else:
+        return None
+    raw = await redis.get(key)
+    if raw:
+        return json.loads(raw)
+    return None
+
+
+async def set_user_for_login_cache(redis: Redis, user: dict[str, Any], ttl: int = USER_CACHE_TTL) -> None:
+    """Cache user sau khi query DB — dùng cho login lần sau."""
+    data = {
+        "id": user["id"],
+        "phone": user["phone"],
+        "username": user["username"],
+        "account_number": user["account_number"],
+        "password_hash": user["password_hash"],
+        "balance": user["balance"],
+    }
+    val = json.dumps(data)
+    await redis.setex(f"user_cache:phone:{user['phone']}", ttl, val)
+    if user.get("username"):
+        await redis.setex(f"user_cache:username:{user['username']}", ttl, val)
 
 
 async def create_session(redis: Redis, user_id: int) -> str:

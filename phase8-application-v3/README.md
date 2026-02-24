@@ -99,10 +99,16 @@ Logs JSON structured, có thể trace toàn bộ luồng Kong → Producer → R
 | `rabbitmq_connected` | all | Khi connect RabbitMQ |
 | `db_pool_ready` | consumers | pool_size, max_overflow |
 | `consumer_error` | consumers | error, traceback, correlation_id |
+| `login_success` | auth-service | user_id, username |
+| `login_failed` | auth-service | reason (missing_input, invalid_format, user_not_found, invalid_password), lookup |
 
 **Env vars:**
 - `LOG_LEVEL` — INFO (default), DEBUG
 - `LOG_REQUEST_FLOW` — true (default) / false — tắt log chi tiết từng request khi cần giảm noise
+- `RABBITMQ_RESPONSE_TIMEOUT` — 60 (default) — giây chờ response từ consumer
+- `USER_CACHE_TTL_SECONDS` — 300 (default) — TTL cache user lookup cho login (Redis)
+
+**Redis cache cho login:** User lookup (phone/username → user) được cache trong Redis (TTL 5 phút). User cũ login lại sẽ hit cache, giảm tải DB.
 
 **Xem logs lỗi:**
 ```bash

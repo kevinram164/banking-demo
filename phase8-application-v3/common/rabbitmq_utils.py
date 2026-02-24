@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from logging import Logger
 
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
-RESPONSE_TIMEOUT = int(os.getenv("RABBITMQ_RESPONSE_TIMEOUT", "30"))
+RESPONSE_TIMEOUT = int(os.getenv("RABBITMQ_RESPONSE_TIMEOUT", "60"))
 RESPONSE_TTL = int(os.getenv("RABBITMQ_RESPONSE_TTL", "60"))
 
 
