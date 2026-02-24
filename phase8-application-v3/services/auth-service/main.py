@@ -19,7 +19,7 @@ from common.models import User
 from common.auth import hash_password, verify_password
 from common.redis_utils import create_session, create_redis_client
 from common.rabbitmq_utils import store_response
-from common.logging_utils import get_json_logger, log_event
+from common.logging_utils import get_json_logger, log_event, log_error_event
 from common.health_server import start_health_background
 
 Base.metadata.create_all(bind=engine)
@@ -120,7 +120,7 @@ async def process_message(message: IncomingMessage):
                 result = {"status": 404, "body": {"detail": f"Unknown action: {action}"}}
             await store_response(redis, correlation_id, result)
         except Exception as e:
-            log_event(logger, "consumer_error", error=str(e))
+            log_error_event(logger, "consumer_error", exc=e, correlation_id=body.get("correlation_id"), service="auth-service", queue="auth.requests")
             if body.get("correlation_id"):
                 await store_response(redis, body["correlation_id"], {"status": 500, "body": {"detail": str(e)}})
 

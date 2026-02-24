@@ -13,7 +13,7 @@ from redis.asyncio import Redis
 
 from common.rabbitmq_utils import path_to_queue, publish_and_wait
 from common.redis_utils import create_redis_client
-from common.logging_utils import get_json_logger, log_event
+from common.logging_utils import get_json_logger, log_event, log_error_event, setup_exception_logging
 from common.observability import instrument_fastapi
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
@@ -40,6 +40,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="API Producer", lifespan=lifespan)
 instrument_fastapi(app, "api-producer")
+setup_exception_logging(app, logger, "api-producer")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[x.strip() for x in CORS_ORIGINS.split(",")],
@@ -57,6 +58,7 @@ async def health():
             await redis.ping()
         return {"status": "healthy", "service": "api-producer", "redis": "ok"}
     except Exception as e:
+        log_error_event(logger, "health_check_failed", exc=e, service="api-producer")
         return JSONResponse(status_code=503, content={"status": "unhealthy", "error": str(e)})
 
 
@@ -102,10 +104,10 @@ async def proxy_to_queue(request: Request, path: str):
         async with rmq_connection.channel() as channel:
             result = await publish_and_wait(redis, channel, queue_name, payload, headers)
     except TimeoutError as e:
-        log_event(logger, "producer_timeout", path=full_path, error=str(e))
+        log_error_event(logger, "producer_timeout", exc=e, path=full_path, service="api-producer")
         return JSONResponse(status_code=504, content={"detail": "Gateway timeout"})
     except Exception as e:
-        log_event(logger, "producer_error", path=full_path, error=str(e))
+        log_error_event(logger, "producer_error", exc=e, path=full_path, service="api-producer")
         return JSONResponse(status_code=502, content={"detail": str(e)})
 
     # Result format: { "status": 200, "body": {...} } or { "status": 401, "body": {"detail": "..."} }

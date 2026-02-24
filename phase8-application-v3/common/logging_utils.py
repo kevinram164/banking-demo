@@ -40,6 +40,22 @@ def log_event(logger: logging.Logger, event: str, **fields: Any) -> None:
     logger.info(json.dumps(payload, ensure_ascii=False))
 
 
+def log_error_event(logger: logging.Logger, event: str, exc: Exception | None = None, **fields: Any) -> None:
+    """Log error event at ERROR level with optional traceback."""
+    payload: Dict[str, Any] = {
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
+        "event": event,
+        "level": "error",
+        **fields,
+    }
+    if exc is not None:
+        payload["error"] = str(exc)
+        payload["error_type"] = type(exc).__name__
+        tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+        payload["traceback"] = "".join(tb).replace("\n", "\\n")
+    logger.error(json.dumps(payload, ensure_ascii=False))
+
+
 class RequestLogMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, logger: logging.Logger, service_name: str) -> None:
         super().__init__(app)

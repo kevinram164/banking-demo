@@ -17,7 +17,7 @@ from common.db import SessionLocal, engine, Base
 from common.models import Notification
 from common.redis_utils import get_user_id_from_session, set_presence, create_redis_client
 from common.rabbitmq_utils import store_response
-from common.logging_utils import get_json_logger, log_event
+from common.logging_utils import get_json_logger, log_event, log_error_event
 
 Base.metadata.create_all(bind=engine)
 
@@ -60,7 +60,7 @@ async def process_message(message):
                 result = await handle_notifications(payload, headers)
             await store_response(redis, correlation_id, result)
         except Exception as e:
-            log_event(logger, "consumer_error", error=str(e))
+            log_error_event(logger, "consumer_error", exc=e, correlation_id=body.get("correlation_id"), service="notification-service", queue="notification.requests")
             if body.get("correlation_id"):
                 await store_response(redis, body["correlation_id"], {"status": 500, "body": {"detail": str(e)}})
 

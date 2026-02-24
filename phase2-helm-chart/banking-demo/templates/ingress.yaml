@@ -12,6 +12,8 @@ metadata:
     haproxy.org/forwardfor: "true"
     # WebSocket /ws — giữ kết nối lâu (haproxy-ingress: timeout-tunnel)
     haproxy.org/timeout-tunnel: "1h"
+    # Load test 500+ CCU — tăng max connections tới Kong backend (mặc định có thể thấp)
+    haproxy.org/maxconn-server: "1000"
   {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}

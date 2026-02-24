@@ -13,7 +13,7 @@ from common.db import SessionLocal, engine, Base
 from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, publish_notify, create_redis_client
 from common.rabbitmq_utils import store_response
-from common.logging_utils import get_json_logger, log_event, mask_amount
+from common.logging_utils import get_json_logger, log_event, log_error_event, mask_amount
 from common.health_server import start_health_background
 
 Base.metadata.create_all(bind=engine)
@@ -112,14 +112,13 @@ async def process_message(message: IncomingMessage):
                 result = await handle_transfer(payload, headers, trace)
             await store_response(redis, correlation_id, result)
         except Exception as e:
-            log_event(
+            log_error_event(
                 logger,
                 "consumer_error",
+                exc=e,
                 correlation_id=body.get("correlation_id", ""),
                 path=body.get("path", ""),
                 action=body.get("action", ""),
-                error=str(e),
-                error_type=type(e).__name__,
                 service="transfer-service",
                 queue="transfer.requests",
             )
