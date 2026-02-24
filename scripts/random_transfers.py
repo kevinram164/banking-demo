@@ -37,7 +37,7 @@ def _get_session() -> requests.Session:
     return _thread_local.session
 
 
-def login(base_url: str, phone: str, password: str, verify: bool = True, session: requests.Session | None = None, retries: int = 3) -> dict | None:
+def login(base_url: str, phone: str, password: str, verify: bool = True, session: requests.Session | None = None, retries: int = 5) -> dict | None:
     """Login và trả về session + account info. Retry khi Connection reset."""
     url = f"{base_url}/api/auth/login"
     s = session or requests.Session()
@@ -54,11 +54,16 @@ def login(base_url: str, phone: str, password: str, verify: bool = True, session
                     "balance": data.get("balance", 0),
                 }
             return None
-        except (requests.exceptions.ConnectionError, ConnectionResetError, OSError) as e:
-            if "Connection reset" in str(e) or "Remote end closed" in str(e) or "Connection aborted" in str(e):
-                if attempt < retries - 1:
-                    time.sleep(0.5 * (attempt + 1))
-                    continue
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.ReadTimeout,
+            ConnectionResetError,
+            OSError,
+        ) as e:
+            if attempt < retries - 1:
+                time.sleep(1.0 * (attempt + 1))
+                continue
             return None
         except Exception:
             return None
@@ -76,7 +81,7 @@ def get_balance(base_url: str, session: str, verify: bool = True) -> int | None:
     return None
 
 
-def transfer(base_url: str, session: str, to_account: str, amount: int, verify: bool = True, http_session: requests.Session | None = None, retries: int = 3) -> dict:
+def transfer(base_url: str, session: str, to_account: str, amount: int, verify: bool = True, http_session: requests.Session | None = None, retries: int = 5) -> dict:
     """Thực hiện chuyển khoản. Trả về dict {ok, detail}. Retry khi Connection reset."""
     url = f"{base_url}/api/transfer/transfer"
     s = http_session or requests.Session()
@@ -92,12 +97,16 @@ def transfer(base_url: str, session: str, to_account: str, amount: int, verify: 
             if r.status_code == 200:
                 return {"ok": True, "detail": r.json()}
             return {"ok": False, "detail": f"HTTP {r.status_code}: {r.text[:200]}"}
-        except (requests.exceptions.ConnectionError, ConnectionResetError, OSError) as e:
-            err_str = str(e)
-            if "Connection reset" in err_str or "Remote end closed" in err_str or "Connection aborted" in err_str:
-                if attempt < retries - 1:
-                    time.sleep(0.5 * (attempt + 1))
-                    continue
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.ReadTimeout,
+            ConnectionResetError,
+            OSError,
+        ) as e:
+            if attempt < retries - 1:
+                time.sleep(1.0 * (attempt + 1))
+                continue
             return {"ok": False, "detail": str(e)}
         except Exception as e:
             return {"ok": False, "detail": str(e)}
