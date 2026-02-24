@@ -4,7 +4,7 @@ api-producer:
   enabled: false  # Bật khi dùng values-phase8.yaml
   image:
     repository: registry.gitlab.com/kiettt164/banking-demo-payment/api-producer
-    tag: f961d9c
+    tag: c384f62
     pullPolicy: Always
   replicas: 2
   service:
