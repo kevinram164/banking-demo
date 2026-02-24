@@ -10,11 +10,11 @@ from sqlalchemy import select, func
 from redis.asyncio import Redis
 from aio_pika import IncomingMessage
 
-from common.db import SessionLocal, engine, Base
+from common.db import SessionLocal, engine, Base, log_db_pool_status
 from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, create_redis_client
 from common.rabbitmq_utils import store_response
-from common.logging_utils import get_json_logger, log_event, log_error_event
+from common.logging_utils import get_json_logger, log_event, log_error_event, should_log_request_flow
 from common.health_server import start_health_background
 
 Base.metadata.create_all(bind=engine)
@@ -165,6 +165,8 @@ async def process_message(message: IncomingMessage):
             action = body.get("action", "")
             payload = body.get("payload", {})
             headers = body.get("headers", {})
+            if should_log_request_flow():
+                log_event(logger, "rmq_message_received", queue="account.requests", correlation_id=correlation_id, action=action, path=path)
             if action == "health":
                 result = {"status": 200, "body": {"status": "healthy", "service": "account", "database": "ok", "redis": "ok"}}
             elif action == "me":
@@ -187,11 +189,11 @@ async def process_message(message: IncomingMessage):
                 result = await handle_admin_notifications(payload, headers)
             else:
                 result = {"status": 404, "body": {"detail": f"Unknown action: {action}"}}
-            await store_response(redis, correlation_id, result)
+            await store_response(redis, correlation_id, result, logger=logger)
         except Exception as e:
             log_error_event(logger, "consumer_error", exc=e, correlation_id=body.get("correlation_id"), service="account-service", queue="account.requests")
             if body.get("correlation_id"):
-                await store_response(redis, body["correlation_id"], {"status": 500, "body": {"detail": str(e)}})
+                await store_response(redis, body["correlation_id"], {"status": 500, "body": {"detail": str(e)}}, logger=logger)
 
 
 async def consume():
@@ -201,13 +203,15 @@ async def consume():
     await channel.set_qos(prefetch_count=5)
     queue = await channel.declare_queue("account.requests", durable=True)
     await queue.consume(process_message)
+    log_event(logger, "rabbitmq_connected")
     log_event(logger, "account_consumer_started", queue="account.requests")
     await asyncio.Future()
 
 
 async def main():
     global redis
-    redis = await create_redis_client(REDIS_URL)
+    redis = await create_redis_client(REDIS_URL, logger=logger)
+    log_db_pool_status(logger)
     start_health_background(port=9999, service_name="account-service")
     await consume()
 

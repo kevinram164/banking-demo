@@ -19,6 +19,11 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 
+def should_log_request_flow() -> bool:
+    """Bật/tắt log chi tiết flow (RabbitMQ, Redis, request). Mặc định true."""
+    return os.getenv("LOG_REQUEST_FLOW", "true").lower() in ("true", "1", "yes")
+
+
 def get_json_logger(service_name: str) -> logging.Logger:
     logger = logging.getLogger(service_name)
     if logger.handlers:
@@ -81,6 +86,8 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
             "client_ip": request.client.host if request.client else None,
             "request_id": request_id,
         }
+        if corr_id := response.headers.get("X-Correlation-Id"):
+            payload["correlation_id"] = corr_id
         self.logger.info(json.dumps(payload, ensure_ascii=False))
         response.headers.setdefault("X-Request-Id", request_id)
         return response

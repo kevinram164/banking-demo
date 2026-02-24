@@ -1,14 +1,19 @@
-import os, uuid
+import os
+import uuid
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse, unquote
 from redis.asyncio import Redis
 from redis.asyncio.sentinel import Sentinel
 from fastapi import HTTPException
 
+if TYPE_CHECKING:
+    from logging import Logger
+
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 SESSION_TTL = int(os.getenv("SESSION_TTL_SECONDS", "86400"))
 
 
-async def create_redis_client(url: str | None = None) -> Redis:
+async def create_redis_client(url: str | None = None, logger: "Logger | None" = None) -> Redis:
     url = url or REDIS_URL
     if url.startswith("sentinel://"):
         parsed = urlparse(url)
@@ -25,8 +30,18 @@ async def create_redis_client(url: str | None = None) -> Redis:
             db=db,
             decode_responses=True,
         )
-        return sentinel.master_for(service_name)
-    return Redis.from_url(url, decode_responses=True)
+        client = sentinel.master_for(service_name)
+    else:
+        client = Redis.from_url(url, decode_responses=True)
+
+    if logger:
+        from common.logging_utils import log_event
+        try:
+            await client.ping()
+            log_event(logger, "redis_connected")
+        except Exception:
+            pass  # Don't fail startup if ping fails
+    return client
 
 
 async def create_session(redis: Redis, user_id: int) -> str:

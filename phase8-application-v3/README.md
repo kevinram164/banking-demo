@@ -83,6 +83,33 @@ flowchart TB
 
 WebSocket `/ws` đi trực tiếp tới notification-service (không qua queue).
 
+## Logging (trace request flow)
+
+Logs JSON structured, có thể trace toàn bộ luồng Kong → Producer → RabbitMQ → Consumer → Redis/DB:
+
+| Event | Service | Chi tiết |
+|-------|---------|----------|
+| `http_request` | api-producer | method, path, status, duration_ms, request_id, correlation_id |
+| `rmq_publish` | api-producer | queue, correlation_id, redis_key |
+| `redis_wait_start` | api-producer | correlation_id |
+| `redis_response` | api-producer | correlation_id, status, wait_ms |
+| `rmq_message_received` | consumers | queue, correlation_id, action |
+| `redis_store_response` | consumers | correlation_id, redis_key, status |
+| `redis_connected` | all | Khi connect Redis |
+| `rabbitmq_connected` | all | Khi connect RabbitMQ |
+| `db_pool_ready` | consumers | pool_size, max_overflow |
+| `consumer_error` | consumers | error, traceback, correlation_id |
+
+**Env vars:**
+- `LOG_LEVEL` — INFO (default), DEBUG
+- `LOG_REQUEST_FLOW` — true (default) / false — tắt log chi tiết từng request khi cần giảm noise
+
+**Xem logs lỗi:**
+```bash
+kubectl logs -n banking -l app=api-producer -f | grep -E '"event":"(consumer_error|producer_error|unhandled_exception)"'
+kubectl logs -n banking -l app=transfer-service -f | grep -i error
+```
+
 ## Kong (ns kong) — QUAN TRỌNG khi dùng Ingress kong-proxy-ext
 
 Nếu traffic đi qua **Kong trong ns `kong`** (ingress backend: kong-proxy-ext → kong-kong-proxy.kong), phải cấu hình Kong route `/api` → **api-producer** (không route trực tiếp tới auth/account/transfer).

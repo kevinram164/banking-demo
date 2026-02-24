@@ -13,7 +13,7 @@ from redis.asyncio import Redis
 
 from common.rabbitmq_utils import path_to_queue, publish_and_wait
 from common.redis_utils import create_redis_client
-from common.logging_utils import get_json_logger, log_event, log_error_event, setup_exception_logging
+from common.logging_utils import get_json_logger, log_event, log_error_event, setup_exception_logging, RequestLogMiddleware
 from common.observability import instrument_fastapi
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
@@ -29,8 +29,9 @@ rmq_connection: aio_pika.Connection | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global redis, rmq_connection
-    redis = await create_redis_client(REDIS_URL)
+    redis = await create_redis_client(REDIS_URL, logger=logger)
     rmq_connection = await aio_pika.connect_robust(RABBITMQ_URL)
+    log_event(logger, "rabbitmq_connected")
     yield
     if redis:
         await redis.close()
@@ -41,6 +42,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="API Producer", lifespan=lifespan)
 instrument_fastapi(app, "api-producer")
 setup_exception_logging(app, logger, "api-producer")
+app.add_middleware(RequestLogMiddleware, logger=logger, service_name="api-producer")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[x.strip() for x in CORS_ORIGINS.split(",")],
@@ -102,7 +104,7 @@ async def proxy_to_queue(request: Request, path: str):
 
     try:
         async with rmq_connection.channel() as channel:
-            result = await publish_and_wait(redis, channel, queue_name, payload, headers)
+            result = await publish_and_wait(redis, channel, queue_name, payload, headers, logger=logger)
     except TimeoutError as e:
         log_error_event(logger, "producer_timeout", exc=e, path=full_path, service="api-producer")
         return JSONResponse(status_code=504, content={"detail": "Gateway timeout"})
@@ -113,4 +115,8 @@ async def proxy_to_queue(request: Request, path: str):
     # Result format: { "status": 200, "body": {...} } or { "status": 401, "body": {"detail": "..."} }
     status = result.get("status", 200)
     resp_body = result.get("body", result)
-    return JSONResponse(status_code=status, content=resp_body)
+    correlation_id = result.pop("_correlation_id", None)
+    response = JSONResponse(status_code=status, content=resp_body)
+    if correlation_id:
+        response.headers["X-Correlation-Id"] = correlation_id
+    return response
