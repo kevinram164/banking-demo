@@ -14,6 +14,14 @@ def mask_amount(amount: int | float) -> str:
     h = hashlib.sha256(f"{amount}:{secret}".encode()).hexdigest()
     return f"amt:{h[:12]}"
 
+
+def mask_account_number(account: str) -> str:
+    """Che STK: 4 số đầu + **** + 2 số cuối. VD: 123456789012 -> 1234****9012."""
+    s = (account or "").strip()
+    if len(s) <= 6:
+        return "*" * min(4, len(s)) if s else "******"
+    return f"{s[:4]}****{s[-2:]}"
+
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware

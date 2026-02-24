@@ -103,6 +103,7 @@ Logs JSON structured, có thể trace toàn bộ luồng Kong → Producer → R
 | `consumer_error` | consumers | error, traceback, correlation_id |
 | `login_success` | auth-service | user_id, username |
 | `login_failed` | auth-service | reason (missing_input, invalid_format, user_not_found, invalid_password), lookup |
+| `transfer_success` | transfer-service | from_user_id, from_username, from_account_masked (4 đầu + **** + 2 cuối), to_user_id, to_username, to_account_masked, amount_hash |
 
 **Env vars:**
 - `LOG_LEVEL` — INFO (default), DEBUG

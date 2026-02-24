@@ -13,7 +13,7 @@ from common.db import SessionLocal, engine, Base, log_db_pool_status
 from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, publish_notify, create_redis_client
 from common.rabbitmq_utils import store_response
-from common.logging_utils import get_json_logger, log_event, log_error_event, mask_amount, should_log_request_flow
+from common.logging_utils import get_json_logger, log_event, log_error_event, mask_amount, mask_account_number, should_log_request_flow
 from common.health_server import start_health_background
 
 Base.metadata.create_all(bind=engine)
@@ -80,8 +80,12 @@ async def handle_transfer(payload: dict, headers: dict, trace: dict) -> dict:
             path=path,
             action=action,
             transfer_id=transfer.id,
-            from_user=sender.id,
-            to_user=receiver.id,
+            from_user_id=sender.id,
+            from_username=sender.username,
+            from_account_masked=mask_account_number(sender.account_number),
+            to_user_id=receiver.id,
+            to_username=receiver.username,
+            to_account_masked=mask_account_number(receiver.account_number),
             amount_hash=mask_amount(amount),
             service="transfer-service",
             queue="transfer.requests",
