@@ -6,7 +6,7 @@ api-producer:
     repository: registry.gitlab.com/kiettt164/banking-demo-payment/api-producer
     tag: c384f62
     pullPolicy: Always
-  replicas: 2
+  replicas: 4
   service:
     port: 8080
     portName: http

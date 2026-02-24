@@ -38,9 +38,9 @@ data:
               headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Session", "X-Admin-Secret"]
           - name: rate-limiting
             config:
-              second: 500      # 500 req/s per IP (cho load test 500 CCU)
-              minute: 10000    # 10k req/phút
-              hour: 100000     # 100k req/giờ
+              second: 2000     # 2k req/s per IP (cho load test 500+1000 CCU đồng thời)
+              minute: 50000    # 50k req/phút
+              hour: 200000     # 200k req/giờ
               policy: local    # per Kong pod (2 replica = ~2x limit)
               fault_tolerant: true
               hide_client_headers: false  # trả X-RateLimit-* headers
