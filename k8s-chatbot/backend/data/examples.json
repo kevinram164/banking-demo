@@ -1,0 +1,18 @@
+[
+  {"command": "check status pods của ns banking", "intent": {"action": "get_pods", "namespace": "banking"}},
+  {"command": "get pods in banking", "intent": {"action": "get_pods", "namespace": "banking"}},
+  {"command": "list pods in monitoring", "intent": {"action": "get_pods", "namespace": "monitoring"}},
+  {"command": "show pods của ns default", "intent": {"action": "get_pods", "namespace": "default"}},
+  {"command": "check deployments in banking", "intent": {"action": "get_deployments", "namespace": "banking"}},
+  {"command": "get deployments của ns monitoring", "intent": {"action": "get_deployments", "namespace": "monitoring"}},
+  {"command": "rollout restart deployment của ns banking", "intent": {"action": "rollout_restart", "namespace": "banking"}},
+  {"command": "rollout restart deployment in banking", "intent": {"action": "rollout_restart", "namespace": "banking"}},
+  {"command": "restart auth-service in banking", "intent": {"action": "rollout_restart", "resource_name": "auth-service", "namespace": "banking"}},
+  {"command": "restart deployment transfer-service in banking", "intent": {"action": "rollout_restart", "resource_name": "transfer-service", "namespace": "banking"}},
+  {"command": "tìm logs lỗi của auth-service-xxx", "intent": {"action": "get_logs", "resource_name": "auth-service-xxx", "log_filter": "error"}},
+  {"command": "logs error of auth-service", "intent": {"action": "get_logs", "resource_name": "auth-service", "log_filter": "error"}},
+  {"command": "logs của transfer-service-abc", "intent": {"action": "get_logs", "resource_name": "transfer-service-abc"}},
+  {"command": "logs lỗi của notification-service", "intent": {"action": "get_logs", "resource_name": "notification-service", "log_filter": "error"}},
+  {"command": "Phân tích logs của apiserver, để xem điểm bất thường của cụm", "intent": {"action": "analyze_logs", "resource_name": "apiserver", "namespace": "kube-system", "analysis_goal": "điểm bất thường"}},
+  {"command": "phân tích logs của auth-service", "intent": {"action": "analyze_logs", "resource_name": "auth-service", "namespace": "banking", "analysis_goal": "lỗi"}}
+]

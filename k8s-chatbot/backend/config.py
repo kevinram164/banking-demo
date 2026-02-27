@@ -25,3 +25,8 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 # CORS
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+
+# RAG - Chroma vector DB
+CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma")
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "5"))
+RAG_ENABLED = os.getenv("RAG_ENABLED", "true").lower() == "true"

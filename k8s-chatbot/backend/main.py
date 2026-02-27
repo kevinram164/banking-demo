@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from config import CORS_ORIGINS
 from agents.parser import parse_command, CommandIntent
-from executors import k8s_execute, loki_execute, prometheus_execute
+from executors import k8s_execute, loki_execute, prometheus_execute, analyze_logs_execute
 
 app = FastAPI(title="K8s Chatbot API", version="0.1.0")
 app.add_middleware(
@@ -23,6 +23,11 @@ class ChatRequest(BaseModel):
     message: str
 
 
+class AddExampleRequest(BaseModel):
+    command: str
+    intent: dict  # {"action": "...", "namespace": "...", ...}
+
+
 class ChatResponse(BaseModel):
     reply: str
     intent: str | None = None
@@ -35,7 +40,9 @@ def health():
 
 def _execute(intent: CommandIntent) -> str:
     if intent.action == "unknown":
-        return "Tôi chưa hiểu lệnh. Thử: 'check pods in banking', 'rollout restart deployment in banking', 'logs error of <pod-name>'"
+        return "Tôi chưa hiểu lệnh. Thử: 'check pods in banking', 'rollout restart deployment in banking', 'logs error of <pod-name>', 'phân tích logs apiserver'"
+    if intent.action == "analyze_logs":
+        return analyze_logs_execute(intent)
     if intent.action in ("get_pods", "get_deployments", "rollout_restart", "get_logs"):
         return k8s_execute(intent)
     if intent.action == "logql":
@@ -52,6 +59,19 @@ def chat(req: ChatRequest):
     intent = parse_command(req.message.strip())
     reply = _execute(intent)
     return ChatResponse(reply=reply, intent=intent.action)
+
+
+@app.post("/api/rag/example")
+def add_rag_example(req: AddExampleRequest):
+    """Thêm example mới vào RAG (học từ feedback)."""
+    if not req.command or not req.intent or "action" not in req.intent:
+        raise HTTPException(status_code=400, detail="command and intent.action required")
+    try:
+        from rag import add_example
+        ok = add_example(req.command.strip(), req.intent)
+        return {"ok": ok, "message": "Added" if ok else "RAG disabled or error"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Serve frontend static (when built) - must be last

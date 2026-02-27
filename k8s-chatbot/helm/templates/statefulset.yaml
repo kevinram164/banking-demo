@@ -1,11 +1,12 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: k8s-chatbot
   namespace: {{ .Values.namespace }}
   labels:
     app.kubernetes.io/name: k8s-chatbot
 spec:
+  serviceName: k8s-chatbot-headless
   replicas: {{ .Values.backend.replicas }}
   selector:
     matchLabels:
@@ -49,6 +50,15 @@ spec:
             - name: OPENAI_BASE_URL
               value: {{ .Values.backend.openaiBaseUrl | quote }}
             {{- end }}
+            - name: CHROMA_PATH
+              value: "/data/chroma"
+            - name: RAG_TOP_K
+              value: "5"
+          {{- if .Values.backend.persistence.enabled }}
+          volumeMounts:
+            - name: chroma-data
+              mountPath: /data/chroma
+          {{- end }}
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
           readinessProbe:
@@ -61,3 +71,15 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
+  {{- if .Values.backend.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: chroma-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ .Values.backend.persistence.storageClassName | quote }}
+        resources:
+          requests:
+            storage: {{ .Values.backend.persistence.size }}
+  {{- end }}

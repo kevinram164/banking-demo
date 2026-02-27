@@ -16,11 +16,16 @@ backend:
   openaiModel: gpt-4o-mini
   resources:
     requests:
-      memory: "128Mi"
-      cpu: "100m"
+      memory: "256Mi"
+      cpu: "200m"
     limits:
-      memory: "512Mi"
-      cpu: "500m"
+      memory: "1Gi"
+      cpu: "1000m"
+  # RAG - Chroma persistence (StatefulSet volumeClaimTemplates)
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClassName: nfs-client
 
 frontend:
   image:

@@ -1,6 +1,6 @@
 """
 Parse user command → structured intent.
-Uses LLM when available, falls back to rule-based.
+Uses rule-based first, then RAG+LLM when available.
 """
 import json
 import re
@@ -12,12 +12,13 @@ from config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
 
 @dataclass
 class CommandIntent:
-    action: Literal["get_pods", "get_deployments", "rollout_restart", "get_logs", "promql", "logql", "unknown"]
+    action: Literal["get_pods", "get_deployments", "rollout_restart", "get_logs", "analyze_logs", "promql", "logql", "unknown"]
     namespace: str | None = None
     resource_name: str | None = None  # pod name, deployment name
     log_filter: str | None = None  # e.g. "error", "exception"
     log_tail: int = 100
     query: str | None = None  # raw PromQL or LogQL
+    analysis_goal: str | None = None  # e.g. "điểm bất thường", "anomalies"
 
 
 # Rule-based patterns (fallback when no LLM)
@@ -37,6 +38,9 @@ PATTERNS = [
     (r"logs?\s+(?:lỗi|error)\s+(?:của|of)\s+(\S+)", "get_logs", "pod"),
     (r"logs?\s+(?:của|of)\s+(\S+)(?:\s+.*?(?:error|lỗi))?", "get_logs", "pod"),
     (r"tìm\s+logs?\s+lỗi\s+(?:của|of)\s+(\S+)", "get_logs", "pod"),
+    # analyze_logs
+    (r"phân\s+tích\s+logs?\s+(?:của|of)\s+(\S+)", "analyze_logs", "pod"),
+    (r"analyze\s+logs?\s+(?:của|of)\s+(\S+)", "analyze_logs", "pod"),
 ]
 
 
@@ -50,8 +54,25 @@ def _rule_based_parse(text: str) -> CommandIntent | None:
             if capture == "name_ns":
                 return CommandIntent(action=action, resource_name=m.group(1), namespace=m.group(2))
             if capture == "pod":
+                if action == "analyze_logs":
+                    return CommandIntent(action=action, resource_name=m.group(1), log_tail=500, analysis_goal="điểm bất thường")
                 return CommandIntent(action=action, resource_name=m.group(1), log_filter="error")
     return None
+
+
+def _build_rag_examples(text: str) -> str:
+    """Retrieve similar examples from RAG for prompt context."""
+    try:
+        from rag import retrieve_examples
+        examples = retrieve_examples(text)
+        if not examples:
+            return ""
+        lines = []
+        for ex in examples:
+            lines.append(f'- "{ex["command"]}" → {json.dumps(ex["intent"])}')
+        return "\n".join(lines)
+    except Exception:
+        return ""
 
 
 def _llm_parse(text: str) -> CommandIntent:
@@ -64,19 +85,23 @@ def _llm_parse(text: str) -> CommandIntent:
             api_key=OPENAI_API_KEY or "ollama",
             base_url=OPENAI_BASE_URL or None,
         )
+        rag_examples = _build_rag_examples(text)
+        examples_block = rag_examples if rag_examples else """- "check pods in banking" → {"action":"get_pods","namespace":"banking"}
+- "rollout restart deployment in banking" → {"action":"rollout_restart","namespace":"banking"}
+- "logs error of auth-service-xxx" → {"action":"get_logs","resource_name":"auth-service-xxx","log_filter":"error"}"""
+
         prompt = f"""Parse this Kubernetes/observability command into JSON. Return ONLY valid JSON, no markdown.
 
 User command: "{text}"
 
-Return JSON with: action, namespace (optional), resource_name (optional), log_filter (optional, e.g. "error"), log_tail (optional, default 100), query (optional, for raw PromQL/LogQL).
+Return JSON with: action, namespace (optional), resource_name (optional), log_filter (optional), log_tail (optional, default 500 for analyze_logs), query (optional), analysis_goal (optional, for analyze_logs: "điểm bất thường", "anomalies", "lỗi").
 
-Valid actions: get_pods, get_deployments, rollout_restart, get_logs, promql, logql, unknown
+Valid actions: get_pods, get_deployments, rollout_restart, get_logs, analyze_logs, promql, logql, unknown
 
-Examples:
-- "check pods in banking" → {{"action":"get_pods","namespace":"banking"}}
-- "rollout restart deployment in banking" → {{"action":"rollout_restart","namespace":"banking"}}
-- "logs error of auth-service-xxx" → {{"action":"get_logs","resource_name":"auth-service-xxx","log_filter":"error"}}
-- "CPU usage of auth-service" → {{"action":"promql","query":"rate(container_cpu_usage_seconds_total{{container=~\"auth-service\"}}[5m])"}}
+analyze_logs: khi user muốn PHÂN TÍCH logs (tìm bất thường, lỗi, vấn đề). Cần resource_name (pod/component), namespace (apiserver→kube-system), analysis_goal (optional).
+
+Similar examples (use as reference):
+{examples_block}
 """
         resp = client.chat.completions.create(
             model=OPENAI_MODEL,
@@ -88,13 +113,15 @@ Examples:
         if content.startswith("```"):
             content = re.sub(r"^```\w*\n?", "", content).rstrip("`")
         data = json.loads(content)
+        tail = 500 if data.get("action") == "analyze_logs" else int(data.get("log_tail", 100))
         return CommandIntent(
             action=data.get("action", "unknown"),
             namespace=data.get("namespace"),
             resource_name=data.get("resource_name"),
             log_filter=data.get("log_filter"),
-            log_tail=int(data.get("log_tail", 100)),
+            log_tail=tail,
             query=data.get("query"),
+            analysis_goal=data.get("analysis_goal"),
         )
     except Exception:
         return CommandIntent(action="unknown")

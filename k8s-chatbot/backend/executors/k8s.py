@@ -43,10 +43,17 @@ def k8s_execute(intent: CommandIntent) -> str:
             if not pod_name:
                 return "Please specify pod name for logs"
             namespaces = [ns] if ns else ["banking", "monitoring", "default"]
+            # apiserver / kube-apiserver thường ở kube-system
+            if "apiserver" in pod_name.lower() and "kube-system" not in namespaces:
+                namespaces = ["kube-system"] + namespaces
+            # Tìm pod: apiserver → match kube-apiserver-*
+            search_terms = [pod_name]
+            if pod_name.lower() == "apiserver":
+                search_terms = ["kube-apiserver", "apiserver"]
             for search_ns in namespaces:
                 try:
                     pods = core.list_namespaced_pod(namespace=search_ns, watch=False)
-                    matched = [p for p in pods.items if pod_name in p.metadata.name or p.metadata.name.startswith(pod_name)]
+                    matched = [p for p in pods.items if any(t in p.metadata.name.lower() for t in search_terms)]
                     if matched:
                         p = matched[0]
                         tail = intent.log_tail
