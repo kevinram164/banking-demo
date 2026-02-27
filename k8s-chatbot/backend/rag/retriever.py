@@ -24,22 +24,14 @@ def _get_client():
     return _client
 
 
-def _get_embedding_function():
-    from chromadb.utils import embedding_functions
-    return embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name="all-MiniLM-L6-v2"
-    )
-
-
 def _get_collection():
+    """Dùng Chroma default embedding (ONNX, nhẹ ~100MB) thay vì sentence-transformers (~3GB)."""
     client = _get_client()
-    ef = _get_embedding_function()
     try:
-        coll = client.get_collection(name=_COLLECTION_NAME, embedding_function=ef)
+        coll = client.get_collection(name=_COLLECTION_NAME)
     except Exception:
         coll = client.create_collection(
             name=_COLLECTION_NAME,
-            embedding_function=ef,
             metadata={"hnsw:space": "cosine"},
         )
         _seed_collection(coll)

@@ -196,7 +196,12 @@ backend:
 | `RAG_TOP_K` | Số examples RAG retrieve | `5` |
 | `RAG_ENABLED` | Bật/tắt RAG | `true` |
 
-### 5.2 Storage (StatefulSet)
+### 5.2 Image size
+
+- **~500MB–800MB** (sau khi bỏ sentence-transformers)
+- RAG dùng Chroma default embedding (ONNX, nhẹ) thay vì PyTorch
+
+### 5.3 Storage (StatefulSet)
 
 - **volumeClaimTemplates**: `chroma-data` (1Gi)
 - **storageClassName**: `nfs-client`

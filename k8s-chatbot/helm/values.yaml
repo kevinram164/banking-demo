@@ -19,8 +19,8 @@ backend:
       memory: "256Mi"
       cpu: "200m"
     limits:
-      memory: "1Gi"
-      cpu: "1000m"
+      memory: "512Mi"
+      cpu: "500m"
   # RAG - Chroma persistence (StatefulSet volumeClaimTemplates)
   persistence:
     enabled: true

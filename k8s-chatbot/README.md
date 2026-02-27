@@ -49,6 +49,7 @@ Frontend chạy ở http://localhost:5173, proxy `/api` tới backend 8080.
 
 ```bash
 # Build image (từ thư mục k8s-chatbot)
+# Image ~500–800MB (Chroma ONNX, không dùng PyTorch)
 docker build -t k8s-chatbot:latest .
 ```
 
