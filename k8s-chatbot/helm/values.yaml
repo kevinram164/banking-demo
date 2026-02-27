@@ -1,0 +1,41 @@
+namespace: k8s-chatbot
+
+backend:
+  image:
+    repository: registry.gitlab.com/kiettt164/banking-demo-payment/k8s-chatbot
+    tag: latest
+    pullPolicy: Always
+  imagePullSecrets:
+    - name: gitlab-registry  # dùng chung với banking
+  replicas: 1
+  service:
+    port: 8080
+  # LLM - set via Secret in production
+  openaiApiKey: ""
+  openaiBaseUrl: ""  # e.g. http://ollama:11434/v1 for Ollama
+  openaiModel: gpt-4o-mini
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+frontend:
+  image:
+    repository: k8s-chatbot-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    port: 80
+
+# Observability URLs (in-cluster)
+prometheusUrl: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
+lokiUrl: "http://loki.monitoring.svc.cluster.local:3100"
+tempoUrl: "http://tempo.monitoring.svc.cluster.local:3200"
+
+ingress:
+  enabled: false
+  className: haproxy
+  host: chatbot.npd-banking.co

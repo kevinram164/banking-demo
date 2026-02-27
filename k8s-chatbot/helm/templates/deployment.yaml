@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-chatbot
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: k8s-chatbot
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: k8s-chatbot
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k8s-chatbot
+    spec:
+      {{- with .Values.backend.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: k8s-chatbot
+      containers:
+        - name: k8s-chatbot
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.backend.service.port }}
+              name: http
+          env:
+            - name: K8S_IN_CLUSTER
+              value: "true"
+            - name: PROMETHEUS_URL
+              value: {{ .Values.prometheusUrl | quote }}
+            - name: LOKI_URL
+              value: {{ .Values.lokiUrl | quote }}
+            - name: TEMPO_URL
+              value: {{ .Values.tempoUrl | quote }}
+            - name: OPENAI_MODEL
+              value: {{ .Values.backend.openaiModel | quote }}
+            {{- if .Values.backend.openaiApiKey }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: k8s-chatbot-secret
+                  key: openai-api-key
+            {{- end }}
+            {{- if .Values.backend.openaiBaseUrl }}
+            - name: OPENAI_BASE_URL
+              value: {{ .Values.backend.openaiBaseUrl | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.backend.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]

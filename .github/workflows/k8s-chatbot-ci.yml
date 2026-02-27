@@ -1,0 +1,232 @@
+name: K8s Chatbot CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'k8s-chatbot/**'
+
+  pull_request:
+    branches: [main]
+    paths:
+      - 'k8s-chatbot/**'
+
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip lint/tests'
+        required: false
+        default: false
+        type: boolean
+      force_push:
+        description: 'Force push (even on non-main branch)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: registry.gitlab.com
+  IMAGE_NAME: kiettt164/banking-demo-payment/k8s-chatbot
+
+jobs:
+  # ============================================================
+  # Lint
+  # ============================================================
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint backend
+        run: ruff check k8s-chatbot/backend --ignore E501 || true
+
+  # ============================================================
+  # Test
+  # ============================================================
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint
+    if: github.event.inputs.skip_tests != 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install -r k8s-chatbot/backend/requirements.txt
+
+      - name: Syntax check
+        run: python -m compileall k8s-chatbot/backend
+
+  # ============================================================
+  # Build Docker image
+  # ============================================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: |
+      always() &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: k8s-chatbot
+          file: k8s-chatbot/Dockerfile
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/k8s-chatbot.tar
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-k8s-chatbot
+          path: /tmp/k8s-chatbot.tar
+          retention-days: 1
+
+  # ============================================================
+  # Push to GitLab Registry
+  # ============================================================
+  push:
+    name: Push
+    runs-on: ubuntu-latest
+    needs: build
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      (
+        (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
+        (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.event.inputs.force_push == 'true'))
+      )
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: image-k8s-chatbot
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/k8s-chatbot.tar
+
+      - name: Log in to GitLab Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GITLAB_USERNAME }}
+          password: ${{ secrets.GITLAB_TOKEN }}
+
+      - name: Tag and push
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          SHA="${{ github.sha }}"
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          LOADED=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -1)
+
+          docker tag "$LOADED" "${IMAGE_BASE}:${SHORT_SHA}"
+          docker tag "$LOADED" "${IMAGE_BASE}:${GITHUB_REF_NAME}"
+          docker push "${IMAGE_BASE}:${SHORT_SHA}"
+          docker push "${IMAGE_BASE}:${GITHUB_REF_NAME}"
+
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            docker tag "$LOADED" "${IMAGE_BASE}:latest"
+            docker push "${IMAGE_BASE}:latest"
+          fi
+
+          echo "Pushed: ${IMAGE_BASE}:${SHORT_SHA}"
+
+  # ============================================================
+  # Update Helm values
+  # ============================================================
+  update-helm:
+    name: Update Helm
+    runs-on: ubuntu-latest
+    needs: push
+    permissions:
+      contents: write
+    if: |
+      always() &&
+      needs.push.result == 'success' &&
+      github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Update image tag in helm values
+        run: |
+          SHA=$(git rev-parse --short=7 HEAD)
+          FILE="k8s-chatbot/helm/values.yaml"
+          REPO="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+          # Update backend.image only (range: backend: to frontend:)
+          sed -i "/^backend:/,/^frontend:/ s|repository: .*|repository: ${REPO}|" "$FILE"
+          sed -i "/^backend:/,/^frontend:/ s|tag: .*|tag: ${SHA}|" "$FILE"
+
+          echo "Updated k8s-chatbot/helm/values.yaml → tag: ${SHA}"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add k8s-chatbot/helm/values.yaml
+
+          if git diff --cached --quiet; then
+            echo "No changes, skipping commit"
+            exit 0
+          fi
+
+          SHA=$(git rev-parse --short=7 HEAD)
+          git commit -m "ci(k8s-chatbot): update image tag to ${SHA} [skip ci]"
+          git push origin main
+
+  # ============================================================
+  # Security scan
+  # ============================================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: push
+    if: always() && needs.push.result == 'success'
+    steps:
+      - name: Run Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          format: table
+          exit-code: 0
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+        continue-on-error: true

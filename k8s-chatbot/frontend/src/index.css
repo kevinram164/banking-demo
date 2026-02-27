@@ -1,0 +1,27 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-dark: #0f172a;
+  --bg-card: #1e293b;
+  --accent: #38bdf8;
+  --accent-dim: #0ea5e9;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border: #334155;
+}
+
+body {
+  margin: 0;
+  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  background: var(--bg-dark);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

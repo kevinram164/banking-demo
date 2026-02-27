@@ -1,0 +1,11 @@
+apiVersion: v2
+name: k8s-chatbot
+description: K8s Chatbot - Trace & manage cluster via natural language
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - chatbot
+  - kubernetes
+  - observability
+kubeVersion: ">=1.24"
