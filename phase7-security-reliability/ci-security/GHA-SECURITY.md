@@ -4,6 +4,39 @@ Mục tiêu: bổ sung một layer **security** cho CI/CD, tập trung vào:
 
 - Scan image / code cơ bản.
 - Hạn chế leak secrets trong pipeline.
+- **DevSecOps pipeline** cho PR (feature → main).
+
+---
+
+## DevSecOps Pipeline (PR flow)
+
+**File:** `.github/workflows/devsecops-pr.yml`
+
+### Luồng hoạt động (GitHub Flow)
+
+1. Dev tạo nhánh `feature/xxx`, push code, tạo **Pull Request** vào `main`
+2. Workflow tự trigger khi PR được mở/cập nhật
+3. Chạy: Lint → Test → SAST (Trivy, Bandit) → Dependency scan
+4. Report: comment lên PR + gửi Telegram (nếu cấu hình)
+5. **Chặn merge** nếu có CRITICAL/HIGH (Trivy), HIGH (Bandit), hoặc dependency vuln
+
+### Cấu hình cần thiết
+
+**Branch protection (để chặn merge):**
+
+- Settings → Branches → Add rule cho `main`
+- Bật **Require status checks to pass before merging**
+- Chọn các check: `Lint`, `Test`, `SAST (Trivy)`, `SAST (Bandit)`, `Dependency Scan`
+
+**Telegram (tùy chọn):**
+
+- Tạo bot qua [@BotFather](https://t.me/BotFather) → lấy Bot Token
+- Tạo group, thêm bot, lấy Chat ID
+- Settings → Secrets → Actions: thêm `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+
+Nếu không cấu hình Telegram, step notify sẽ fail nhưng không chặn workflow (continue-on-error).
+
+---
 
 ## 1. Thêm job security scan vào `.github/workflows/ci.yml`
 

@@ -29,7 +29,8 @@ phase7-security-reliability/
 1. **Auth hardening (JWT)** – đọc `auth-hardening/JWT-DESIGN.md`; có thể implement vào Phase 4.
 2. **Kong security** – dùng `kong-security/KONG-PLUGINS.md` để chỉnh values Kong (Phase 2 hoặc chart Kong riêng sau Phase 5).
 3. **CI security** – mở rộng `.github/workflows/ci.yml` theo `ci-security/GHA-SECURITY.md`.
-4. **SRE** – thêm alert rule vào Phase 3 Prometheus (theo `sre/SLO-ALERTING.md`).
+4. **DevSecOps pipeline** – workflow `.github/workflows/devsecops-pr.yml` chạy trên PR (feature → main): scan + test + report, chặn merge nếu có CRITICAL. Chi tiết xem `ci-security/GHA-SECURITY.md`.
+5. **SRE** – thêm alert rule vào Phase 3 Prometheus (theo `sre/SLO-ALERTING.md`).
 
 ## Liên kết
 

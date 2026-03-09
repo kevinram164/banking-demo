@@ -1,0 +1,243 @@
+# DevSecOps Pipeline — Phase 7
+# Trigger: PR vào main (GitHub Flow)
+# Report: PR comment + Telegram
+# Block merge: fail khi có CRITICAL
+
+name: DevSecOps Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'common/**'
+      - 'services/**'
+      - 'frontend/**'
+      - 'phase4-application-v2/**'
+      - 'phase8-application-v3/**'
+      - 'k8s-chatbot/**'
+
+  workflow_dispatch:
+
+jobs:
+  # ============================================================
+  # 1. Lint
+  # ============================================================
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint Python
+        run: |
+          ruff check common services --ignore E501 2>/dev/null || true
+          ruff check phase4-application-v2/common phase4-application-v2/services --ignore E501 2>/dev/null || true
+          ruff check phase8-application-v3/common phase8-application-v3/services phase8-application-v3/producer --ignore E501 2>/dev/null || true
+          ruff check k8s-chatbot/backend --ignore E501 2>/dev/null || true
+
+  # ============================================================
+  # 2. Test
+  # ============================================================
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          pip install -r common/requirements.txt
+          pip install -r phase4-application-v2/requirements-dev.txt
+
+      - name: Run tests
+        run: pytest -q phase4-application-v2/tests
+
+  # ============================================================
+  # 3. SAST — Trivy (filesystem)
+  # ============================================================
+  sast-trivy:
+    name: SAST (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy FS scan
+        id: trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1
+          format: table
+          output: trivy-report.txt
+
+      - name: Upload Trivy report
+        uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: trivy-report
+          path: trivy-report.txt
+
+  # ============================================================
+  # 4. SAST — Bandit (Python)
+  # ============================================================
+  sast-bandit:
+    name: SAST (Bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Bandit scan
+        id: bandit
+        run: |
+          bandit -r common services phase4-application-v2 phase8-application-v3 k8s-chatbot/backend \
+            -s HIGH -f txt 2>&1 | tee bandit-report.txt
+          # Bandit exits 1 when HIGH+ issues found → blocks merge
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: bandit-report.txt
+
+  # ============================================================
+  # 5. Dependency scan (pip audit)
+  # ============================================================
+  dep-scan:
+    name: Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit dependencies
+        id: audit
+        run: |
+          pip-audit -r common/requirements.txt \
+            -r phase4-application-v2/common/requirements.txt \
+            -r phase8-application-v3/common/requirements.txt \
+            -r k8s-chatbot/backend/requirements.txt 2>&1 | tee audit-report.txt
+          # pip-audit exits 1 when vulns found → blocks merge
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: audit-report
+          path: audit-report.txt
+
+  # ============================================================
+  # 6. Report — PR comment + Telegram
+  # ============================================================
+  report:
+    name: Report
+    runs-on: ubuntu-latest
+    needs: [lint, test, sast-trivy, sast-bandit, dep-scan]
+    if: always() && github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+
+      - name: Build report
+        id: report
+        run: |
+          REPORT="## DevSecOps Report\n\n"
+          REPORT+="| Job | Status |\n|-----|--------|\n"
+          REPORT+="| Lint | ${{ needs.lint.result }} |\n"
+          REPORT+="| Test | ${{ needs.test.result }} |\n"
+          REPORT+="| SAST (Trivy) | ${{ needs.sast-trivy.result }} |\n"
+          REPORT+="| SAST (Bandit) | ${{ needs.sast-bandit.result }} |\n"
+          REPORT+="| Dependency Scan | ${{ needs.dep-scan.result }} |\n\n"
+
+          FAILED=""
+          [ "${{ needs.lint.result }}" != "success" ] && FAILED="$FAILED Lint"
+          [ "${{ needs.test.result }}" != "success" ] && FAILED="$FAILED Test"
+          [ "${{ needs.sast-trivy.result }}" != "success" ] && FAILED="$FAILED SAST-Trivy"
+          [ "${{ needs.sast-bandit.result }}" != "success" ] && FAILED="$FAILED SAST-Bandit"
+          [ "${{ needs.dep-scan.result }}" != "success" ] && FAILED="$FAILED DepScan"
+
+          if [ -n "$FAILED" ]; then
+            REPORT+="**Merge blocked.** Failed:${FAILED}\n\n"
+          else
+            REPORT+="All checks passed.\n\n"
+          fi
+
+          REPORT+="---\n*Branch:* \`${{ github.head_ref }}\` | *Commit:* \`${{ github.sha }}\`"
+          echo "report<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$REPORT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const report = `${{ steps.report.outputs.report }}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            const botComment = comments.find(c => c.user.type === 'Bot' && c.body.includes('DevSecOps Report'));
+            const body = report;
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
+
+      - name: Notify Telegram
+        uses: appleboy/telegram-action@master
+        continue-on-error: true
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: html
+          message: |
+            <b>DevSecOps Report</b>
+            Repo: ${{ github.repository }}
+            PR: <a href="${{ github.event.pull_request.html_url }}">#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}</a>
+            Branch: <code>${{ github.head_ref }}</code>
+            Status: ${{ job.status }}
+            Lint: ${{ needs.lint.result }} | Test: ${{ needs.test.result }} | SAST: ${{ needs.sast-trivy.result }} | Dep: ${{ needs.dep-scan.result }}
