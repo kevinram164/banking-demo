@@ -219,6 +219,8 @@ jobs:
         run: |
           # --helm-kube-version: Trivy dùng K8s 1.20 mặc định, Helm charts cần >=1.24
           # --skip-dirs: bỏ qua charts thiếu deps (chưa helm dep update), phase6 có lỗi parse
+          # exit-code 1 khi có vuln base image/misconfig → block merge
+          set +e
           trivy config . --helm-kube-version 1.28 \
             --skip-dirs "phase3-monitoring-keda/helm-monitoring/kube-prometheus-stack" \
             --skip-dirs "phase3-monitoring-keda/helm-monitoring/loki" \
@@ -228,7 +230,10 @@ jobs:
             --skip-dirs "phase6-deployment-strategies" \
             --skip-files "**/*.tgz" \
             --severity HIGH,CRITICAL --exit-code 1 --format table -o image-scan-report.txt
-          # exit-code 1 khi có vuln base image/misconfig → block merge
+          TRIVY_EXIT=$?
+          echo "--- Trivy config report ---"
+          cat image-scan-report.txt
+          exit $TRIVY_EXIT
 
       - name: Upload image scan report
         uses: actions/upload-artifact@v4
