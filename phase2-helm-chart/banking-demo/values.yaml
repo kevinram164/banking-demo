@@ -1,2 +1,18 @@
 # Chart gốc không chứa giá trị — toàn bộ cấu hình nằm trong charts/.
 # ArgoCD dùng valueFiles: charts/common/values.yaml + charts/<service>/values.yaml (xem argocd/application.yaml).
+# smokeTest cần có ở root để helm template/Trivy scan chạy được
+smokeTest:
+  enabled: false
+  image: "curlimages/curl:8.11.0"
+  hookWeight: "10"
+  backoffLimit: 1
+  activeDeadlineSeconds: 120
+  authUser: "smoke-user"
+  authPassword: "smoke-pass"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
