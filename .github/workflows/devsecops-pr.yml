@@ -221,7 +221,7 @@ jobs:
           # --skip-dirs: bỏ qua charts thiếu deps (chưa helm dep update), phase6 có lỗi parse
           # exit-code 1 khi có vuln base image/misconfig → block merge
           set +e
-          trivy config . --helm-kube-version 1.28 \
+          trivy config . --helm-kube-version 1.28 --ignorefile .trivyignore \
             --skip-dirs "phase3-monitoring-keda/helm-monitoring/kube-prometheus-stack" \
             --skip-dirs "phase3-monitoring-keda/helm-monitoring/loki" \
             --skip-dirs "phase3-monitoring-keda/helm-monitoring/opentelemetry-collector" \
