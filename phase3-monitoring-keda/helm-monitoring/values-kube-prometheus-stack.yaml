@@ -104,7 +104,7 @@ grafana:
   persistence:
     enabled: true
     type: pvc
-    storageClassName: "nfs-client"  # Sử dụng default StorageClass của cluster
+    storageClassName: "monitoring-nfs"  # Sử dụng default StorageClass của cluster
     accessModes:
       - ReadWriteOnce
     size: 10Gi
