@@ -1,11 +1,15 @@
 # Chart gốc không chứa giá trị — toàn bộ cấu hình nằm trong charts/.
 # ArgoCD dùng valueFiles: charts/common/values.yaml + charts/<service>/values.yaml (xem argocd/application.yaml).
-# namespace, secret, smokeTest, global cần có ở root để helm template/Trivy scan chạy được
+# namespace, secret, smokeTest, ingress, global cần có ở root để helm template/Trivy scan chạy được
 global:
   namespace: banking
 
 namespace:
   enabled: false
+
+ingress:
+  enabled: false
+  kongExternalService: false
 
 secret:
   enabled: false
