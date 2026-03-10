@@ -1,6 +1,12 @@
 # Chart gốc không chứa giá trị — toàn bộ cấu hình nằm trong charts/.
 # ArgoCD dùng valueFiles: charts/common/values.yaml + charts/<service>/values.yaml (xem argocd/application.yaml).
-# secret, smokeTest cần có ở root để helm template/Trivy scan chạy được
+# namespace, secret, smokeTest, global cần có ở root để helm template/Trivy scan chạy được
+global:
+  namespace: banking
+
+namespace:
+  enabled: false
+
 secret:
   enabled: false
   postgresUser: ""
