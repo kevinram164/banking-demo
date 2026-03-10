@@ -64,8 +64,8 @@ singleBinary:
     size: 10Gi
     # IMPORTANT: chart grafana/loki thường dùng key `storageClass` (không phải `storageClassName`)
     # Nếu cluster có default StorageClass thì có thể để trống.
-    storageClass: nfs-client
-    storageClassName: nfs-client
+    storageClass: monitoring-nfs
+    storageClassName: monitoring-nfs
     accessModes:
       - ReadWriteOnce
     mountPath: /var/loki
