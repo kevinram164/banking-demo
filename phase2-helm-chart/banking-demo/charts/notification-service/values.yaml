@@ -7,7 +7,7 @@ notification-service:
     tag: f44b9c3
     pullPolicy: Always
   imagePullSecrets: []
-  replicas: 0
+  replicas: 1
   service:
     port: 8004
     portName: http
