@@ -96,10 +96,6 @@ spec:
             - containerPort: 16686  # Query UI
             - containerPort: 4317   # OTLP gRPC
             - containerPort: 4318   # OTLP HTTP
-      volumes:
-        - name: config
-          configMap:
-            name: jaeger-config
           resources:
             requests:
               memory: "128Mi"
@@ -119,6 +115,10 @@ spec:
               port: 16686
             initialDelaySeconds: 5
             periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: jaeger-config
 ---
 # Ingress cho Jaeger UI (tùy chọn — chỉnh host nếu cần)
 apiVersion: networking.k8s.io/v1
