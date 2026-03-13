@@ -24,6 +24,7 @@ Tất cả cài vào namespace `monitoring`. Tạo namespace trước (hoặc `-
 3. **Promtail** (log shipper → Loki)
 4. **Tempo** (tracing backend, nhẹ hơn Jaeger)
 5. **OpenTelemetry Collector** (nhận OTLP từ app → export traces sang Tempo)
+6. **Jaeger** (UI tracing — dễ dùng hơn Grafana Explore)
 
 Sau khi cài xong, chỉnh **Grafana** `additionalDataSources` (Loki, Tempo) trong `values-kube-prometheus-stack.yaml` nếu chưa trỏ đúng URL, rồi upgrade.
 
@@ -103,6 +104,31 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
   -n monitoring \
   -f values-otel-collector.yaml
 ```
+
+---
+
+## 6. Jaeger (UI tracing)
+
+- **Manifest:** `jaeger/jaeger-all-in-one.yaml`
+- All-in-one: collector + query + storage (in-memory)
+- Nhận traces từ OTEL Collector qua OTLP (port 4317)
+- UI dễ dùng hơn Grafana Explore cho việc xem trace
+
+```bash
+kubectl apply -f jaeger/jaeger-all-in-one.yaml
+```
+
+Sau khi cài Jaeger, **upgrade OTEL Collector** để export thêm sang Jaeger:
+
+```bash
+helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
+  -n monitoring \
+  -f values-otel-collector.yaml
+```
+
+**Truy cập Jaeger UI:**
+- Port-forward: `kubectl port-forward -n monitoring svc/jaeger 16686:16686` → `http://localhost:16686`
+- Hoặc qua Ingress: `http://jaeger.npd-banking.co` (chỉnh host trong manifest nếu cần)
 
 ---
 
@@ -215,5 +241,6 @@ Chi tiết: xem `phase3-monitoring-keda/exporters/README.md`.
 - **Grafana:** `kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80` → `http://localhost:3000` (user: admin, pass: admin)
 - **Prometheus:** port-forward `svc/kube-prometheus-stack-prometheus 9090:9090`
 - **Tempo:** Grafana → Explore → datasource Tempo (không cần port-forward Tempo riêng)
+- **Jaeger:** `kubectl port-forward -n monitoring svc/jaeger 16686:16686` → `http://localhost:16686` (hoặc `http://jaeger.npd-banking.co` nếu đã bật Ingress)
 
 Hoặc cấu hình Ingress cho từng thành phần trong values (host, TLS, v.v.) nếu cluster đã có Ingress controller.

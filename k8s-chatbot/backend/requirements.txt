@@ -5,3 +5,8 @@ httpx==0.28.1
 openai==1.57.0
 pydantic==2.10.2
 chromadb==0.5.23
+# OpenTelemetry auto-instrumentation (không cần sửa code)
+opentelemetry-distro[otlp]>=0.49b0
+opentelemetry-exporter-otlp-proto-grpc>=1.27.0
+opentelemetry-instrumentation-fastapi>=0.49b0
+opentelemetry-instrumentation-httpx>=0.49b0

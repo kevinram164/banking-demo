@@ -16,4 +16,5 @@ COPY backend/ .
 COPY --from=frontend /app/dist ./frontend/dist
 
 EXPOSE 8080
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Auto-instrumentation: wrap uvicorn, gửi traces tới OTEL Collector (không sửa code app)
+CMD ["opentelemetry-instrument", "--traces_exporter", "otlp", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -196,12 +196,19 @@ backend:
 | `RAG_TOP_K` | Số examples RAG retrieve | `5` |
 | `RAG_ENABLED` | Bật/tắt RAG | `true` |
 
-### 5.2 Image size
+### 5.2 OpenTelemetry tracing (không sửa code)
+
+- **Auto-instrumentation**: Dùng `opentelemetry-instrument` wrap uvicorn
+- **Traces** → OTEL Collector → Tempo
+- Chỉ cần env `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`
+- Override `otelCollectorEndpoint` trong values nếu service name khác
+
+### 5.3 Image size
 
 - **~500MB–800MB** (sau khi bỏ sentence-transformers)
 - RAG dùng Chroma default embedding (ONNX, nhẹ) thay vì PyTorch
 
-### 5.3 Storage (StatefulSet)
+### 5.4 Storage (StatefulSet)
 
 - **volumeClaimTemplates**: `chroma-data` (1Gi)
 - **storageClassName**: `nfs-client`

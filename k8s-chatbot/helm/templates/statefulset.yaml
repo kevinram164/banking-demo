@@ -54,6 +54,11 @@ spec:
               value: "/data/chroma"
             - name: RAG_TOP_K
               value: "5"
+            # OpenTelemetry auto-instrumentation (traces → OTEL Collector → Tempo)
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.otelCollectorEndpoint | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: "k8s-chatbot"
           {{- if .Values.backend.persistence.enabled }}
           volumeMounts:
             - name: chroma-data

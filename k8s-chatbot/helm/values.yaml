@@ -39,6 +39,8 @@ frontend:
 prometheusUrl: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
 lokiUrl: "http://loki.monitoring.svc.cluster.local:3100"
 tempoUrl: "http://tempo.monitoring.svc.cluster.local:3200"
+# OpenTelemetry tracing (auto-instrumentation, không sửa code)
+otelCollectorEndpoint: "http://opentelemetry-collector.monitoring.svc.cluster.local:4317"
 
 ingress:
   enabled: true
