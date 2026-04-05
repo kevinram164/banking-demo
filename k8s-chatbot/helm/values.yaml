@@ -3,7 +3,7 @@ namespace: k8s-chatbot
 backend:
   image:
     repository: registry.gitlab.com/kiettt164/banking-demo-payment/k8s-chatbot
-    tag: 29cd6be
+    tag: 376eebb
     pullPolicy: Always
   imagePullSecrets:
     - name: gitlab-registry  # dùng chung với banking
@@ -25,7 +25,7 @@ backend:
   persistence:
     enabled: true
     size: 1Gi
-    storageClassName: nfs-client
+    storageClassName: chatbot-nfs
 
 frontend:
   image:
@@ -39,8 +39,10 @@ frontend:
 prometheusUrl: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
 lokiUrl: "http://loki.monitoring.svc.cluster.local:3100"
 tempoUrl: "http://tempo.monitoring.svc.cluster.local:3200"
+# OpenTelemetry tracing (auto-instrumentation, không sửa code)
+otelCollectorEndpoint: "http://opentelemetry-collector.monitoring.svc.cluster.local:4317"
 
 ingress:
-  enabled: false
+  enabled: true
   className: haproxy
   host: chatbot.npd-banking.co

@@ -1,22 +1,23 @@
 """
 Transfer Service — Phase 8 Consumer
 Consumes from transfer.requests, processes, stores response in Redis.
+FastAPI + instrument_fastapi để xuất traces sang Jaeger (health check tạo span).
 """
 import os
 import asyncio
 import json
-from contextlib import nullcontext
+from contextlib import asynccontextmanager, nullcontext
 from sqlalchemy import select
 from redis.asyncio import Redis
 from aio_pika import IncomingMessage
+from fastapi import FastAPI
 
 from common.db import SessionLocal, engine, Base, log_db_pool_status
 from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, publish_notify, create_redis_client
 from common.rabbitmq_utils import store_response
 from common.logging_utils import get_json_logger, log_event, log_error_event, mask_amount, mask_account_number, should_log_request_flow
-from common.health_server import start_health_background
-from common.observability import init_tracing, get_tracer
+from common.observability import instrument_fastapi, get_tracer
 
 Base.metadata.create_all(bind=engine)
 
@@ -154,14 +155,39 @@ async def consume():
     await asyncio.Future()
 
 
-async def main():
-    init_tracing("transfer-service")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global redis
     redis = await create_redis_client(REDIS_URL, logger=logger)
     log_db_pool_status(logger)
-    start_health_background(port=9999, service_name="transfer-service")
-    await consume()
+    consumer_task = asyncio.create_task(consume())
+    yield
+    consumer_task.cancel()
+    try:
+        await consumer_task
+    except asyncio.CancelledError:
+        pass
+    if redis:
+        await redis.close()
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
+app = FastAPI(title="Transfer Service", lifespan=lifespan)
+instrument_fastapi(app, "transfer-service")
+
+
+@app.get("/health")
+async def health():
+    try:
+        if redis:
+            await redis.ping()
+        db = SessionLocal()
+        try:
+            db.execute(select(1))
+            db_status = "ok"
+        except Exception:
+            db_status = "error"
+        finally:
+            db.close()
+        return {"status": "healthy", "service": "transfer-service", "database": db_status, "redis": "ok"}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}

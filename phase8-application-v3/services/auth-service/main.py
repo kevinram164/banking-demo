@@ -1,6 +1,7 @@
 """
 Auth Service — Phase 8 Consumer
 Consumes from auth.requests, processes, stores response in Redis.
+FastAPI + instrument_fastapi để xuất traces sang Jaeger (health check tạo span).
 """
 import os
 import asyncio
@@ -13,6 +14,7 @@ from sqlalchemy import select
 from redis.asyncio import Redis
 import aio_pika
 from aio_pika import IncomingMessage
+from fastapi import FastAPI
 
 from common.db import SessionLocal, engine, Base, log_db_pool_status
 from common.models import User
@@ -20,8 +22,7 @@ from common.auth import hash_password, verify_password
 from common.redis_utils import create_session, create_redis_client, get_user_for_login, set_user_for_login_cache
 from common.rabbitmq_utils import store_response
 from common.logging_utils import get_json_logger, log_event, log_error_event, should_log_request_flow
-from common.health_server import start_health_background
-from common.observability import init_tracing, get_tracer
+from common.observability import instrument_fastapi, get_tracer
 
 Base.metadata.create_all(bind=engine)
 
@@ -157,14 +158,39 @@ async def consume():
     await asyncio.Future()  # Run forever
 
 
-async def main():
-    init_tracing("auth-service")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global redis
     redis = await create_redis_client(REDIS_URL, logger=logger)
     log_db_pool_status(logger)
-    start_health_background(port=9999, service_name="auth-service")
-    await consume()
+    consumer_task = asyncio.create_task(consume())
+    yield
+    consumer_task.cancel()
+    try:
+        await consumer_task
+    except asyncio.CancelledError:
+        pass
+    if redis:
+        await redis.close()
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
+app = FastAPI(title="Auth Service", lifespan=lifespan)
+instrument_fastapi(app, "auth-service")
+
+
+@app.get("/health")
+async def health():
+    try:
+        if redis:
+            await redis.ping()
+        db = SessionLocal()
+        try:
+            db.execute(select(1))
+            db_status = "ok"
+        except Exception:
+            db_status = "error"
+        finally:
+            db.close()
+        return {"status": "healthy", "service": "auth-service", "database": db_status, "redis": "ok"}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}

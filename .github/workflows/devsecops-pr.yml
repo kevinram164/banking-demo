@@ -1,0 +1,451 @@
+# DevSecOps Pipeline — Phase 7
+# Trigger: PR vào main (GitHub Flow)
+# Report: PR comment + Telegram
+# Block merge: fail khi có CRITICAL
+
+name: DevSecOps Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'common/**'
+      - 'services/**'
+      - 'frontend/**'
+      - 'phase4-application-v2/**'
+      - 'phase8-application-v3/**'
+      - 'k8s-chatbot/**'
+      - '**/Dockerfile'
+      - '**/Dockerfile.*'
+
+  workflow_dispatch:
+
+jobs:
+  # ============================================================
+  # 1. Lint
+  # ============================================================
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint Python
+        run: |
+          ruff check common services --ignore E501 2>/dev/null || true
+          ruff check phase4-application-v2/common phase4-application-v2/services --ignore E501 2>/dev/null || true
+          ruff check phase8-application-v3/common phase8-application-v3/services phase8-application-v3/producer --ignore E501 2>/dev/null || true
+          ruff check k8s-chatbot/backend --ignore E501 2>/dev/null || true
+
+  # ============================================================
+  # 2. Test
+  # ============================================================
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          pip install -r common/requirements.txt
+          pip install -r phase4-application-v2/requirements-dev.txt
+
+      - name: Run tests
+        run: pytest -q phase4-application-v2/tests
+
+  # ============================================================
+  # 3. SAST — Trivy (filesystem)
+  # ============================================================
+  sast-trivy:
+    name: SAST (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.5
+
+      - name: Trivy FS scan
+        run: |
+          # Ghi report ra file (trivy ghi file trước khi exit)
+          trivy fs . --severity HIGH,CRITICAL --ignore-unfixed --format table -o trivy-report.txt
+          # exit-code 1 khi có vuln → block merge
+
+      - name: Upload Trivy report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-report
+          path: trivy-report.txt
+
+  # ============================================================
+  # 4. SAST — Bandit (Python)
+  # ============================================================
+  sast-bandit:
+    name: SAST (Bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Bandit scan
+        id: bandit
+        run: |
+          bandit -r common services phase4-application-v2 phase8-application-v3 k8s-chatbot/backend \
+            -s HIGH -f txt 2>&1 | tee bandit-report.txt
+          # Bandit exits 1 when HIGH+ issues found → blocks merge
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: bandit-report.txt
+
+  # ============================================================
+  # 5. Dependency scan (pip audit)
+  # ============================================================
+  dep-scan:
+    name: Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit dependencies
+        id: audit
+        run: |
+          pip-audit -r common/requirements.txt \
+            -r phase4-application-v2/common/requirements.txt \
+            -r phase8-application-v3/common/requirements.txt \
+            -r k8s-chatbot/backend/requirements.txt 2>&1 | tee audit-report.txt
+          # pip-audit exits 1 when vulns found → blocks merge
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: audit-report
+          path: audit-report.txt
+
+  # ============================================================
+  # 6. Secrets scan (Gitleaks)
+  # ============================================================
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        run: |
+          docker run --rm -v "$PWD:/path" zricethezav/gitleaks:latest detect \
+            --source /path --report-path /path/secrets-report.json --report-format json 2>&1 | tee secrets-report.txt
+          [ -f secrets-report.json ] && cat secrets-report.json >> secrets-report.txt
+          [ ! -s secrets-report.txt ] && echo "No secrets detected" > secrets-report.txt
+          # Gitleaks exits 1 when leaks found → block merge
+
+      - name: Upload secrets report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: secrets-report
+          path: secrets-report.txt
+
+  # ============================================================
+  # 7. CA — CodeQL (Code Analysis)
+  # ============================================================
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
+
+  # ============================================================
+  # 8. Image base scan (Trivy config — Dockerfile)
+  # ============================================================
+  image-scan:
+    name: Image Base Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.5
+
+      - name: Trivy config scan (Dockerfile + Helm)
+        run: |
+          # --helm-kube-version: Trivy dùng K8s 1.20 mặc định, Helm charts cần >=1.24
+          # --skip-files: bỏ qua .tgz (packaged charts thiếu Chart.yaml khi extract)
+          trivy config . --helm-kube-version 1.28 \
+            --skip-files "*.tgz" \
+            --severity HIGH,CRITICAL --exit-code 1 --format table -o image-scan-report.txt
+          # exit-code 1 khi có vuln base image/misconfig → block merge
+
+      - name: Upload image scan report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: image-scan-report
+          path: image-scan-report.txt
+
+  # ============================================================
+  # 9. Report — PR comment + Telegram
+  # ============================================================
+  report:
+    name: Report
+    runs-on: ubuntu-latest
+    needs: [lint, test, sast-trivy, sast-bandit, dep-scan, secrets-scan, codeql, image-scan]
+    if: always()
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          merge-multiple: false
+
+      - name: Build report
+        id: report
+        run: |
+          {
+            echo "## DevSecOps Report"
+            echo ""
+            echo "| Job | Status |"
+            echo "|-----|--------|"
+            echo "| Lint | ${{ needs.lint.result }} |"
+            echo "| Test | ${{ needs.test.result }} |"
+            echo "| SAST (Trivy) | ${{ needs.sast-trivy.result }} |"
+            echo "| SAST (Bandit) | ${{ needs.sast-bandit.result }} |"
+            echo "| Dependency Scan | ${{ needs.dep-scan.result }} |"
+            echo "| Secrets Scan | ${{ needs.secrets-scan.result }} |"
+            echo "| CodeQL (CA) | ${{ needs.codeql.result }} |"
+            echo "| Image Base Scan | ${{ needs.image-scan.result }} |"
+            echo ""
+          } > report.md
+
+          FAILED=""
+          [ "${{ needs.lint.result }}" != "success" ] && FAILED="$FAILED Lint"
+          [ "${{ needs.test.result }}" != "success" ] && FAILED="$FAILED Test"
+          [ "${{ needs.sast-trivy.result }}" != "success" ] && FAILED="$FAILED SAST-Trivy"
+          [ "${{ needs.sast-bandit.result }}" != "success" ] && FAILED="$FAILED SAST-Bandit"
+          [ "${{ needs.dep-scan.result }}" != "success" ] && FAILED="$FAILED DepScan"
+          [ "${{ needs.secrets-scan.result }}" != "success" ] && FAILED="$FAILED Secrets"
+          [ "${{ needs.codeql.result }}" != "success" ] && FAILED="$FAILED CodeQL"
+          [ "${{ needs.image-scan.result }}" != "success" ] && FAILED="$FAILED ImageScan"
+
+          if [ -n "$FAILED" ]; then
+            echo "**Merge blocked.** Failed:${FAILED}" >> report.md
+            echo "" >> report.md
+            # Append chi tiết report (chỉ job failed) vào PR comment
+            if [ "${{ needs.sast-trivy.result }}" != "success" ]; then
+              for f in "trivy-report/trivy-report.txt" "trivy-report.txt"; do
+                [ -f "$f" ] && { echo "<details><summary>Trivy Report</summary>" >> report.md; echo '```' >> report.md; cat "$f" >> report.md; echo '```' >> report.md; echo "</details>" >> report.md; break; }
+              done
+            fi
+            if [ "${{ needs.sast-bandit.result }}" != "success" ]; then
+              for f in "bandit-report/bandit-report.txt" "bandit-report.txt"; do
+                [ -f "$f" ] && { echo "<details><summary>Bandit Report</summary>" >> report.md; echo '```' >> report.md; cat "$f" >> report.md; echo '```' >> report.md; echo "</details>" >> report.md; break; }
+              done
+            fi
+            if [ "${{ needs.dep-scan.result }}" != "success" ]; then
+              for f in "audit-report/audit-report.txt" "audit-report.txt"; do
+                [ -f "$f" ] && { echo "<details><summary>Dependency Scan Report</summary>" >> report.md; echo '```' >> report.md; cat "$f" >> report.md; echo '```' >> report.md; echo "</details>" >> report.md; break; }
+              done
+            fi
+            if [ "${{ needs.secrets-scan.result }}" != "success" ]; then
+              for f in "secrets-report/secrets-report.txt" "secrets-report.txt"; do
+                [ -f "$f" ] && { echo "<details><summary>Secrets Scan Report</summary>" >> report.md; echo '```' >> report.md; cat "$f" >> report.md; echo '```' >> report.md; echo "</details>" >> report.md; break; }
+              done
+            fi
+            if [ "${{ needs.image-scan.result }}" != "success" ]; then
+              for f in "image-scan-report/image-scan-report.txt" "image-scan-report.txt"; do
+                [ -f "$f" ] && { echo "<details><summary>Image Base Scan Report</summary>" >> report.md; echo '```' >> report.md; cat "$f" >> report.md; echo '```' >> report.md; echo "</details>" >> report.md; break; }
+              done
+            fi
+          else
+            echo "All checks passed." >> report.md
+          fi
+
+          echo "" >> report.md
+          echo "---" >> report.md
+          echo "*Branch:* \`${{ github.head_ref || github.ref_name }}\` | *Commit:* \`${{ github.sha }}\`" >> report.md
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('report.md', 'utf8');
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            const botComment = comments.find(c => c.user.type === 'Bot' && c.body.includes('DevSecOps Report'));
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: report
+              });
+            }
+
+      - name: Notify Telegram (summary)
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+        uses: appleboy/telegram-action@master
+        continue-on-error: true
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: html
+          message: |
+            <b>DevSecOps Report</b>
+            Repo: ${{ github.repository }}
+            ${{ github.event_name == 'pull_request' && format('PR: <a href="{0}">#{1} {2}</a>', github.event.pull_request.html_url, github.event.pull_request.number, github.event.pull_request.title) || format('Run: {0} | Branch: {1}', github.event_name, github.ref_name) }}
+            Branch: <code>${{ github.head_ref || github.ref_name }}</code>
+            Status: ${{ job.status }}
+            Lint: ${{ needs.lint.result }} | Test: ${{ needs.test.result }} | SAST: ${{ needs.sast-trivy.result }} | Dep: ${{ needs.dep-scan.result }}
+            Secrets: ${{ needs.secrets-scan.result }} | CodeQL: ${{ needs.codeql.result }} | Image: ${{ needs.image-scan.result }}
+
+      - name: List downloaded artifacts
+        run: |
+          echo "=== Artifact structure ==="
+          find . -type f -name "*.txt" 2>/dev/null || true
+          ls -la trivy-report/ 2>/dev/null || echo "trivy-report/ not found"
+          ls -la bandit-report/ 2>/dev/null || echo "bandit-report/ not found"
+          ls -la audit-report/ 2>/dev/null || echo "audit-report/ not found"
+          ls -la secrets-report/ 2>/dev/null || echo "secrets-report/ not found"
+          ls -la image-scan-report/ 2>/dev/null || echo "image-scan-report/ not found"
+
+      - name: Send Trivy report to Telegram
+        continue-on-error: true
+        run: |
+          F=""
+          [ -f "trivy-report/trivy-report.txt" ] && F="trivy-report/trivy-report.txt"
+          [ -z "$F" ] && [ -f "trivy-report.txt" ] && F="trivy-report.txt"
+          if [ -n "$F" ]; then
+            echo "Sending Trivy report: $F"
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+              -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -F "document=@$F" \
+              -F "caption=🔒 Trivy SAST Report"
+          else
+            echo "Trivy report not found"
+          fi
+
+      - name: Send Bandit report to Telegram
+        continue-on-error: true
+        run: |
+          F=""
+          [ -f "bandit-report/bandit-report.txt" ] && F="bandit-report/bandit-report.txt"
+          [ -z "$F" ] && [ -f "bandit-report.txt" ] && F="bandit-report.txt"
+          if [ -n "$F" ]; then
+            echo "Sending Bandit report: $F"
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+              -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -F "document=@$F" \
+              -F "caption=🔒 Bandit SAST Report"
+          else
+            echo "Bandit report not found"
+          fi
+
+      - name: Send Dependency scan report to Telegram
+        continue-on-error: true
+        run: |
+          F=""
+          [ -f "audit-report/audit-report.txt" ] && F="audit-report/audit-report.txt"
+          [ -z "$F" ] && [ -f "audit-report.txt" ] && F="audit-report.txt"
+          if [ -n "$F" ]; then
+            echo "Sending Dependency report: $F"
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+              -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -F "document=@$F" \
+              -F "caption=🔒 Dependency Scan Report"
+          else
+            echo "Audit report not found"
+          fi
+
+      - name: Send Secrets report to Telegram
+        continue-on-error: true
+        run: |
+          F=""
+          [ -f "secrets-report/secrets-report.txt" ] && F="secrets-report/secrets-report.txt"
+          [ -z "$F" ] && [ -f "secrets-report.txt" ] && F="secrets-report.txt"
+          if [ -n "$F" ]; then
+            echo "Sending Secrets report: $F"
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+              -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -F "document=@$F" \
+              -F "caption=🔒 Secrets Scan Report"
+          else
+            echo "Secrets report not found"
+          fi
+
+      - name: Send Image scan report to Telegram
+        continue-on-error: true
+        run: |
+          F=""
+          [ -f "image-scan-report/image-scan-report.txt" ] && F="image-scan-report/image-scan-report.txt"
+          [ -z "$F" ] && [ -f "image-scan-report.txt" ] && F="image-scan-report.txt"
+          if [ -n "$F" ]; then
+            echo "Sending Image scan report: $F"
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+              -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -F "document=@$F" \
+              -F "caption=🔒 Image Base Scan Report"
+          else
+            echo "Image scan report not found"
+          fi

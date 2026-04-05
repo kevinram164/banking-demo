@@ -6,6 +6,7 @@ Giai đoạn 7 tập trung vào **bảo mật** (application + API gateway + sec
 
 - Cải thiện **auth/session** (chuẩn hoá JWT + refresh token).
 - Bảo vệ **API Gateway (Kong)** bằng các plugin security cơ bản.
+- **WAF** (ModSecurity/Coraza + OWASP CRS) — chặn SQLi, XSS, LFI, …
 - Chuẩn hoá **quản lý secrets/config** trong CI/CD.
 - Định nghĩa **SLO** đơn giản + ý tưởng alerting/chaos để demo “SRE mindset”.
 
@@ -18,6 +19,8 @@ phase7-security-reliability/
 │   └── JWT-DESIGN.md         # Thiết kế JWT + refresh token + revoke
 ├── kong-security/
 │   └── KONG-PLUGINS.md       # Thiết kế plugin rate-limit, size-limit, correlation-id
+├── waf/
+│   └── WAF-DESIGN.md         # Thiết kế WAF — đặt ở NGINX LB (ModSecurity/F5 WAF)
 ├── ci-security/
 │   └── GHA-SECURITY.md       # Hardening CI: image scan, secrets
 └── sre/
@@ -28,11 +31,14 @@ phase7-security-reliability/
 
 1. **Auth hardening (JWT)** – đọc `auth-hardening/JWT-DESIGN.md`; có thể implement vào Phase 4.
 2. **Kong security** – dùng `kong-security/KONG-PLUGINS.md` để chỉnh values Kong (Phase 2 hoặc chart Kong riêng sau Phase 5).
-3. **CI security** – mở rộng `.github/workflows/ci.yml` theo `ci-security/GHA-SECURITY.md`.
-4. **SRE** – thêm alert rule vào Phase 3 Prometheus (theo `sre/SLO-ALERTING.md`).
+3. **WAF** – đọc `waf/WAF-DESIGN.md`; cấu hình ModSecurity hoặc F5 WAF trên NGINX LB (trước HAProxy Ingress).
+4. **CI security** – mở rộng `.github/workflows/ci.yml` theo `ci-security/GHA-SECURITY.md`.
+5. **DevSecOps pipeline** – workflow `.github/workflows/devsecops-pr.yml` chạy trên PR (feature → main): scan + test + report, chặn merge nếu có CRITICAL. Chi tiết xem `ci-security/GHA-SECURITY.md`.
+6. **SRE** – thêm alert rule vào Phase 3 Prometheus (theo `sre/SLO-ALERTING.md`).
 
 ## Liên kết
 
 - **Phase 5**: Kiến trúc (tách ns, tách chart, Kong DB) – `phase5-architecture-refactor/`.
 - **Phase 2 / Phase 5**: Kong values hoặc chart Kong riêng khi áp dụng plugin.
 - **Phase 3**: Prometheus + Grafana cho SLO/alert.
+- **WAF**: `waf/WAF-DESIGN.md` — WAF trên NGINX LB (ModSecurity/F5 WAF).

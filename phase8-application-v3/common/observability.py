@@ -27,6 +27,22 @@ def init_tracing(service_name: str) -> None:
         provider = TracerProvider(resource=resource)
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(insecure=True)))
         trace.set_tracer_provider(provider)
+
+        # Redis instrumentation — trace mỗi lệnh Redis (GET, SET, ...) để xem latency
+        try:
+            from opentelemetry.instrumentation.redis import RedisInstrumentor
+            RedisInstrumentor().instrument()
+        except Exception:
+            pass
+
+        # SQLAlchemy instrumentation — trace mỗi query DB để xem latency
+        try:
+            from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+            from common import db
+            if getattr(db, "engine", None):
+                SQLAlchemyInstrumentor().instrument(engine=db.engine)
+        except Exception:
+            pass
     except Exception:
         pass
 

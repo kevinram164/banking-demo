@@ -8,7 +8,7 @@ on:
       - 'common/**'
       - 'services/**'
       - 'frontend/**'
-      - 'phase4-application-v2/**'
+      #- 'phase4-application-v2/**'
       - 'phase8-application-v3/**'
       # KHÔNG trigger khi đổi:
       # - phase2-helm-chart/**
@@ -16,14 +16,8 @@ on:
       # - k8s/**
       # - *.md
 
-  pull_request:
-    branches: [main]
-    paths:
-      - 'common/**'
-      - 'services/**'
-      - 'frontend/**'
-      - 'phase4-application-v2/**'
-      - 'phase8-application-v3/**'
+  # KHÔNG trigger CI trên PR — PR dùng DevSecOps pipeline (devsecops-pr.yml)
+  # CI chỉ chạy khi push vào main/develop (sau khi merge)
 
   # Manual trigger - chọn version V1/V2/V3 và services
   workflow_dispatch:

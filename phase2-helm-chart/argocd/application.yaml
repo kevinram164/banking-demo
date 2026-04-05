@@ -26,6 +26,7 @@ spec:
         - charts/transfer-service/values.yaml
         - charts/notification-service/values.yaml
         - charts/frontend/values.yaml
+        - charts/api-producer/values.yaml
       parameters:
         - name: postgres.enabled
           value: "false"

@@ -4,10 +4,10 @@ notification-service:
   enabled: true
   image:
     repository: registry.gitlab.com/kiettt164/banking-demo-payment/notification-service
-    tag: 5e9d170
+    tag: 2d4c7af
     pullPolicy: Always
   imagePullSecrets: []
-  replicas: 0
+  replicas: 1
   service:
     port: 8004
     portName: http
@@ -23,7 +23,7 @@ notification-service:
   corsOrigins: "http://localhost:3000"
   # OpenTelemetry tracing → gửi traces về otel-collector → Tempo
   extraEnv:
-    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4317"
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.monitoring.svc.cluster.local:4317"
   readinessProbe:
     enabled: true
     path: /health

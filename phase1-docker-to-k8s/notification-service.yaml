@@ -24,7 +24,7 @@ spec:
         - name: gitlab-registry
       containers:
         - name: notification-service
-          image: registry.gitlab.com/kiettt164/banking-demo-payment/notification-service:latest
+          image: registry.gitlab.com/kiettt164/banking-demo-payment/notification-service:v1
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false

@@ -38,8 +38,8 @@ tempo:
 persistence:
   enabled: true
   size: 5Gi
-  storageClass: nfs-client  # bật nếu dùng NFS
-  storageClassName: nfs-client
+  storageClass: monitoring-nfs  # bật nếu dùng NFS
+  storageClassName: monitoring-nfs
   accessModes:
     - ReadWriteOnce
   mountPath: /var/tempo

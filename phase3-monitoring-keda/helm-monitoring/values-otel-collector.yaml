@@ -1,7 +1,9 @@
-# OpenTelemetry Collector — nhận OTLP từ app, export traces sang Tempo
+# OpenTelemetry Collector — nhận OTLP từ app, export traces sang Tempo + Jaeger
 # Chart: open-telemetry/opentelemetry-collector
 # Chỉnh config.exporters.otlp/tempo endpoint nếu Tempo service khác.
 
+# Service name = opentelemetry-collector (app trỏ tới opentelemetry-collector.monitoring...)
+fullnameOverride: opentelemetry-collector
 namespaceOverride: monitoring
 mode: deployment
 replicaCount: 1
@@ -36,6 +38,10 @@ config:
       endpoint: tempo.monitoring.svc.cluster.local:4317
       tls:
         insecure: true
+    otlp/jaeger:
+      endpoint: jaeger.monitoring.svc.cluster.local:4317
+      tls:
+        insecure: true
     debug:
       verbosity: basic
   service:
@@ -44,7 +50,7 @@ config:
       traces:
         receivers: [otlp]
         processors: [memory_limiter, batch]
-        exporters: [otlp/tempo, debug]
+        exporters: [otlp/tempo, otlp/jaeger, debug]
 
 resources:
   requests:

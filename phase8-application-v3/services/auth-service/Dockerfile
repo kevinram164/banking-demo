@@ -9,5 +9,5 @@ COPY phase8-application-v3/services/auth-service /app
 
 RUN pip install --no-cache-dir -r common/requirements.txt
 
-EXPOSE 9999
-CMD ["python", "-m", "main"]
+EXPOSE 8001
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]

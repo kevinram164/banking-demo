@@ -22,7 +22,7 @@ primary:
   persistence:
     enabled: true
     size: 1Gi
-    storageClass: nfs-client
+    storageClass: pg-client
   resources:
     requests:
       memory: "256Mi"
@@ -33,10 +33,13 @@ primary:
 
 readReplicas:
   replicaCount: 1
+  # Standby phải có max_connections >= primary (500), nếu không replication fail
+  extendedConfiguration: |-
+    max_connections = 500
   persistence:
     enabled: true
     size: 1Gi
-    storageClass: nfs-client
+    storageClass: pg-nfs
   resources:
     requests:
       memory: "256Mi"

@@ -32,31 +32,31 @@ kong:
           strip_path: false
           protocols: ["http", "https"]
 
-# 3. Consumers: auth/account/transfer = v3 RabbitMQ consumer (health port 9999)
+# 3. Consumers: auth/account/transfer = v3 FastAPI + RabbitMQ consumer (port 8001/8002/8003 cho /health + tracing)
 #    notification = FastAPI + WebSocket (port 8004 cho /ws)
 auth-service:
   service:
-    port: 9999
+    port: 8001
   readinessProbe:
-    port: 9999
+    port: 8001
   rabbitmqSecretRef:
     name: rabbitmq-connection-secret
     key: RABBITMQ_URL
 
 account-service:
   service:
-    port: 9999
+    port: 8002
   readinessProbe:
-    port: 9999
+    port: 8002
   rabbitmqSecretRef:
     name: rabbitmq-connection-secret
     key: RABBITMQ_URL
 
 transfer-service:
   service:
-    port: 9999
+    port: 8003
   readinessProbe:
-    port: 9999
+    port: 8003
   rabbitmqSecretRef:
     name: rabbitmq-connection-secret
     key: RABBITMQ_URL

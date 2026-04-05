@@ -6,10 +6,10 @@
 # CÁCH TRIỂN KHAI:
 #
 # 1. Tạo namespace:
-#    kubectl create namespace rabbit
+#    kubectl create namespace rabbitmq
 #
 # 2. Tạo Secret chứa password và Erlang cookie (BẮT BUỘC, KHÔNG ghi vào values):
-#    kubectl create secret generic rabbitmq-secret -n rabbit \
+#    kubectl create secret generic rabbitmq-secret -n rabbitmq \
 #      --from-literal=rabbitmq-password='Mbfs@2025' \
 #      --from-literal=rabbitmq-erlang-cookie='banking-rabbitmq-ha-cookie'
 #

@@ -46,94 +46,6 @@ kubectl patch appproject banking-demo -n argocd --type merge \
 - Các services đã được deploy từ trước khi repo bị disconnect
 - Cần connect repo và sync lại tất cả Applications
 
----
-
-## ⚠️ QUAN TRỌNG: Fix toàn bộ nếu postgres/redis không deploy được
-
-**Nếu postgres và redis vẫn không được tạo:**
-
-### Cách 1: Dùng script force deploy (Khuyến nghị - nhanh nhất)
-
-```bash
-# Script này đảm bảo namespace tồn tại và sync Applications
-chmod +x force-deploy-postgres-redis.sh
-./force-deploy-postgres-redis.sh
-```
-
-Script sẽ tự động:
-1. ✅ Kiểm tra và đợi namespace được tạo
-2. ✅ Kiểm tra secret được tạo
-3. ✅ Hard refresh postgres và redis Applications
-4. ✅ Kiểm tra resources được tạo
-5. ✅ Hiển thị trạng thái chi tiết
-
-### Cách 2: Dùng script fix toàn bộ (Nếu cách 1 không work)
-
-```bash
-# Dùng script fix toàn bộ (fix tất cả vấn đề)
-chmod +x fix-all-deploy-postgres-redis.sh
-./fix-all-deploy-postgres-redis.sh
-
-# Hoặc PowerShell
-.\fix-all-deploy-postgres-redis.ps1
-```
-
-Script sẽ tự động:
-1. ✅ Xóa Applications cũ gây conflict
-2. ✅ Xóa namespace stuck (nếu có)
-3. ✅ Deploy lại Project và Applications
-4. ✅ Sync namespace trước, đợi namespace được tạo
-5. ✅ Sync postgres và redis sau
-6. ✅ Hard refresh và kiểm tra manifests
-
-### Cách 3: Debug để tìm nguyên nhân
-
-```bash
-# Script debug chi tiết
-chmod +x check-postgres-redis-resources.sh
-./check-postgres-redis-resources.sh
-```
-
-Script sẽ kiểm tra:
-1. ✅ Namespace có tồn tại không
-2. ✅ Applications có tồn tại và sync không
-3. ✅ Merged values từ ArgoCD
-4. ✅ Helm template render local
-5. ✅ Resources trong cluster
-6. ✅ ArgoCD sync status chi tiết
-
-**Hoặc cleanup cơ bản:**
-
-```bash
-# Dùng script cleanup tự động
-chmod +x cleanup-and-fix.sh
-./cleanup-and-fix.sh
-
-# Hoặc PowerShell
-.\cleanup-and-fix.ps1
-```
-
-Script sẽ:
-1. ✅ Xóa Application `banking-demo` cũ (nếu có) - gây conflict
-2. ✅ Xóa ApplicationSet cũ (nếu có) - có thể xóa namespace
-3. ✅ Xóa namespace "banking" nếu đang stuck
-4. ✅ Deploy lại với per-service Applications
-5. ✅ Sync theo sync waves
-
-**Hoặc cleanup thủ công:**
-
-```bash
-# Xóa Application cũ
-kubectl delete application banking-demo -n argocd --cascade=false 2>/dev/null || true
-
-# Xóa namespace stuck
-kubectl delete namespace banking --force --grace-period=0 2>/dev/null || true
-
-# Deploy lại
-kubectl apply -f project.yaml -n argocd
-kubectl apply -f applications/ -n argocd
-argocd app sync -l app.kubernetes.io/name=banking-demo
-```
 
 ---
 
@@ -147,7 +59,8 @@ Nếu bạn chưa biết ArgoCD là gì, làm theo các bước sau:
 
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+wget https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd -f install.yaml
 
 # Đợi pods Running (khoảng 1-2 phút)
 kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
