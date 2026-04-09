@@ -1,2 +1,143 @@
-# Chart gốc không chứa giá trị — toàn bộ cấu hình nằm trong charts/.
-# ArgoCD dùng valueFiles: charts/common/values.yaml + charts/<service>/values.yaml (xem argocd/application.yaml).
+# Chart gốc — ArgoCD dùng valueFiles: charts/common/values.yaml + charts/<service>/values.yaml.
+# Root values phải có đủ keys để helm template/Trivy scan chạy được (tránh nil pointer).
+# Khi deploy thật, ArgoCD merge valueFiles nên root bị override.
+
+global:
+  namespace: banking
+  secretName: banking-db-secret
+  corsOrigins: "http://localhost:3000"
+  imagePullSecrets:
+    dockerhub: dockerhub-registry
+    gitlab: gitlab-registry
+
+namespace:
+  enabled: false
+
+secret:
+  enabled: false
+  postgresUser: ""
+  postgresPassword: ""
+  postgresDb: ""
+  databaseUrl: ""
+  redisUrl: ""
+
+dbMigration:
+  enabled: false
+  image: "postgres:15-alpine"
+  hookWeight: "-10"
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+externalPostgres:
+  enabled: false
+  host: "db.example.local"
+  port: "5432"
+  db: "banking"
+  user: "banking"
+
+smokeTest:
+  enabled: false
+  image: "curlimages/curl:8.11.0"
+  hookWeight: "10"
+  backoffLimit: 1
+  activeDeadlineSeconds: 120
+  authUser: "smoke-user"
+  authPassword: "smoke-pass"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+ingress:
+  enabled: false
+  kongExternalService: false
+  className: haproxy
+  host: npd-banking.co
+  name: banking-ingress
+  paths: []
+
+kongExternalService:
+  enabled: false
+  name: kong-proxy-ext
+  externalName: kong-kong-proxy.kong.svc.cluster.local
+  port: 8000
+
+postgres:
+  enabled: false
+  fullnameOverride: postgres
+  service:
+    port: 5432
+  secretRef:
+    keys:
+      user: POSTGRES_USER
+      password: POSTGRES_PASSWORD
+      db: POSTGRES_DB
+  hook:
+    preInstall: false
+    preUpgrade: false
+    weight: "-5"
+  storage:
+    volumeName: pgdata
+    mountPath: /var/lib/postgresql/data
+    storageClassName: ""
+    size: 1Gi
+  readinessProbe:
+    enabled: false
+    user: banking
+
+redis:
+  enabled: false
+  fullnameOverride: redis
+  service:
+    port: 6379
+  hook:
+    preInstall: false
+    preUpgrade: false
+    weight: "-5"
+  storage:
+    volumeName: redis-data
+    mountPath: /data
+    storageClassName: ""
+    size: 256Mi
+  readinessProbe:
+    enabled: false
+
+kong:
+  enabled: false
+  fullnameOverride: kong
+  configMapName: kong-config
+  proxyPort: 8000
+  adminPort: 8001
+  proxyPortName: proxy
+  adminPortName: admin
+  configMountPath: /kong
+  configFileName: kong.yml
+  backends: []
+  corsOrigins: []
+  corsCredentials: false
+  corsMethods: []
+  corsHeaders: []
+  extraPlugins: []
+  globalPlugins: []
+  readinessProbe:
+    enabled: false
+
+frontend:
+  enabled: false
+  fullnameOverride: frontend
+  replicas: 0
+  service:
+    port: 80
+    portName: http
+  readinessProbe:
+    enabled: false
