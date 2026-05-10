@@ -153,3 +153,8 @@ kubectl exec -it redis-0 -n banking -- redis-cli keys '*'
 kubectl exec -it postgres-0 -n banking -- psql -U banking -d banking -c "\dt"
 kubectl exec -it postgres-0 -n banking -- psql -U banking -d banking -c "SELECT 1;"
 ```
+
+
+
+# Note
+micro service

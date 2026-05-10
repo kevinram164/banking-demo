@@ -16,7 +16,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -28,7 +27,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
 
   # Kong API Gateway (using declarative config mode - no database needed)
   kong:
@@ -65,7 +63,6 @@ services:
       timeout: 10s
       retries: 10
       start_period: 30s
-    restart: unless-stopped
 
   # Auth Service
   auth-service:
@@ -89,7 +86,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
 
   # Account Service
   account-service:
@@ -112,7 +108,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
 
   # Transfer Service
   transfer-service:
@@ -135,7 +130,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
 
   # Notification Service
   notification-service:
@@ -158,7 +152,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
 
   frontend:
     build: ./frontend
@@ -167,7 +160,6 @@ services:
       - "3000:80"
     depends_on:
       - kong
-    restart: unless-stopped
 
 volumes:
   pgdata:
