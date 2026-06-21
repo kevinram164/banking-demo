@@ -35,7 +35,7 @@ class PipelineConfig implements Serializable {
             harborHost       : 'harbor.example.com',
             harborProject    : 'banking-demo',
             gitBranch        : 'main',
-            gitRepoUrl       : 'https://github.com/YOUR_ORG/banking-demo.git',
+            gitRepoUrl       : 'https://github.com/kevinram164/banking-demo.git',
             gitopsValuesFile : 'phase9-gitops-platform/gitops/values-images.yaml',
             kanikoImage      : 'gcr.io/kaniko-project/executor:v1.23.2',
             harborCredId     : 'harbor-ci-push',

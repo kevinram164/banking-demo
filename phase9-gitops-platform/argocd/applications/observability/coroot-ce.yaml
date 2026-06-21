@@ -1,0 +1,30 @@
+# Coroot CE — metrics + logs + traces (OTLP) + eBPF service map
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-coroot-ce
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: banking-platform
+  sources:
+    - repoURL: https://coroot.github.io/helm-charts
+      chart: coroot-ce
+      targetRevision: 0.3.3
+      helm:
+        releaseName: coroot
+        valueFiles:
+          - $values/phase9-gitops-platform/observability/values-coroot-ce-k3d.yaml
+    - repoURL: https://github.com/kevinram164/banking-demo.git
+      targetRevision: dev-k3d
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

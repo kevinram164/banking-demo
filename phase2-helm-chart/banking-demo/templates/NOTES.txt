@@ -6,7 +6,7 @@ Khuyến nghị: helm install banking-demo . -n banking --create-namespace
 Các subchart: postgres, redis, kong, auth-service, account-service, transfer-service, notification-service, frontend.
 Override từ parent values (key trùng tên thư mục subchart), hoặc sửa trực tiếp values trong từng charts/<service>/values.yaml.
 
-Ingress host: {{ .Values.ingress.host | default "npd-banking.co" }}
+Ingress host: {{ .Values.ingress.host | default "banking-npd.co" }}
 
 Upgrade: helm upgrade banking-demo . -n banking
 Tắt một service: helm upgrade banking-demo . -n banking --set postgres.enabled=false

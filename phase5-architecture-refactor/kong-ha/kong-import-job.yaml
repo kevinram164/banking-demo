@@ -22,7 +22,7 @@ data:
         plugins:
           - name: cors
             config:
-              origins: ["http://localhost:3000", "https://npd-banking.co", "http://npd-banking.co"]
+              origins: ["http://localhost:3000", "https://banking-npd.co", "http://banking-npd.co"]
               credentials: true
               methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
               headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Session"]
@@ -35,7 +35,7 @@ data:
         plugins:
           - name: cors
             config:
-              origins: ["http://localhost:3000", "https://npd-banking.co", "http://npd-banking.co"]
+              origins: ["http://localhost:3000", "https://banking-npd.co", "http://banking-npd.co"]
               credentials: true
               methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
               headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Session", "X-Admin-Secret"]
@@ -48,7 +48,7 @@ data:
         plugins:
           - name: cors
             config:
-              origins: ["http://localhost:3000", "https://npd-banking.co", "http://npd-banking.co"]
+              origins: ["http://localhost:3000", "https://banking-npd.co", "http://banking-npd.co"]
               credentials: true
               methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
               headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Session"]
@@ -65,7 +65,7 @@ data:
         plugins:
           - name: cors
             config:
-              origins: ["http://localhost:3000", "https://npd-banking.co", "http://npd-banking.co"]
+              origins: ["http://localhost:3000", "https://banking-npd.co", "http://banking-npd.co"]
               credentials: true
               methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
               headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Session"]

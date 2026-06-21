@@ -13,8 +13,8 @@ metadata:
 spec:
   description: "Banking Demo - Helm chart and per-service apps"
   sourceRepos:
-    - https://github.com/YOUR_ORG/banking-demo.git   # ← Đổi thành repo của bạn (có thể thêm nhiều dòng)
-    # - 'git@github.com:YOUR_ORG/banking-demo.git'
+    - https://github.com/kevinram164/banking-demo.git   # ← Đổi thành repo của bạn (có thể thêm nhiều dòng)
+    # - 'git@github.com:kevinram164/banking-demo.git'
   destinations:
     - namespace: banking
       server: https://kubernetes.default.svc

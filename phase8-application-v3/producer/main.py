@@ -18,7 +18,7 @@ from common.observability import instrument_fastapi
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
-CORS_ORIGINS = "http://localhost:3000,https://npd-banking.co,http://npd-banking.co"
+CORS_ORIGINS = "http://localhost:3000,https://banking-npd.co,http://banking-npd.co"
 
 logger = get_json_logger("api-producer")
 

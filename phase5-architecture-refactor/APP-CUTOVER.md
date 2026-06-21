@@ -169,7 +169,7 @@ kubectl -n banking rollout status deployment auth-service account-service transf
 kubectl -n banking get pods
 
 # Test login, chuyển tiền, thông báo
-curl -X POST https://npd-banking.co/api/auth/login -H "Content-Type: application/json" -d '{"username":"...","password":"..."}'
+curl -X POST https://banking-npd.co/api/auth/login -H "Content-Type: application/json" -d '{"username":"...","password":"..."}'
 ```
 
 ---

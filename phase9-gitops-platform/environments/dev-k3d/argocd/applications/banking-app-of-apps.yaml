@@ -1,4 +1,6 @@
-# Banking apps only — dev-k3d (bật trước khi infra/platform sẵn sàng)
+# Banking apps — CHỈ apply sau Giai đoạn 4 (CI/CD Jenkins→Harbor→Git đã chạy OK)
+# Apply: kubectl apply -f .../banking-app-of-apps.yaml -n argocd
+# Sync thủ công lần đầu trong ArgoCD UI
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -8,11 +10,11 @@ metadata:
     app.kubernetes.io/part-of: phase9-gitops
     banking-demo/environment: dev-k3d
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "10"
 spec:
   project: banking-platform
   source:
-    repoURL: https://github.com/YOUR_ORG/banking-demo.git
+    repoURL: https://github.com/kevinram164/banking-demo.git
     targetRevision: dev-k3d
     path: phase9-gitops-platform/environments/dev-k3d/argocd/applications/banking
     directory:
@@ -21,6 +23,5 @@ spec:
     server: https://kubernetes.default.svc
     namespace: argocd
   syncPolicy:
-    automated:
-      prune: false
-      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

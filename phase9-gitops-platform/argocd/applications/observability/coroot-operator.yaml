@@ -1,0 +1,26 @@
+# Coroot Operator — wave 0 (trước coroot-ce)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-coroot-operator
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://coroot.github.io/helm-charts
+    chart: coroot-operator
+    targetRevision: 0.9.7
+    helm:
+      releaseName: coroot-operator
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

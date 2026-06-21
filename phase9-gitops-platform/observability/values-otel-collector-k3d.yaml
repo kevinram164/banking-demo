@@ -1,0 +1,69 @@
+# OpenTelemetry Collector — nhận OTLP từ banking app, forward sang Coroot
+# Chart: open-telemetry/opentelemetry-collector
+
+fullnameOverride: opentelemetry-collector
+mode: deployment
+replicaCount: 1
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+config:
+  extensions:
+    health_check:
+      endpoint: ${env:MY_POD_IP}:13133
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  processors:
+    batch:
+      timeout: 5s
+      send_batch_size: 1024
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    resource:
+      attributes:
+        - key: cluster.name
+          value: k3d-npd
+          action: upsert
+  exporters:
+    otlphttp/coroot:
+      endpoint: http://coroot-coroot.observability.svc.cluster.local:8080
+      tls:
+        insecure: true
+    otlp/coroot:
+      endpoint: coroot-coroot.observability.svc.cluster.local:4317
+      tls:
+        insecure: true
+  service:
+    extensions: [health_check]
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, resource, batch]
+        exporters: [otlp/coroot, otlphttp/coroot]
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, resource, batch]
+        exporters: [otlp/coroot, otlphttp/coroot]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, resource, batch]
+        exporters: [otlp/coroot, otlphttp/coroot]
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+service:
+  type: ClusterIP

@@ -20,7 +20,7 @@ spec:
         releaseName: kong
         valueFiles:
           - $values/phase5-architecture-refactor/kong-ha/values-kong-ha.yaml
-    - repoURL: https://github.com/YOUR_ORG/banking-demo.git
+    - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: main
       ref: values
   destination:

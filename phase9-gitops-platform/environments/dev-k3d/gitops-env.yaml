@@ -1,6 +1,6 @@
 # Jenkins / GitOps — môi trường dev-k3d (không commit secret)
 gitops:
-  repoUrl: https://github.com/YOUR_ORG/banking-demo.git
+  repoUrl: https://github.com/kevinram164/banking-demo.git
   branch: dev-k3d
   valuesImagesPath: phase9-gitops-platform/gitops/values-images.yaml
 
@@ -19,5 +19,5 @@ ci:
 
 domains:
   argocd: argocd-npd.co
-  banking: npd-banking.co
+  banking: banking-npd.co
   harbor: harbor-npd.co

@@ -1,0 +1,46 @@
+# Phase 9 — OpenTelemetry + Linkerd (merge vào banking Helm apps trên dev-k3d)
+# OTEL Collector ns observability → Coroot
+
+global:
+  observability:
+    otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    otelProtocol: "grpc"
+
+namespace:
+  annotations:
+    linkerd.io/inject: enabled
+
+api-producer:
+  extraEnv:
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_SERVICE_NAME: "api-producer"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-k3d"
+
+auth-service:
+  extraEnv:
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_SERVICE_NAME: "auth-service"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-k3d"
+
+account-service:
+  extraEnv:
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_SERVICE_NAME: "account-service"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-k3d"
+
+transfer-service:
+  extraEnv:
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_SERVICE_NAME: "transfer-service"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-k3d"
+
+notification-service:
+  extraEnv:
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_SERVICE_NAME: "notification-service"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-k3d"

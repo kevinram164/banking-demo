@@ -1,5 +1,5 @@
 # Kong config cho Phase 8 — /api → api-producer (ns banking)
-# Áp dụng lên Kong trong ns kong (Kong nhận traffic từ ingress npd-banking.co)
+# Áp dụng lên Kong trong ns kong (Kong nhận traffic từ ingress banking-npd.co)
 #
 # Cách apply (Admin API):
 #   kubectl port-forward -n kong svc/kong-kong-admin 8001:8001
@@ -26,8 +26,8 @@ services:
         config:
           origins:
             - http://localhost:3000
-            - https://npd-banking.co
-            - http://npd-banking.co
+            - https://banking-npd.co
+            - http://banking-npd.co
           credentials: true
           methods:
             - GET
@@ -60,8 +60,8 @@ services:
         config:
           origins:
             - http://localhost:3000
-            - https://npd-banking.co
-            - http://npd-banking.co
+            - https://banking-npd.co
+            - http://banking-npd.co
           credentials: true
           methods:
             - GET

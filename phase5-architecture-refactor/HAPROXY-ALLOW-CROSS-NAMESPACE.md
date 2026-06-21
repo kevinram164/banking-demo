@@ -63,7 +63,7 @@ kubectl delete svc kong-proxy -n banking  # Xóa ExternalName nếu không dùng
 kubectl describe ingress -n banking banking-ingress
 # Backends /api, /ws phải hiển thị kong-kong-proxy:8000 (không còn "not found")
 
-curl -X POST http://npd-banking.co/api/auth/login \
+curl -X POST http://banking-npd.co/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"testuser","password":"Test123456"}'
 ```

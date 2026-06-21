@@ -381,7 +381,7 @@ phase5-architecture-refactor/
 
 ## Troubleshooting: Fix lỗi 502 khi Frontend gọi Kong
 
-Sau khi cutover xong, mở trình duyệt gọi `https://npd-banking.co/api/auth/health` — **502 Bad Gateway**. Mở DevTools thấy Frontend gọi `/api/*` đều trả 502.
+Sau khi cutover xong, mở trình duyệt gọi `https://banking-npd.co/api/auth/health` — **502 Bad Gateway**. Mở DevTools thấy Frontend gọi `/api/*` đều trả 502.
 
 ### Nguyên nhân
 
@@ -648,7 +648,7 @@ Secret mặc định: `banking-admin-2025`. Override qua env `ADMIN_SECRET` tron
 
 ### Cách truy cập
 
-1. Mở `https://npd-banking.co` → trang Login.
+1. Mở `https://banking-npd.co` → trang Login.
 2. Click **"Admin"** ở footer hoặc vào Dashboard → sidebar → **"Admin Panel"**.
 3. Nhập admin secret (`banking-admin-2025`) → vào trang quản trị.
 
@@ -676,16 +676,16 @@ cd scripts
 pip install requests
 
 # Tạo 500 users, 20 luồng song song
-python seed_users.py --count 500 --base-url http://npd-banking.co
+python seed_users.py --count 500 --base-url http://banking-npd.co
 
 # Tạo 1000 users, lưu ra file JSON để dùng tiếp
-python seed_users.py -n 1000 -u http://npd-banking.co -o users.json
+python seed_users.py -n 1000 -u http://banking-npd.co -o users.json
 
 # Self-signed cert? Thêm --no-verify
-python seed_users.py -n 500 -u https://npd-banking.co --no-verify
+python seed_users.py -n 500 -u https://banking-npd.co --no-verify
 
 # Test 1 request trước
-python seed_users.py --test -u http://npd-banking.co
+python seed_users.py --test -u http://banking-npd.co
 ```
 
 ### Tính năng chính
@@ -702,7 +702,7 @@ python seed_users.py --test -u http://npd-banking.co
 ```
 === Seed Users (Python) ===
 Count:    500
-Base URL: http://npd-banking.co
+Base URL: http://banking-npd.co
 Workers:  20
 
 Đang phát hiện API version...

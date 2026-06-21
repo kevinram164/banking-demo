@@ -8,11 +8,11 @@ metadata:
     app.kubernetes.io/part-of: phase9-gitops
     banking-demo/environment: dev-k3d
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: banking-platform
   source:
-    repoURL: https://github.com/YOUR_ORG/banking-demo.git
+    repoURL: https://github.com/kevinram164/banking-demo.git
     targetRevision: dev-k3d
     path: phase9-gitops-platform/argocd/applications/infra
     directory:

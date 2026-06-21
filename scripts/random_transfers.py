@@ -7,7 +7,7 @@ Dùng:
   python random_transfers.py --password 123456
   python random_transfers.py --password 123456 --rounds 50 --workers 5
   python random_transfers.py --password 123456 --rounds 1000 --workers 500 --login-workers 50
-  python random_transfers.py --password 123456 --base-url https://npd-banking.co --no-verify
+  python random_transfers.py --password 123456 --base-url https://banking-npd.co --no-verify
 
 Cài đặt:
   pip install requests
@@ -135,7 +135,7 @@ def fetch_users_from_db(base_url: str, admin_secret: str, verify: bool = True) -
 
 def main():
     parser = argparse.ArgumentParser(description="Mô phỏng giao dịch ngẫu nhiên")
-    parser.add_argument("--base-url", "-u", default="http://npd-banking.co", help="Base URL")
+    parser.add_argument("--base-url", "-u", default="http://banking-npd.co", help="Base URL")
     parser.add_argument("--password", "-p", required=True, help="Password chung của tất cả users")
     parser.add_argument("--rounds", "-r", type=int, default=20, help="Số lượt chuyển khoản (default: 20)")
     parser.add_argument("--workers", "-w", type=int, default=5, help="Số workers song song cho transfer (default: 5)")

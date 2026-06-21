@@ -1,0 +1,26 @@
+# Linkerd CRDs — service mesh (wave 0)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-linkerd-crds
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://helm.linkerd.io/stable
+    chart: linkerd-crds
+    targetRevision: 1.16.11
+    helm:
+      releaseName: linkerd-crds
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: linkerd
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

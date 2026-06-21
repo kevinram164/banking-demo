@@ -1,0 +1,30 @@
+# OpenTelemetry Collector — gateway OTLP → Coroot
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-otel-collector
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: banking-platform
+  sources:
+    - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+      chart: opentelemetry-collector
+      targetRevision: 0.110.0
+      helm:
+        releaseName: opentelemetry-collector
+        valueFiles:
+          - $values/phase9-gitops-platform/observability/values-otel-collector-k3d.yaml
+    - repoURL: https://github.com/kevinram164/banking-demo.git
+      targetRevision: dev-k3d
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

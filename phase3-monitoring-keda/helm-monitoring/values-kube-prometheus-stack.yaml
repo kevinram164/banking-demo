@@ -126,4 +126,4 @@ grafana:
     enabled: true
     ingressClassName: haproxy
     hosts:
-      - grafana.npd-banking.co
+      - grafana.banking-npd.co

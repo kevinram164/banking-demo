@@ -1,0 +1,27 @@
+# Linkerd control-plane — k3d lab (cniEnabled=false, init container proxy)
+# Chạy scripts/generate-linkerd-certs.sh trước sync → file certs/linkerd-identity.yaml
+
+cniEnabled: false
+
+# identityTrustAnchorsPEM + issuer TLS: set bởi script hoặc merge từ certs/linkerd-identity.yaml
+
+proxy:
+  resources:
+    cpu:
+      request: 50m
+    memory:
+      request: 20Mi
+      limit: 250Mi
+
+controllerResources:
+  cpu:
+    request: 50m
+  memory:
+    limit: 250Mi
+
+heartbeatSchedule: ""
+
+podMonitor:
+  enabled: false
+
+enablePodDisruptionBudget: false

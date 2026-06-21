@@ -129,7 +129,7 @@ metadata:
 spec:
   ingressClassName: haproxy
   rules:
-    - host: jaeger.npd-banking.co
+    - host: jaeger.banking-npd.co
       http:
         paths:
           - path: /

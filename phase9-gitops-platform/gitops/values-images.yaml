@@ -1,5 +1,5 @@
 # Image tags — CI (Jenkins) cập nhật trên nhánh dev-k3d
-# Registry lab k3d: harbor-npd.co (thay YOUR_ORG / host nếu khác)
+# Registry lab k3d: harbor-npd.co
 
 global:
   imageRegistry: harbor-npd.co/banking-demo

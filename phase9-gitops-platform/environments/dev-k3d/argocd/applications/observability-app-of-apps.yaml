@@ -1,0 +1,26 @@
+# Observability — Coroot + OTEL + Linkerd (dev-k3d)
+# Sync sau platform, trước banking app
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-app-of-apps-dev-k3d
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-k3d
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-k3d
+    path: phase9-gitops-platform/argocd/applications/observability
+    directory:
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

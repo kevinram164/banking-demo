@@ -70,7 +70,7 @@ flowchart TB
 Manifest Phase 1 dùng:
 
 - `ingressClassName: haproxy`
-- host ví dụ: `npd-banking.co`
+- host ví dụ: `banking-npd.co`
 
 Nếu bạn dùng NGINX Ingress hoặc khác, bạn cần chỉnh `ingressClassName` và/hoặc annotation tương ứng.
 
@@ -209,7 +209,7 @@ Tuỳ cluster, bạn sẽ có:
 - DNS/host trỏ tới Ingress, hoặc
 - IP của LoadBalancer/NodePort
 
-Trong manifest có host ví dụ `npd-banking.co`. Nếu bạn chạy local/minikube/kind thì thường cần chỉnh host hoặc dùng `/etc/hosts`.
+Trong manifest có host ví dụ `banking-npd.co`. Nếu bạn chạy local/minikube/kind thì thường cần chỉnh host hoặc dùng `/etc/hosts`.
 
 ---
 
@@ -291,7 +291,7 @@ Checklist:
 
 - Cluster có HAProxy Ingress Controller chưa?
 - `ingressClassName` đúng chưa?
-- Host bạn truy cập có match `npd-banking.co` không?
+- Host bạn truy cập có match `banking-npd.co` không?
 
 ---
 

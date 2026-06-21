@@ -1,0 +1,19 @@
+# k3d Ingress — Coroot UI (Traefik, SSL terminate tại Nginx)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: coroot-npd
+  namespace: observability
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: coroot-npd.co
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: coroot-coroot
+                port:
+                  number: 8080

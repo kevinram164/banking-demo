@@ -343,7 +343,8 @@ Xem thêm: [phase9-gitops-platform/README.md](../phase9-gitops-platform/README.m
 | File | Mô tả |
 |------|--------|
 | [`argocd-ingress.yaml`](./argocd-ingress.yaml) | Ingress Traefik Mô hình 1 |
-| [`nginx-argocd-npd.co.conf`](./nginx-argocd-npd.co.conf) | Nginx reverse proxy |
+| [`nginx-argocd-npd.co.conf`](./nginx-argocd-npd.co.conf) | Nginx reverse proxy ArgoCD |
+| [`nginx-banking-npd.co.conf`](./nginx-banking-npd.co.conf) | Nginx reverse proxy Banking app |
 | [`cluster-create.sh`](./cluster-create.sh) | Script tạo cluster k3d |
 
 ---

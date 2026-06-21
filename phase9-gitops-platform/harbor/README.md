@@ -2,9 +2,17 @@
 
 Registry nội bộ cho CI (Jenkins Kaniko) và CD (ArgoCD pull image).
 
-## Sau khi cài (Helm / ArgoCD `platform-harbor`)
+## Lab k3d
 
-1. Đăng nhập UI `https://harbor.example.com` — đổi admin password ngay.
+| | |
+|--|--|
+| UI | **https://harbor-npd.co** |
+| Ingress | Traefik trong cluster + Nginx LB WSL2 (`k3d/nginx-harbor-npd.co.conf`) |
+| StorageClass | `local-path` (không dùng `nfs-client` trên k3d) |
+
+## Sau khi sync `platform-harbor`
+
+1. Đăng nhập UI — đổi admin password ngay.
 2. Tạo project **`banking-demo`** (public hoặc private).
 3. Tạo **Robot Accounts**:
    - `ci-push` — push image (Jenkins credential `harbor-ci-push`)
@@ -14,13 +22,13 @@ Registry nội bộ cho CI (Jenkins Kaniko) và CD (ArgoCD pull image).
 
 ```bash
 kubectl create secret docker-registry harbor-registry \
-  --docker-server=harbor.example.com \
+  --docker-server=harbor-npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='<TOKEN>' \
   -n banking
 
 kubectl create secret docker-registry harbor-registry \
-  --docker-server=harbor.example.com \
+  --docker-server=harbor-npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='<TOKEN>' \
   -n platform
@@ -31,11 +39,11 @@ Production: sync từ Vault qua ExternalSecret (`secret/platform/harbor`).
 ## Image naming (khớp values-images.yaml)
 
 ```text
-harbor.example.com/banking-demo/api-producer:<sha>
-harbor.example.com/banking-demo/auth-service:<sha>
+harbor-npd.co/banking-demo/api-producer:<sha>
+harbor-npd.co/banking-demo/auth-service:<sha>
 ...
 ```
 
 ## TLS
 
-Ingress Harbor cần cert hợp lệ hoặc `insecure-registry` trên node/Kaniko nếu lab dùng self-signed.
+Nginx WSL2 terminate SSL; Traefik nhận HTTP (Mô hình SSL 1). Kaniko/Jenkins cần trust cert hoặc cấu hình insecure registry nếu lab dùng self-signed.

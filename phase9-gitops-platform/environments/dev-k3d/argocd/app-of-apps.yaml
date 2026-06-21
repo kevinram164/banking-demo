@@ -1,5 +1,6 @@
 # Root App of Apps — nhánh dev-k3d
-# Apply: kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/app-of-apps.yaml -n argocd
+# CHỈ apply sau khi platform + infra + CI/CD + banking đã chạy OK (quản lý tập trung).
+# Giai đoạn đầu: apply riêng platform-app-of-apps → infra-app-of-apps → (CI/CD) → banking-app-of-apps
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -13,7 +14,7 @@ metadata:
 spec:
   project: banking-platform
   source:
-    repoURL: https://github.com/YOUR_ORG/banking-demo.git
+    repoURL: https://github.com/kevinram164/banking-demo.git
     targetRevision: dev-k3d
     path: phase9-gitops-platform/environments/dev-k3d/argocd/applications
     directory:

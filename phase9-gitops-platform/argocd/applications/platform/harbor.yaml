@@ -1,4 +1,4 @@
-# Harbor — stub Application
+# Harbor — lab k3d: harbor-npd.co, storageClass local-path
 # Xem harbor/README.md: TLS, admin password, robot accounts
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -20,16 +20,29 @@ spec:
       values: |
         expose:
           type: ingress
+          tls:
+            enabled: false
           ingress:
             hosts:
-              core: harbor.example.com
+              core: harbor-npd.co
+            className: traefik
+        externalURL: https://harbor-npd.co
         harborAdminPassword: "ChangeMe-Harbor-Admin"
         persistence:
           enabled: true
           persistentVolumeClaim:
             registry:
-              storageClass: nfs-client
+              storageClass: local-path
               size: 20Gi
+            jobservice:
+              jobLog:
+                storageClass: local-path
+            database:
+              storageClass: local-path
+            redis:
+              storageClass: local-path
+            trivy:
+              storageClass: local-path
   destination:
     server: https://kubernetes.default.svc
     namespace: platform

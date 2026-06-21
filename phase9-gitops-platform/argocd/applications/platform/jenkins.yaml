@@ -1,5 +1,5 @@
-# Jenkins — stub Application (Kubernetes cloud + Shared Library cấu hình trong UI)
-# Chart: https://github.com/jenkinsci/helm-charts
+# Jenkins — lab k3d: UI https://jenkins-npd.co (Ingress Traefik + Nginx SSL terminate)
+# Shared Library + K8s cloud cấu hình thêm trong UI sau sync
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -21,6 +21,7 @@ spec:
         controller:
           admin:
             password: "ChangeMe-Jenkins"
+          jenkinsUrl: https://jenkins-npd.co/
           installPlugins:
             - kubernetes:4306.vc91e37ea_722d
             - workflow-aggregator:596.v8c21c963d92d
@@ -28,6 +29,14 @@ spec:
             - configuration-as-code:1932.v75cb_b_f812b_6
           JCasC:
             defaultConfig: true
+          ingress:
+            enabled: true
+            hostName: jenkins-npd.co
+            ingressClassName: traefik
+            tls: []
+          persistence:
+            storageClass: local-path
+            size: 8Gi
         agent:
           enabled: true
           kubernetes:

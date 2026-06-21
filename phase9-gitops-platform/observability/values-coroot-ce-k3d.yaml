@@ -1,0 +1,40 @@
+# Coroot CE — lab k3d (namespace observability)
+# UI: https://coroot-npd.co | OTLP: coroot-coroot.observability:4317 (gRPC) / :8080 (HTTP)
+
+ingress:
+  className: traefik
+  host: coroot-npd.co
+  path: /
+  tls: []
+
+storage:
+  size: 5Gi
+  className: local-path
+
+clickhouse:
+  shards: 1
+  replicas: 1
+  storage:
+    size: 10Gi
+    className: local-path
+
+prometheus:
+  storage:
+    size: 5Gi
+    className: local-path
+
+nodeAgent:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+clusterAgent:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi

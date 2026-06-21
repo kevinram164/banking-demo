@@ -1,50 +1,78 @@
-# ArgoCD AppProject — Phase 9 GitOps Platform
-# Mở rộng destinations cho namespace Phase 5 + Phase 8 + platform
-# Áp dụng: kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
-apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: banking-platform
-  namespace: argocd
-  labels:
-    app.kubernetes.io/name: banking-platform
-    app.kubernetes.io/part-of: phase9-gitops
-spec:
-  description: "Phase 9 — Platform CI/CD, infra Phase 5, app Phase 8"
-  sourceRepos:
-    - https://github.com/YOUR_ORG/banking-demo.git
-    - https://charts.bitnami.com/bitnami
-    - oci://registry-1.docker.io/bitnamicharts
-    - https://charts.konghq.com
-    - https://helm.releases.hashicorp.com
-    - https://charts.external-secrets.io
-    - https://helm.goharbor.io
-  destinations:
-    - namespace: banking
-      server: https://kubernetes.default.svc
-    - namespace: kong
-      server: https://kubernetes.default.svc
-    - namespace: redis
-      server: https://kubernetes.default.svc
-    - namespace: postgres
-      server: https://kubernetes.default.svc
-    - namespace: rabbit
-      server: https://kubernetes.default.svc
-    - namespace: platform
-      server: https://kubernetes.default.svc
-    - namespace: vault
-      server: https://kubernetes.default.svc
-    - namespace: external-secrets
-      server: https://kubernetes.default.svc
-    - namespace: argocd
-      server: https://kubernetes.default.svc
-  clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
-    - group: external-secrets.io
-      kind: ClusterSecretStore
-  namespaceResourceWhitelist:
-    - group: "*"
-      kind: "*"
-  orphanedResources:
-    warn: true
+# ArgoCD AppProject — Phase 9 GitOps Platform
+# Mở rộng destinations cho namespace Phase 5 + Phase 8 + platform + observability
+# Áp dụng: kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: banking-platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: banking-platform
+    app.kubernetes.io/part-of: phase9-gitops
+spec:
+  description: "Phase 9 — Platform CI/CD, infra Phase 5, app Phase 8, observability"
+  sourceRepos:
+    - https://github.com/kevinram164/banking-demo.git
+    - https://charts.bitnami.com/bitnami
+    - oci://registry-1.docker.io/bitnamicharts
+    - https://charts.konghq.com
+    - https://helm.releases.hashicorp.com
+    - https://charts.external-secrets.io
+    - https://helm.goharbor.io
+    - https://charts.jenkins.io
+    - https://coroot.github.io/helm-charts
+    - https://open-telemetry.github.io/opentelemetry-helm-charts
+    - https://helm.linkerd.io/stable
+  destinations:
+    - namespace: banking
+      server: https://kubernetes.default.svc
+    - namespace: kong
+      server: https://kubernetes.default.svc
+    - namespace: redis
+      server: https://kubernetes.default.svc
+    - namespace: postgres
+      server: https://kubernetes.default.svc
+    - namespace: rabbit
+      server: https://kubernetes.default.svc
+    - namespace: platform
+      server: https://kubernetes.default.svc
+    - namespace: vault
+      server: https://kubernetes.default.svc
+    - namespace: external-secrets
+      server: https://kubernetes.default.svc
+    - namespace: observability
+      server: https://kubernetes.default.svc
+    - namespace: linkerd
+      server: https://kubernetes.default.svc
+    - namespace: linkerd-viz
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: external-secrets.io
+      kind: ClusterSecretStore
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: apiregistration.k8s.io
+      kind: APIService
+    - group: coroot.com
+      kind: "*"
+    - group: policy.linkerd.io
+      kind: "*"
+    - group: linkerd.io
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  orphanedResources:
+    warn: true

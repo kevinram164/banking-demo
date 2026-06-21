@@ -35,7 +35,7 @@ http {
 
     server {
         listen 80;
-        server_name npd-banking.co;
+        server_name banking-npd.co;
         location / {
             modsecurity on;
             proxy_pass http://<haproxy-ingress-backend>;

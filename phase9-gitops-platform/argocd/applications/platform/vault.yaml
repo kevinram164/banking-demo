@@ -1,5 +1,4 @@
-# HashiCorp Vault — stub Application (chỉnh values trước khi bật auto-sync)
-# Production: HA mode, auto-unseal (KMS), backup
+# HashiCorp Vault — lab k3d: UI https://vault-npd.co (dev mode, không dùng cho production)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -24,6 +23,15 @@ spec:
           dev:
             enabled: true
             devRootToken: "root"
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            activeService: true
+            hosts:
+              - host: vault-npd.co
+                paths:
+                  - /
+            tls: []
         ui:
           enabled: true
   destination:
@@ -32,7 +40,3 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
-    # Manual sync lần đầu — bỏ comment automated khi đã init/unseal
-    # automated:
-    #   prune: false
-    #   selfHeal: true

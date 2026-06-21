@@ -4,7 +4,7 @@
 # Dùng:
 #   ./seed-users.sh [số_users] [base_url]
 #   ./seed-users.sh 1000
-#   ./seed-users.sh 500 https://npd-banking.co
+#   ./seed-users.sh 500 https://banking-npd.co
 #
 # Biến môi trường:
 #   PASSWORD    - Mật khẩu chung (mặc định: Test123456)
@@ -13,7 +13,7 @@
 #   CURL_OPTS   - Thêm tùy chọn curl (vd: CURL_OPTS="-s -k" cho self-signed cert)
 
 COUNT=${1:-1000}
-BASE_URL=${2:-https://npd-banking.co}
+BASE_URL=${2:-https://banking-npd.co}
 PASSWORD="${PASSWORD:-Test123456}"
 ENDPOINT="${BASE_URL}/api/auth/register"
 PARALLEL=${PARALLEL:-20}

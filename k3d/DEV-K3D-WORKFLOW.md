@@ -63,18 +63,29 @@ git push origin dev-k3d
 
 ## Bootstrap cluster k3d + ArgoCD
 
-1. Cluster: [`cluster-create.sh`](./cluster-create.sh) hoặc xem [WSL2-K3D-ARGOCD-GUIDE.md](./WSL2-K3D-ARGOCD-GUIDE.md)
-2. ArgoCD UI: `https://argocd-npd.co`
-3. Connect repo GitHub (branch `dev-k3d`) trong ArgoCD → Settings → Repositories
-4. Apply GitOps Phase 9 cho môi trường dev-k3d:
+**Hướng dẫn đầy đủ (cluster mới tinh):** [phase9-gitops-platform/K3D-DEPLOY-GUIDE.md](../phase9-gitops-platform/K3D-DEPLOY-GUIDE.md)
+
+Tóm tắt (4 giai đoạn — **app deploy sau cùng**):
 
 ```bash
-# Sửa YOUR_ORG, harbor host trong phase9-gitops-platform/
+./k3d/cluster-create.sh
+# Giai đoạn 1: ArgoCD bootstrap + Nginx — xem K3D-DEPLOY-GUIDE.md mục 3
+
 kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
-kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/app-of-apps.yaml -n argocd
+
+# Giai đoạn 2: Platform (Harbor, Vault, Jenkins)
+kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/platform-app-of-apps.yaml -n argocd
+
+# Giai đoạn 3: Infra (Postgres, Redis, Rabbit, Kong)
+kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/infra-app-of-apps.yaml -n argocd
+
+# Giai đoạn 4: CI/CD Jenkins → Harbor → commit values-images.yaml
+
+# Giai đoạn 5: Banking app (SAU CI/CD)
+kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/banking-app-of-apps.yaml -n argocd
 ```
 
-5. Cài Jenkins + Harbor + Vault (theo thứ tự trong `phase9-gitops-platform/bootstrap/BOOTSTRAP.md`) — có thể làm từng phần.
+Chi tiết từng bước: [K3D-DEPLOY-GUIDE.md](../phase9-gitops-platform/K3D-DEPLOY-GUIDE.md).
 
 ---
 

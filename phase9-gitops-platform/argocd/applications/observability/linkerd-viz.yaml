@@ -1,0 +1,34 @@
+# Linkerd Viz — mesh dashboard (https://linkerd-npd.co)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-linkerd-viz
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://helm.linkerd.io/stable
+    chart: linkerd-viz
+    targetRevision: 30.12.11
+    helm:
+      releaseName: linkerd-viz
+      values: |
+        dashboard:
+          enforcedHostRegexp: .*
+        metricsAPI:
+          resources:
+            cpu:
+              request: 50m
+            memory:
+              limit: 256Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: linkerd-viz
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

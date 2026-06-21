@@ -264,7 +264,7 @@ Bạn sẽ thấy:
 kubectl get ingress -n banking
 ```
 
-Truy cập ứng dụng qua hostname trong ingress (vd: `npd-banking.co`).
+Truy cập ứng dụng qua hostname trong ingress (vd: `banking-npd.co`).
 
 ---
 

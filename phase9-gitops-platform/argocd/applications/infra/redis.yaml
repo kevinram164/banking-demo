@@ -19,7 +19,7 @@ spec:
         releaseName: redis-ha
         valueFiles:
           - $values/phase5-architecture-refactor/redis-ha/values-redis-ha.yaml
-    - repoURL: https://github.com/YOUR_ORG/banking-demo.git
+    - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: main
       ref: values
   destination:

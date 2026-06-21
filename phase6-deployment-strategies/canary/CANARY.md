@@ -39,7 +39,7 @@ metadata:
     kubernetes.io/ingress.class: nginx
 spec:
   rules:
-    - host: npd-banking.co
+    - host: banking-npd.co
       http:
         paths:
           - path: /api/auth
@@ -61,7 +61,7 @@ metadata:
     nginx.ingress.kubernetes.io/canary-weight: "10"
 spec:
   rules:
-    - host: npd-banking.co
+    - host: banking-npd.co
       http:
         paths:
           - path: /api/auth

@@ -5,7 +5,7 @@ Hỗ trợ cả API v1 (username, password) và v2 (phone, username, password).
 
 Dùng:
   python seed_users.py [--count 1000] [--base-url URL] [--output users.json]
-  python seed_users.py --count 500 --base-url http://npd-banking.co
+  python seed_users.py --count 500 --base-url http://banking-npd.co
 
 Cài đặt:
   pip install requests
@@ -163,8 +163,8 @@ def main():
     parser.add_argument(
         "--base-url",
         "-u",
-        default="http://npd-banking.co",
-        help="Base URL API (vd: http://npd-banking.co)",
+        default="http://banking-npd.co",
+        help="Base URL API (vd: http://banking-npd.co)",
     )
     parser.add_argument(
         "--output",
@@ -265,7 +265,7 @@ def main():
             print(f"  {i}. {e}")
         if failed == args.count:
             print("\nGợi ý: Thử https và --no-verify nếu dùng self-signed cert:")
-            print(f"  python seed_users.py -n 1 -u https://npd-banking.co --no-verify --test")
+            print(f"  python seed_users.py -n 1 -u https://banking-npd.co --no-verify --test")
 
     print()
     print("=== Kết quả ===")

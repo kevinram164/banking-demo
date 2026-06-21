@@ -128,7 +128,7 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
 
 **Truy cập Jaeger UI:**
 - Port-forward: `kubectl port-forward -n monitoring svc/jaeger 16686:16686` → `http://localhost:16686`
-- Hoặc qua Ingress: `http://jaeger.npd-banking.co` (chỉnh host trong manifest nếu cần)
+- Hoặc qua Ingress: `http://jaeger.banking-npd.co` (chỉnh host trong manifest nếu cần)
 
 ---
 
@@ -241,6 +241,6 @@ Chi tiết: xem `phase3-monitoring-keda/exporters/README.md`.
 - **Grafana:** `kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80` → `http://localhost:3000` (user: admin, pass: admin)
 - **Prometheus:** port-forward `svc/kube-prometheus-stack-prometheus 9090:9090`
 - **Tempo:** Grafana → Explore → datasource Tempo (không cần port-forward Tempo riêng)
-- **Jaeger:** `kubectl port-forward -n monitoring svc/jaeger 16686:16686` → `http://localhost:16686` (hoặc `http://jaeger.npd-banking.co` nếu đã bật Ingress)
+- **Jaeger:** `kubectl port-forward -n monitoring svc/jaeger 16686:16686` → `http://localhost:16686` (hoặc `http://jaeger.banking-npd.co` nếu đã bật Ingress)
 
 Hoặc cấu hình Ingress cho từng thành phần trong values (host, TLS, v.v.) nếu cluster đã có Ingress controller.

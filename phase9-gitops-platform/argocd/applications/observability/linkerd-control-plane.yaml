@@ -1,0 +1,35 @@
+# Linkerd control-plane — mTLS service mesh
+# Bắt buộc: chạy observability/scripts/generate-linkerd-certs.sh trước sync
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-linkerd-control-plane
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: banking-platform
+  sources:
+    - repoURL: https://helm.linkerd.io/stable
+      chart: linkerd-control-plane
+      targetRevision: 1.16.11
+      helm:
+        releaseName: linkerd-control-plane
+        valueFiles:
+          - $values/phase9-gitops-platform/observability/values-linkerd-k3d.yaml
+        values: |
+          identity:
+            issuer:
+              scheme: kubernetes.io/tls
+    - repoURL: https://github.com/kevinram164/banking-demo.git
+      targetRevision: dev-k3d
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: linkerd
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

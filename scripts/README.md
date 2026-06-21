@@ -8,17 +8,17 @@ Hỗ trợ API v1 (username) và v2 (phone + username). Tự phát hiện versio
 
 ```bash
 pip install requests
-python seed_users.py --count 1000 --base-url https://npd-banking.co
+python seed_users.py --count 1000 --base-url https://banking-npd.co
 
 # Lưu danh sách users để dùng cho test login, transfer
 python seed_users.py -n 500 -o users.json --no-verify
 
 # Debug: gửi 1 request, in response/error đầy đủ
 python seed_users.py -n 1 --test
-python seed_users.py -n 1 -u https://npd-banking.co --no-verify --test
+python seed_users.py -n 1 -u https://banking-npd.co --no-verify --test
 
 # Tùy chọn
-python seed_users.py -n 1000 -u https://npd-banking.co -o users.json -w 30 --no-verify --api v2
+python seed_users.py -n 1000 -u https://banking-npd.co -o users.json -w 30 --no-verify --api v2
 ```
 
 **Dữ liệu tạo**:
@@ -36,6 +36,6 @@ Tạo N users đơn giản qua API (username + password cố định).
 ```bash
 chmod +x seed-users.sh
 ./seed-users.sh 1000
-./seed-users.sh 500 https://npd-banking.co
+./seed-users.sh 500 https://banking-npd.co
 CURL_OPTS="-s -k" ./seed-users.sh 1000
 ```

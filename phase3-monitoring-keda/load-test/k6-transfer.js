@@ -8,7 +8,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8000';
-const HOST_HEADER = __ENV.HOST_HEADER || ''; // Khi gọi bằng IP, set HOST_HEADER=npd-banking.co để Ingress route đúng
+const HOST_HEADER = __ENV.HOST_HEADER || ''; // Khi gọi bằng IP, set HOST_HEADER=banking-npd.co để Ingress route đúng
 const VUS = __ENV.VUS ? parseInt(__ENV.VUS, 10) : 10;
 const DURATION = __ENV.DURATION || '2m';
 

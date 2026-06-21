@@ -1,11 +1,11 @@
 # Biến môi trường GitOps — ít thay đổi, không chứa secret
 gitops:
-  repoUrl: https://github.com/YOUR_ORG/banking-demo.git
+  repoUrl: https://github.com/kevinram164/banking-demo.git
   branch: dev-k3d
   valuesImagesPath: phase9-gitops-platform/gitops/values-images.yaml
 
 harbor:
-  host: harbor.example.com
+  host: harbor-npd.co
   project: banking-demo
 
 jenkins:

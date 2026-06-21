@@ -13,7 +13,7 @@ metadata:
 spec:
   project: banking-platform
   source:
-    repoURL: https://github.com/YOUR_ORG/banking-demo.git
+    repoURL: https://github.com/kevinram164/banking-demo.git
     targetRevision: main
     path: phase8-application-v3/rabbitmq
     directory:

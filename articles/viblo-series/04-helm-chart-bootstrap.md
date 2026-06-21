@@ -110,7 +110,7 @@ secret:
 ingress:
   enabled: true
   className: haproxy
-  host: npd-banking.co
+  host: banking-npd.co
   name: banking-ingress
   paths:
     - path: /

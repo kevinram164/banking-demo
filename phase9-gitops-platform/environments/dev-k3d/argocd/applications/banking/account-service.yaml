@@ -12,7 +12,7 @@ metadata:
 spec:
   project: banking-platform
   source:
-    repoURL: https://github.com/YOUR_ORG/banking-demo.git
+    repoURL: https://github.com/kevinram164/banking-demo.git
     targetRevision: dev-k3d
     path: phase2-helm-chart/banking-demo
     helm:
@@ -22,6 +22,7 @@ spec:
         - charts/account-service/values.yaml
         - values-phase8.yaml
         - ../../phase9-gitops-platform/gitops/values-images.yaml
+        - ../../phase9-gitops-platform/gitops/values-observability.yaml
       parameters:
         - name: namespace.enabled
           value: "false"

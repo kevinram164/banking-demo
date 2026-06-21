@@ -2,66 +2,65 @@
 
 Triển khai **CI (Jenkins + Kaniko + Harbor)** và **CD (ArgoCD App of Apps)** cho banking-demo Phase 8 trên nền Phase 5.
 
-Chi tiết: [PHASE9.md](./PHASE9.md) | Bootstrap: [bootstrap/BOOTSTRAP.md](./bootstrap/BOOTSTRAP.md)
+## Thứ tự triển khai (quan trọng)
+
+| Giai đoạn | Nội dung | Deploy app? |
+|-----------|----------|-------------|
+| 1 | k3d + ArgoCD bootstrap | Không |
+| 2 | Platform: Harbor, Vault, ESO, Jenkins | Không |
+| 2b | Observability: Coroot, OTEL, Linkerd mesh | Không |
+| 3 | Infra: Postgres, Redis, RabbitMQ, Kong | Không |
+| 4 | CI/CD: Jenkins → Harbor → commit GitOps | Không |
+| 5 | ArgoCD sync banking app | **Có** |
+
+**Hướng dẫn đầy đủ:** **[K3D-DEPLOY-GUIDE.md](./K3D-DEPLOY-GUIDE.md)**
+
+Chi tiết kiến trúc: [PHASE9.md](./PHASE9.md) | Bootstrap: [bootstrap/BOOTSTRAP.md](./bootstrap/BOOTSTRAP.md)
 
 **Lab k3d / nhánh `dev-k3d`:** [k3d/DEV-K3D-WORKFLOW.md](../k3d/DEV-K3D-WORKFLOW.md) | [environments/dev-k3d/](./environments/dev-k3d/)
 
-## 1. Sửa placeholder trong repo
-
-Tìm và thay trong `phase9-gitops-platform/`:
-
-| Placeholder | Thay bằng |
-|-------------|-----------|
-| `https://github.com/YOUR_ORG/banking-demo.git` | URL GitHub thật |
-| `harbor.example.com` | Harbor host |
-| `main` | Branch GitOps (nếu khác) |
-
-## 2. Bootstrap platform (một lần)
-
-Xem thứ tự đầy đủ trong [bootstrap/BOOTSTRAP.md](./bootstrap/BOOTSTRAP.md):
+## Apply theo giai đoạn (dev-k3d)
 
 ```bash
-# AppProject mở rộng (namespace Phase 5 + platform)
+# Giai đoạn 1 — sau khi ArgoCD bootstrap
 kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
 
-# Root App of Apps — ArgoCD tự sync infra + banking + platform stubs
-kubectl apply -f phase9-gitops-platform/argocd/app-of-apps.yaml -n argocd
+# Giai đoạn 2 — platform
+kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/platform-app-of-apps.yaml -n argocd
+
+# Giai đoạn 2b — observability (chạy observability/scripts/generate-linkerd-certs.sh trước)
+kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/observability-app-of-apps.yaml -n argocd
+
+# Giai đoạn 3 — infra (sửa storageClass local-path trước)
+kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/infra-app-of-apps.yaml -n argocd
+
+# Giai đoạn 4 — cấu hình Jenkins, chạy pipeline, verify Harbor + values-images.yaml
+
+# Giai đoạn 5 — banking app (SAU CI/CD)
+kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/banking-app-of-apps.yaml -n argocd
 ```
 
-## 3. Cấu hình Jenkins Shared Library
-
-1. Tạo repo hoặc branch `jenkins-shared-library` (hoặc copy thư mục `jenkins-shared-library/` vào repo Jenkins).
-2. Trong Jenkins: **Manage Jenkins → System → Global Pipeline Libraries** → thêm library `banking-demo` trỏ tới repo.
-3. Tạo Pipeline job multibranch / webhook GitHub, dùng `jenkins/Jenkinsfile.example`.
-
-## 4. Luồng phát triển
+## Luồng phát triển hàng ngày (sau bootstrap)
 
 ```bash
-# Dev push code Phase 8
-git push origin main   # paths: phase8-application-v3/**
-
-# Jenkins: build Kaniko → Harbor → commit values-images.yaml
-# ArgoCD: sync banking apps → rollout pods
-```
-
-## 5. Kiểm tra
-
-```bash
-argocd app list | grep banking
-kubectl get pods -n banking
-curl -s -H "Host: npd-banking.co" http://<ingress-ip>/ | head
+git push origin dev-k3d   # phase8-application-v3/**
+# Jenkins: Kaniko → Harbor → commit values-images.yaml
+# ArgoCD: sync banking apps → rollout
 ```
 
 ## Cấu trúc ArgoCD
 
 ```
-app-of-apps (root)
-├── platform-app-of-apps   → jenkins, harbor, vault, external-secrets (wave 0)
-├── infra-app-of-apps      → postgres, redis, kong, rabbitmq (wave 0–1)
-└── banking-app-of-apps    → namespace, services Phase 8 (wave 1–2)
+(platform + infra apply trước, banking apply sau CI/CD)
+
+platform-app-of-apps      → harbor, vault, external-secrets, jenkins (wave 0–1)
+observability-app-of-apps → coroot, otel-collector, linkerd (wave 0–2)
+infra-app-of-apps         → postgres, redis, rabbitmq, kong (wave 0–1)
+banking-app-of-apps       → namespace, services Phase 8 (wave 10, sync thủ công lần đầu)
 ```
 
 Per-service banking apps dùng:
 
 - `phase2-helm-chart/banking-demo` + `values-phase8.yaml`
 - `phase9-gitops-platform/gitops/values-images.yaml` (CI cập nhật tag)
+- `phase9-gitops-platform/gitops/values-observability.yaml` (OTEL + Linkerd inject)
