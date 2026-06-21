@@ -1,5 +1,5 @@
-# Jenkins — lab k3d: UI https://jenkins-npd.co (Ingress Traefik + Nginx SSL terminate)
-# Shared Library + K8s cloud cấu hình thêm trong UI sau sync
+# Jenkins — lab k3d: UI https://jenkins-npd.co
+# Init container fail thường do: plugin pin sai, PVC permission (fsGroup), persistence sai path
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -18,15 +18,47 @@ spec:
     helm:
       releaseName: jenkins
       values: |
+        persistence:
+          enabled: true
+          storageClass: local-path
+          size: 8Gi
+          accessMode: ReadWriteOnce
         controller:
           admin:
             password: "ChangeMe-Jenkins"
           jenkinsUrl: https://jenkins-npd.co/
+          # Không pin version — init container tự resolve plugin tương thích
           installPlugins:
-            - kubernetes:4306.vc91e37ea_722d
-            - workflow-aggregator:596.v8c21c963d92d
-            - git:5.5.2
-            - configuration-as-code:1932.v75cb_b_f812b_6
+            - kubernetes
+            - workflow-aggregator
+            - git
+            - configuration-as-code
+          overwritePluginsFromImage: true
+          initializeOnce: false
+          podSecurityContextOverride:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+            runAsNonRoot: true
+            supplementalGroups: [1000]
+          containerSecurityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsGroup: 1000
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              memory: 2Gi
+          initContainerResources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
           JCasC:
             defaultConfig: true
           ingress:
@@ -34,9 +66,6 @@ spec:
             hostName: jenkins-npd.co
             ingressClassName: traefik
             tls: []
-          persistence:
-            storageClass: local-path
-            size: 8Gi
         agent:
           enabled: true
           kubernetes:
@@ -45,5 +74,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: platform
   syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true

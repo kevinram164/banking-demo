@@ -28,24 +28,90 @@ spec:
             className: traefik
         externalURL: https://harbor-npd.co
         harborAdminPassword: "ChangeMe-Harbor-Admin"
+        internalTLS:
+          enabled: false
+        # Lab k3d: tắt Trivy giảm RAM + thời gian khởi động
+        trivy:
+          enabled: false
+        database:
+          type: internal
+          internal:
+            password: "ChangeMe-Harbor-DB"
+            shmSizeLimit: 256Mi
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+        redis:
+          type: internal
+          internal:
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                memory: 256Mi
+        core:
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          startupProbe:
+            enabled: true
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 36
+          livenessProbe:
+            initialDelaySeconds: 60
+        jobservice:
+          maxJobWorkers: 2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+        registry:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+        portal:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+        nginx:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
         persistence:
           enabled: true
           persistentVolumeClaim:
             registry:
               storageClass: local-path
-              size: 20Gi
+              size: 10Gi
             jobservice:
               jobLog:
                 storageClass: local-path
+                size: 1Gi
             database:
               storageClass: local-path
+              size: 2Gi
             redis:
               storageClass: local-path
-            trivy:
-              storageClass: local-path
+              size: 1Gi
   destination:
     server: https://kubernetes.default.svc
     namespace: platform
   syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
