@@ -1,5 +1,5 @@
 # Jenkins — lab k3d: UI https://jenkins-npd.co
-# Root cause init fail: image 2.479.1 quá cũ + installLatestPlugins tải plugin cần >= 2.504
+# Chart 5.7.14 default image = 2.479.1 — PHẢI override controller.image.tag
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: https://charts.jenkins.io
     chart: jenkins
-    targetRevision: 5.7.14
+    targetRevision: 5.7.27
     helm:
       releaseName: jenkins
       values: |
@@ -28,6 +28,7 @@ spec:
             registry: docker.io
             repository: jenkins/jenkins
             tag: "lts-jdk17"
+            pullPolicy: Always
           admin:
             password: "ChangeMe-Jenkins"
           jenkinsUrl: https://jenkins-npd.co/
