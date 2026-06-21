@@ -1,5 +1,5 @@
 # Jenkins — lab k3d: UI https://jenkins-npd.co
-# Lỗi init 404: plugin pin version cũ + Jenkins 2.479.1 quá cũ → dùng lts-jdk17, không pin version
+# Root cause init fail: image 2.479.1 quá cũ + installLatestPlugins tải plugin cần >= 2.504
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -25,11 +25,13 @@ spec:
           accessMode: ReadWriteOnce
         controller:
           image:
+            registry: docker.io
+            repository: jenkins/jenkins
             tag: "lts-jdk17"
           admin:
             password: "ChangeMe-Jenkins"
           jenkinsUrl: https://jenkins-npd.co/
-          installLatestPlugins: true
+          installLatestPlugins: false
           installPlugins:
             - kubernetes
             - workflow-aggregator
