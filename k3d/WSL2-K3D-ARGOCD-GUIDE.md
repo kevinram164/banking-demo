@@ -322,18 +322,19 @@ sudo systemctl start nginx
 
 ---
 
-## 14. Bước tiếp theo (Phase 9 GitOps)
+## 14. Bước tiếp theo (Phase 9 GitOps — nhánh `dev-k3d`)
 
-Sau khi ArgoCD UI chạy ổn:
+Sau khi ArgoCD UI chạy ổn, làm việc trên nhánh **`dev-k3d`**:
 
 ```bash
-cd banking-demo
-# Sửa YOUR_ORG, harbor.example.com trong phase9-gitops-platform/
+git checkout dev-k3d
 kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
-kubectl apply -f phase9-gitops-platform/argocd/app-of-apps.yaml -n argocd
+kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/app-of-apps.yaml -n argocd
 ```
 
-Xem thêm: [../README.md](../README.md), [../PHASE9.md](../PHASE9.md).
+Luồng CI/CD Jenkins (không GitHub Actions): [DEV-K3D-WORKFLOW.md](./DEV-K3D-WORKFLOW.md)
+
+Xem thêm: [phase9-gitops-platform/README.md](../phase9-gitops-platform/README.md)
 
 ---
 

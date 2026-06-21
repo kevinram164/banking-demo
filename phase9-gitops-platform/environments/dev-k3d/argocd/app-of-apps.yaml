@@ -1,0 +1,30 @@
+# Root App of Apps — nhánh dev-k3d
+# Apply: kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/app-of-apps.yaml -n argocd
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banking-platform-root-dev-k3d
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-k3d
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/YOUR_ORG/banking-demo.git
+    targetRevision: dev-k3d
+    path: phase9-gitops-platform/environments/dev-k3d/argocd/applications
+    directory:
+      include: "*-app-of-apps.yaml"
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

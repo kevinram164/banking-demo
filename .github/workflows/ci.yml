@@ -1,5 +1,7 @@
 name: CI
 
+# CI cho main/develop. Nhánh dev-k3d dùng Jenkins in-cluster — xem k3d/DEV-K3D-WORKFLOW.md
+
 on:
   push:
     branches: [main, develop]

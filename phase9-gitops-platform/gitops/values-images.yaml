@@ -1,46 +1,43 @@
-# Image tags — CI (Jenkins) cập nhật file này sau mỗi build thành công.
-# ArgoCD banking Applications merge file này SAU values-phase8.yaml.
-#
-# Registry: Harbor (thay harbor.example.com)
-# Tag mặc định: short Git SHA (7 ký tự) hoặc v3 cho release tag
+# Image tags — CI (Jenkins) cập nhật trên nhánh dev-k3d
+# Registry lab k3d: harbor-npd.co (thay YOUR_ORG / host nếu khác)
 
 global:
-  imageRegistry: harbor.example.com/banking-demo
+  imageRegistry: harbor-npd.co/banking-demo
   imagePullSecrets:
     - name: harbor-registry
 
 api-producer:
   image:
-    repository: harbor.example.com/banking-demo/api-producer
+    repository: harbor-npd.co/banking-demo/api-producer
     tag: v3
     pullPolicy: Always
 
 auth-service:
   image:
-    repository: harbor.example.com/banking-demo/auth-service
+    repository: harbor-npd.co/banking-demo/auth-service
     tag: v3
     pullPolicy: Always
 
 account-service:
   image:
-    repository: harbor.example.com/banking-demo/account-service
+    repository: harbor-npd.co/banking-demo/account-service
     tag: v3
     pullPolicy: Always
 
 transfer-service:
   image:
-    repository: harbor.example.com/banking-demo/transfer-service
+    repository: harbor-npd.co/banking-demo/transfer-service
     tag: v3
     pullPolicy: Always
 
 notification-service:
   image:
-    repository: harbor.example.com/banking-demo/notification-service
+    repository: harbor-npd.co/banking-demo/notification-service
     tag: v3
     pullPolicy: Always
 
 frontend:
   image:
-    repository: harbor.example.com/banking-demo/frontend
+    repository: harbor-npd.co/banking-demo/frontend
     tag: latest
     pullPolicy: Always

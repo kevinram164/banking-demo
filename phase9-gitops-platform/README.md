@@ -4,7 +4,7 @@ Triển khai **CI (Jenkins + Kaniko + Harbor)** và **CD (ArgoCD App of Apps)** 
 
 Chi tiết: [PHASE9.md](./PHASE9.md) | Bootstrap: [bootstrap/BOOTSTRAP.md](./bootstrap/BOOTSTRAP.md)
 
-**Lab k3d trên WSL2 (ArgoCD + Nginx + domain):** [k3d/WSL2-K3D-ARGOCD-GUIDE.md](./k3d/WSL2-K3D-ARGOCD-GUIDE.md)
+**Lab k3d / nhánh `dev-k3d`:** [k3d/DEV-K3D-WORKFLOW.md](../k3d/DEV-K3D-WORKFLOW.md) | [environments/dev-k3d/](./environments/dev-k3d/)
 
 ## 1. Sửa placeholder trong repo
 

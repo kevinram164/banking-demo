@@ -1,0 +1,26 @@
+# Infra Phase 5 + RabbitMQ Phase 8 — dev-k3d
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infra-app-of-apps-dev-k3d
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-k3d
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/YOUR_ORG/banking-demo.git
+    targetRevision: dev-k3d
+    path: phase9-gitops-platform/argocd/applications/infra
+    directory:
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
