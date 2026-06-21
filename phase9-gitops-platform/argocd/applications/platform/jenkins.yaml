@@ -36,8 +36,10 @@ spec:
           installPlugins:
             - kubernetes
             - workflow-aggregator
+            - workflow-multibranch
             - git
             - configuration-as-code
+            - pipeline-groovy-lib
           overwritePlugins: true
           overwritePluginsFromImage: true
           initializeOnce: false
@@ -67,6 +69,19 @@ spec:
               memory: 2Gi
           JCasC:
             defaultConfig: true
+            configScripts:
+              banking-shared-library: |
+                unclassified:
+                  globalLibraries:
+                    libraries:
+                      - name: "banking-demo"
+                        defaultVersion: "dev-k3d"
+                        retriever:
+                          modernSCM:
+                            libraryPath: "phase9-gitops-platform/jenkins-shared-library"
+                            scm:
+                              git:
+                                remote: "https://github.com/kevinram164/banking-demo.git"
           ingress:
             enabled: true
             hostName: jenkins-npd.co

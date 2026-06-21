@@ -140,7 +140,7 @@ Repo: **`https://github.com/kevinram164/banking-demo.git`** — đã cấu hình
 ### Biến môi trường (dùng xuyên suốt doc)
 
 ```bash
-export REPO_ROOT=~/banking-demo   # chỉnh path thật
+export REPO_ROOT=/home/kevin/banking-demo  # chỉnh path thật
 export GIT_BRANCH=dev-k3d
 export CLUSTER=npd
 ```
@@ -300,13 +300,15 @@ kubectl get pods -n external-secrets
 Pull secret (dùng ở Giai đoạn 5):
 
 ```bash
-kubectl create secret docker-registry harbor-registry \
+# Tên harbor-pull-creds — KHÔNG dùng harbor-registry (Harbor Helm chart chiếm tên đó)
+kubectl create secret docker-registry harbor-pull-creds \
   --docker-server=harbor-npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='ROBOT_TOKEN' \
   -n banking --dry-run=client -o yaml | kubectl apply -f -
 
-kubectl create secret docker-registry harbor-registry \
+kubectl delete secret harbor-pull-creds -n platform 2>/dev/null || true
+kubectl create secret docker-registry harbor-pull-creds \
   --docker-server=harbor-npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='ROBOT_TOKEN' \
@@ -324,23 +326,187 @@ Cập nhật `phase9-gitops-platform/gitops/values-images.yaml` → registry `ha
 
 Sau ESO sync → secret K8s được tạo tự động (thay `kubectl create secret` thủ công nếu đã cấu hình ExternalSecret).
 
-### 4.4 Jenkins
+### 4.4 Jenkins — cấu hình CI (từng bước)
 
-1. Sync `platform-jenkins` → pod Running
-2. UI: **https://jenkins-npd.co** — user `admin`, password trong values hoặc:
-   ```bash
-   kubectl exec -n platform deploy/jenkins -c jenkins -- cat /run/secrets/additional/chart-admin-password 2>/dev/null || true
-   ```
-3. **Manage Jenkins → Global Pipeline Libraries** → name `banking-demo`, repo + branch `dev-k3d`, path `phase9-gitops-platform/jenkins-shared-library`
-4. Tạo **Multibranch Pipeline** → branch `dev-k3d`, script path `Jenkinsfile`
-5. Credentials Jenkins:
-   - `harbor-ci-push` — robot Harbor push
-   - `github-gitops-push` — PAT commit `values-images.yaml`
-6. GitHub webhook → Jenkins (push `dev-k3d`)
+**Mục tiêu:** push code nhánh `dev-k3d` → Jenkins build image Kaniko → push Harbor → commit `values-images.yaml`.
 
-Chi tiết: [jenkins-shared-library/README.md](./jenkins-shared-library/README.md)
+**Cần làm trước:** Harbor đã chạy (mục 4.2), đã tạo project `banking-demo` và robot account `ci-push`.
 
-**Checkpoint Giai đoạn 2:** Harbor UI OK, Vault unsealed, Jenkins login OK, Shared Library loaded.
+---
+
+#### Bước 1 — Đợi Jenkins chạy
+
+```bash
+kubectl get pods -n platform -l app.kubernetes.io/component=jenkins-controller
+# jenkins-0 → 2/2 Running
+```
+
+ArgoCD: app `platform-jenkins` → **Synced / Healthy**.
+
+---
+
+#### Bước 2 — Đăng nhập Jenkins
+
+| | |
+|---|---|
+| URL | https://jenkins-npd.co |
+| User | `admin` |
+| Password | `ChangeMe-Jenkins` (trong `jenkins.yaml`) |
+
+Lấy password từ cluster (nếu đổi sau lần deploy đầu):
+
+```bash
+kubectl get secret jenkins -n platform \
+  -o jsonpath='{.data.jenkins-admin-password}' | base64 -d; echo
+```
+
+---
+
+#### Bước 3 — Shared Library (tự động qua GitOps)
+
+Manifest `jenkins.yaml` đã khai báo **JCasC** — không cần cấu hình thủ công trên UI.
+
+| Tham số | Giá trị |
+|---------|---------|
+| Tên library | `banking-demo` |
+| Branch mặc định | `dev-k3d` |
+| Repo | `https://github.com/kevinram164/banking-demo.git` |
+| Thư mục library | `phase9-gitops-platform/jenkins-shared-library` |
+
+Sau khi sync `platform-jenkins`, kiểm tra:
+
+```bash
+# ConfigMap JCasC có chứa banking-demo
+kubectl get configmap -n platform -l jenkins-jenkins-config=true -o name | head -1 | \
+  xargs kubectl get -n platform -o yaml | grep -A2 'name: "banking-demo"' || true
+```
+
+Nếu chưa thấy → sync lại app và restart pod:
+
+```bash
+argocd app sync platform-jenkins --force
+kubectl delete pod jenkins-0 -n platform
+```
+
+> **Lưu ý UI:** Trên Jenkins mới, mục cấu hình library (nếu tự làm tay) nằm ở **Manage Jenkins → System** (`/configure`), tìm **Global Trusted Pipeline Libraries** — không có trên trang Manage Jenkins chính.
+
+---
+
+#### Bước 4 — Tạo 2 Credentials (bắt buộc)
+
+Pipeline đọc credential theo **ID cố định** — phải đặt đúng tên.
+
+**4a. Harbor push** — robot account `ci-push` tạo ở Harbor UI (mục 4.2)
+
+1. **Manage Jenkins → Credentials**
+2. **(global)** → **Add Credentials**
+3. Điền:
+
+| Field | Giá trị |
+|-------|---------|
+| Kind | Username with password |
+| Scope | Global |
+| Username | `robot$ci-push` |
+| Password | token robot Harbor (copy từ Harbor UI) |
+| ID | `harbor-ci-push` |
+| Description | Harbor push for Kaniko |
+
+**4b. GitHub push GitOps** — Personal Access Token (PAT)
+
+1. GitHub → Settings → Developer settings → **Fine-grained token** (hoặc classic)
+2. Quyền: **Contents: Read and write** trên repo `banking-demo`
+3. Jenkins → **Add Credentials**:
+
+| Field | Giá trị |
+|-------|---------|
+| Kind | Username with password |
+| Username | GitHub username (vd. `kevinram164`) |
+| Password | PAT vừa tạo |
+| ID | `github-gitops-push` |
+| Description | Push values-images.yaml |
+
+---
+
+#### Bước 5 — ServiceAccount cho Kaniko (một lần)
+
+Pipeline chạy pod Kaniko với SA `jenkins-kaniko`:
+
+```bash
+kubectl create serviceaccount jenkins-kaniko -n platform --dry-run=client -o yaml | kubectl apply -f -
+```
+
+---
+
+#### Bước 6 — Tạo job Multibranch Pipeline
+
+1. Jenkins home → **New Item**
+2. Tên: `banking-demo` (tùy chọn)
+3. Chọn **Multibranch Pipeline** → OK
+4. Tab **Branch Sources** → **Add source** → **Git**
+   - Repository URL: `https://github.com/kevinram164/banking-demo.git`
+   - Credentials: không cần (repo public) hoặc thêm nếu private
+5. **Behaviours** → **Filter by name (with wildcards)**
+   - Include: `dev-k3d`
+   - Exclude: (để trống)
+6. Tab **Build Configuration**
+   - Mode: **by Jenkinsfile**
+   - Script Path: `Jenkinsfile` (file ở root repo — đã cấu hình sẵn `harbor-npd.co`, branch `dev-k3d`)
+7. **Save**
+
+Jenkins quét nhánh `dev-k3d` và tạo job con. Bấm job con → **Build Now** để thử.
+
+---
+
+#### Bước 7 — (Tùy chọn) Webhook GitHub tự động build
+
+1. Job `banking-demo` → **Configure** → **Scan Multibranch Pipeline Triggers**
+2. Bật **Periodically if not otherwise run** (vd. mỗi 5 phút) — hoặc cấu hình webhook:
+3. GitHub repo → **Settings → Webhooks → Add**
+   - Payload URL: `https://jenkins-npd.co/github-webhook/`
+   - Content type: `application/json`
+   - Events: **Just the push event**
+   - Branch: `dev-k3d`
+
+---
+
+#### Bước 8 — Kiểm tra pipeline chạy OK
+
+```bash
+# Sửa code Phase 8 rồi push
+git add phase8-application-v3/
+git commit -m "test: trigger Jenkins CI"
+git push origin dev-k3d
+```
+
+Kỳ vọng trên Jenkins UI:
+
+1. Stage **Checkout** — OK
+2. Stage **Build & Push** — image lên `harbor-npd.co/banking-demo/<service>:<sha7>`
+3. Stage **Update GitOps** — commit mới trên `values-images.yaml`
+
+Verify:
+
+```bash
+# Harbor UI — project banking-demo có image
+git pull origin dev-k3d
+git log -1 --oneline -- phase9-gitops-platform/gitops/values-images.yaml
+```
+
+---
+
+#### Lỗi thường gặp
+
+| Triệu chứng | Cách sửa |
+|-------------|----------|
+| `library banking-demo not found` | Sync `platform-jenkins`, restart `jenkins-0`, đợi plugin + JCasC load |
+| `credentials harbor-ci-push not found` | Tạo credential ID đúng tên (Bước 4a) |
+| Kaniko push 401 | Robot Harbor sai user/token; user phải là `robot$ci-push` |
+| Git push failed stage Update GitOps | Thiếu `github-gitops-push` hoặc PAT không có quyền write |
+| Pod Kaniko pending | Tạo SA `jenkins-kaniko` (Bước 5) |
+
+Chi tiết library: [jenkins-shared-library/README.md](./jenkins-shared-library/README.md)
+
+**Checkpoint Giai đoạn 2:** Harbor UI OK, Vault seeded, Jenkins login OK, job Multibranch tạo xong, credentials 2 ID đã có.
 
 ---
 

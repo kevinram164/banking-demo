@@ -1,49 +1,55 @@
-# Jenkins Shared Library — banking-demo Phase 9
+# Jenkins Shared Library — banking-demo
 
-Thư viện dùng cho Pipeline CI: build image Kaniko → push Harbor → cập nhật GitOps.
+Thư viện Groovy dùng trong `Jenkinsfile` (root repo) để:
 
-## Cài đặt
+1. Build image Phase 8 bằng **Kaniko**
+2. Push lên **Harbor** (`harbor-npd.co/banking-demo/...`)
+3. Cập nhật tag trong **`gitops/values-images.yaml`** và push Git
 
-1. Copy thư mục này vào repo Jenkins hoặc repo riêng `banking-demo-jenkins-library`.
-2. Jenkins → **Manage Jenkins → System → Global Pipeline Libraries**:
-   - Name: `banking-demo`
-   - Default version: `main`
-   - Retrieval method: Modern SCM → Git → URL repo library
-3. Pipeline job dùng `@Library('banking-demo') _` + `jenkins/Jenkinsfile.example`.
+## Ai cấu hình gì?
 
-## Entry point
+| Việc | Cách làm |
+|------|----------|
+| Cài Jenkins + plugin | ArgoCD app `platform-jenkins` |
+| Đăng ký library `banking-demo` | **Tự động** qua JCasC trong `jenkins.yaml` |
+| Credential Harbor + GitHub | **Thủ công** trên Jenkins UI (2 ID cố định) |
+| Tạo job pipeline | **Thủ công** — Multibranch Pipeline trỏ repo |
+
+Hướng dẫn đầy đủ từng bước: [K3D-DEPLOY-GUIDE.md § 4.4](../K3D-DEPLOY-GUIDE.md#44-jenkins--cấu-hình-ci-từng-bước)
+
+## Credential ID (bắt buộc đúng tên)
+
+| ID | Dùng cho |
+|----|----------|
+| `harbor-ci-push` | Robot Harbor push (`robot$ci-push` + token) |
+| `github-gitops-push` | GitHub PAT commit `values-images.yaml` |
+
+## Services được build
+
+| Service | Dockerfile |
+|---------|------------|
+| api-producer | `phase8-application-v3/producer/Dockerfile` |
+| auth-service | `phase8-application-v3/services/auth-service/Dockerfile` |
+| account-service | `phase8-application-v3/services/account-service/Dockerfile` |
+| transfer-service | `phase8-application-v3/services/transfer-service/Dockerfile` |
+| notification-service | `phase8-application-v3/services/notification-service/Dockerfile` |
+
+Chỉ build service có file thay đổi dưới `phase8-application-v3/`.
+
+## Jenkinsfile mẫu
+
+Repo đã có `Jenkinsfile` ở root (nhánh `dev-k3d`):
 
 ```groovy
 @Library('banking-demo') _
 
 bankingDemoPipeline([
-  harborHost: 'harbor.example.com',
-  harborProject: 'banking-demo',
-  gitBranch: 'main',
+  harborHost      : 'harbor-npd.co',
+  harborProject   : 'banking-demo',
+  gitBranch       : 'dev-k3d',
+  gitRepoUrl      : 'https://github.com/kevinram164/banking-demo.git',
   gitopsValuesFile: 'phase9-gitops-platform/gitops/values-images.yaml',
 ])
 ```
 
-## Services (Phase 8)
-
-| Key | Dockerfile | Context |
-|-----|------------|---------|
-| api-producer | `phase8-application-v3/producer/Dockerfile` | `.` |
-| auth-service | `phase8-application-v3/services/auth-service/Dockerfile` | `.` |
-| account-service | `phase8-application-v3/services/account-service/Dockerfile` | `.` |
-| transfer-service | `phase8-application-v3/services/transfer-service/Dockerfile` | `.` |
-| notification-service | `phase8-application-v3/services/notification-service/Dockerfile` | `.` |
-
-## Credentials Jenkins (gợi ý)
-
-| ID | Mục đích |
-|----|----------|
-| `harbor-ci-push` | Username/password robot Harbor push |
-| `github-gitops-push` | PAT push commit values-images.yaml |
-| `github-webhook` | (tùy chọn) clone repo app |
-
-Lưu credential trong Vault; Jenkins lấy qua plugin hoặc K8s Secret mount.
-
-## Kaniko pod
-
-Template: `../jenkins/pod-templates/kaniko-pod.yaml` — mount dockerconfig cho Harbor.
+Bản generic: [../jenkins/Jenkinsfile.example](../jenkins/Jenkinsfile.example)
