@@ -1,5 +1,5 @@
 # Jenkins — lab k3d: UI https://jenkins-npd.co
-# Init container fail thường do: plugin pin sai, PVC permission (fsGroup), persistence sai path
+# Lỗi init 404: plugin pin version cũ + Jenkins 2.479.1 quá cũ → dùng lts-jdk17, không pin version
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -24,15 +24,18 @@ spec:
           size: 8Gi
           accessMode: ReadWriteOnce
         controller:
+          image:
+            tag: "lts-jdk17"
           admin:
             password: "ChangeMe-Jenkins"
           jenkinsUrl: https://jenkins-npd.co/
-          # Không pin version — init container tự resolve plugin tương thích
+          installLatestPlugins: true
           installPlugins:
             - kubernetes
             - workflow-aggregator
             - git
             - configuration-as-code
+          overwritePlugins: true
           overwritePluginsFromImage: true
           initializeOnce: false
           podSecurityContextOverride:
@@ -58,7 +61,7 @@ spec:
               cpu: 200m
               memory: 512Mi
             limits:
-              memory: 1Gi
+              memory: 2Gi
           JCasC:
             defaultConfig: true
           ingress:
