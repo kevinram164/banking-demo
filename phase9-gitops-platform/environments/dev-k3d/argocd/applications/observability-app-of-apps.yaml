@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: https://github.com/kevinram164/banking-demo.git
     targetRevision: dev-k3d
-    path: phase9-gitops-platform/argocd/applications/observability
+    path: phase9-gitops-platform/gitops-platform/applications/observability
     directory:
       recurse: false
   destination:

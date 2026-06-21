@@ -8,7 +8,7 @@ Cấu hình ArgoCD + GitOps cho nhánh **`dev-k3d`** trên cluster **k3d-npd**.
 
 | Bước | File apply | Giai đoạn |
 |------|------------|-----------|
-| 1 | `phase9-gitops-platform/argocd/project.yaml` | ArgoCD bootstrap xong |
+| 1 | `phase9-gitops-platform/gitops-platform/project.yaml` | ArgoCD bootstrap xong |
 | 2 | `applications/platform-app-of-apps.yaml` | Platform |
 | 2b | `applications/observability-app-of-apps.yaml` | Coroot + OTEL + Linkerd |
 | 3 | `applications/infra-app-of-apps.yaml` | Infra |
@@ -24,7 +24,7 @@ Chi tiết: [K3D-DEPLOY-GUIDE.md](../../K3D-DEPLOY-GUIDE.md)
 |------|--------|-----------|
 | ArgoCD `targetRevision` | `main` | **`dev-k3d`** |
 | CI | GitHub Actions | Jenkins |
-| Root App of Apps | `argocd/app-of-apps.yaml` | **`environments/dev-k3d/argocd/app-of-apps.yaml`** |
+| Root App of Apps | `gitops-platform/app-of-apps.yaml` | **`environments/dev-k3d/argocd/app-of-apps.yaml`** |
 | Thứ tự deploy | App of Apps một lần | **Platform → Infra → CI/CD → Banking** |
 
 ## gitops-env.yaml

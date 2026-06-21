@@ -23,7 +23,7 @@ Chi tiết kiến trúc: [PHASE9.md](./PHASE9.md) | Bootstrap: [bootstrap/BOOTST
 
 ```bash
 # Giai đoạn 1 — sau khi ArgoCD bootstrap
-kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
+kubectl apply -f phase9-gitops-platform/gitops-platform/project.yaml -n argocd
 
 # Giai đoạn 2 — platform
 kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/platform-app-of-apps.yaml -n argocd

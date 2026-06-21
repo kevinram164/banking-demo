@@ -1,22 +1,19 @@
-# Root App of Apps — Phase 9
-# Bootstrap: kubectl apply -f phase9-gitops-platform/argocd/app-of-apps.yaml -n argocd
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: banking-platform-root
+  name: platform-app-of-apps
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: phase9-gitops
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: banking-platform
   source:
     repoURL: https://github.com/kevinram164/banking-demo.git
     targetRevision: main
-    path: phase9-gitops-platform/argocd/applications
+    path: phase9-gitops-platform/gitops-platform/applications/platform
     directory:
-      include: "*-app-of-apps.yaml"
       recurse: false
   destination:
     server: https://kubernetes.default.svc
@@ -25,5 +22,3 @@ spec:
     automated:
       prune: false
       selfHeal: true
-    syncOptions:
-      - CreateNamespace=false

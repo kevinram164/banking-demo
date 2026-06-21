@@ -1,6 +1,6 @@
 # ArgoCD AppProject — Phase 9 GitOps Platform
 # Mở rộng destinations cho namespace Phase 5 + Phase 8 + platform + observability
-# Áp dụng: kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
+# Áp dụng: kubectl apply -f phase9-gitops-platform/gitops-platform/project.yaml -n argocd
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:

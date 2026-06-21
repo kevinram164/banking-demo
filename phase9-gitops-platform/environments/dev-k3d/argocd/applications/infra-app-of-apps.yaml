@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: https://github.com/kevinram164/banking-demo.git
     targetRevision: dev-k3d
-    path: phase9-gitops-platform/argocd/applications/infra
+    path: phase9-gitops-platform/gitops-platform/applications/infra
     directory:
       recurse: false
   destination:

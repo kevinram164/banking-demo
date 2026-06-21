@@ -1,18 +1,18 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: platform-app-of-apps
+  name: banking-app-of-apps
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: phase9-gitops
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: banking-platform
   source:
     repoURL: https://github.com/kevinram164/banking-demo.git
     targetRevision: main
-    path: phase9-gitops-platform/argocd/applications/platform
+    path: phase9-gitops-platform/gitops-platform/applications/banking
     directory:
       recurse: false
   destination:

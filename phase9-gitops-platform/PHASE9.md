@@ -44,7 +44,7 @@ phase9-gitops-platform/
 │   ├── values-coroot-ce-k3d.yaml
 │   ├── values-otel-collector-k3d.yaml
 │   └── scripts/generate-linkerd-certs.sh
-├── argocd/
+├── gitops-platform/                   # ArgoCD manifests (AppProject, App of Apps, Applications)
 │   ├── project.yaml                   # AppProject mở rộng (mọi ns)
 │   ├── app-of-apps.yaml               # Root Application
 │   ├── README.md

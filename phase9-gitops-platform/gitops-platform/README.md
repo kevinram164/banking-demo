@@ -1,4 +1,4 @@
-# ArgoCD — Phase 9 App of Apps
+# GitOps Platform — ArgoCD manifests (Phase 9)
 
 ## Cấu trúc
 
@@ -13,10 +13,10 @@ banking-platform-root (app-of-apps.yaml)
 
 ```bash
 # 1. Project (một lần)
-kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
+kubectl apply -f phase9-gitops-platform/gitops-platform/project.yaml -n argocd
 
 # 2. Root
-kubectl apply -f phase9-gitops-platform/argocd/app-of-apps.yaml -n argocd
+kubectl apply -f phase9-gitops-platform/gitops-platform/app-of-apps.yaml -n argocd
 ```
 
 ## Sync waves

@@ -17,7 +17,7 @@ Chi tiết k3d lab: [K3D-DEPLOY-GUIDE.md](../K3D-DEPLOY-GUIDE.md)
 | 1 | **k3d cluster** | `k3d/cluster-create.sh` | Port map 9080/9443 |
 | 2 | **ArgoCD** | `kubectl apply -n argocd -f install.yaml` | Bootstrap thủ công |
 | 3 | **Nginx + Ingress** | `k3d/nginx-*.conf`, `argocd-ingress.yaml` | SSL terminate ngoài |
-| 4 | **AppProject** | `kubectl apply -f argocd/project.yaml` | |
+| 4 | **AppProject** | `kubectl apply -f gitops-platform/project.yaml` | |
 | 5 | **GitHub repo** | ArgoCD UI → Connect repo | Branch `dev-k3d` |
 
 ---

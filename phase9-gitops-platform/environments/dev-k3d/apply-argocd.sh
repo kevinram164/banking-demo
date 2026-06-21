@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT"
 
 echo "==> Apply AppProject"
-kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
+kubectl apply -f phase9-gitops-platform/gitops-platform/project.yaml -n argocd
 
 echo "==> Apply dev-k3d App of Apps"
 kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/app-of-apps.yaml -n argocd

@@ -256,7 +256,7 @@ Mở **https://argocd-npd.co** → user **`admin`**.
 3. Nếu private: username + PAT (scope `repo`)
 
 ```bash
-kubectl apply -f "$REPO_ROOT/phase9-gitops-platform/argocd/project.yaml" -n argocd
+kubectl apply -f "$REPO_ROOT/phase9-gitops-platform/gitops-platform/project.yaml" -n argocd
 ```
 
 Chi tiết lỗi Nginx: [WSL2-K3D-ARGOCD-GUIDE.md](../k3d/WSL2-K3D-ARGOCD-GUIDE.md).
@@ -578,7 +578,7 @@ k3d **không có** `nfs-client` / `pg-client`. Dùng **`local-path`** cho mọi 
 
 | Thành phần | File cấu hình | StorageClass k3d |
 |------------|---------------|------------------|
-| Harbor, Jenkins | `argocd/applications/platform/*.yaml` | `local-path` (đã sửa) |
+| Harbor, Jenkins | `gitops-platform/applications/platform/*.yaml` | `local-path` (đã sửa) |
 | Postgres | `phase5-architecture-refactor/postgres-ha/values-postgres-ha.yaml` | đổi `pg-client` → `local-path` |
 | Redis | `phase5-architecture-refactor/redis-ha/values-redis-ha.yaml` | đổi `nfs-client` → `local-path` |
 | RabbitMQ | `phase8-application-v3/rabbitmq/k8s-rabbitmq-standalone.yaml` | đổi → `local-path` |
@@ -853,7 +853,7 @@ kubectl get pods -A | grep -v Running
 kubectl get applications -n argocd
 
 # Apply theo giai đoạn (dev-k3d)
-kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
+kubectl apply -f phase9-gitops-platform/gitops-platform/project.yaml -n argocd
 kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/platform-app-of-apps.yaml -n argocd
 kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/observability-app-of-apps.yaml -n argocd
 kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/infra-app-of-apps.yaml -n argocd
