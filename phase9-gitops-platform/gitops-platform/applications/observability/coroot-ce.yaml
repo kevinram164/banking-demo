@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/part-of: phase9-gitops
     app.kubernetes.io/component: observability
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   project: banking-platform
   sources:
@@ -28,6 +28,7 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
+      - SkipDryRunOnMissingResource=true
     automated:
       prune: false
       selfHeal: true

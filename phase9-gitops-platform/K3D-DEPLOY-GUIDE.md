@@ -623,7 +623,16 @@ Chi tiết: [observability/README.md](./observability/README.md)
 ```bash
 chmod +x "$REPO_ROOT/phase9-gitops-platform/observability/scripts/generate-linkerd-certs.sh"
 "$REPO_ROOT/phase9-gitops-platform/observability/scripts/generate-linkerd-certs.sh"
-# Tạo: secret linkerd-identity-issuer + configmap linkerd-identity-trust-roots (ns linkerd)
+# Tạo: secret linkerd-identity-issuer (ca.crt + tls.crt + tls.key)
+#       configmap linkerd-identity-trust-roots (ns linkerd)
+# Helm cần identity.externalCA=true — xem linkerd-control-plane Application
+```
+
+Nếu Linkerd CrashLoopBackOff sau sync: chạy lại script (cập nhật secret 3 key), rồi:
+
+```bash
+kubectl delete pods -n linkerd --all
+argocd app sync observability-linkerd-control-plane --force
 ```
 
 ### 4b.2 Apply observability App of Apps
@@ -637,8 +646,8 @@ ArgoCD UI → **`observability-app-of-apps-dev-k3d`** → **Sync**.
 | Wave | App |
 |------|-----|
 | 0 | coroot-operator, linkerd-crds |
-| 1 | coroot-ce, otel-collector, linkerd-control-plane |
-| 2 | linkerd-viz |
+| 1 | otel-collector, linkerd-control-plane |
+| 2 | coroot-ce, linkerd-viz |
 
 Theo dõi:
 

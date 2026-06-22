@@ -41,8 +41,8 @@ Thứ tự sync wave:
 | Wave | App |
 |------|-----|
 | 0 | coroot-operator, linkerd-crds |
-| 1 | coroot-ce, otel-collector, linkerd-control-plane |
-| 2 | linkerd-viz |
+| 1 | otel-collector, linkerd-control-plane |
+| 2 | coroot-ce, linkerd-viz |
 
 ## Nginx + Ingress (WSL2)
 
