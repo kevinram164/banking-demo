@@ -22,7 +22,7 @@ primary:
   persistence:
     enabled: true
     size: 1Gi
-    storageClass: pg-client
+    storageClass: local-path   # k3d/lab; production cluster: pg-client / pg-nfs
   resources:
     requests:
       memory: "256Mi"
@@ -39,7 +39,7 @@ readReplicas:
   persistence:
     enabled: true
     size: 1Gi
-    storageClass: pg-nfs
+    storageClass: local-path   # k3d/lab; production cluster: pg-nfs
   resources:
     requests:
       memory: "256Mi"

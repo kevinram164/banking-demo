@@ -666,35 +666,23 @@ k3d **không có** `nfs-client` / `pg-client`. Dùng **`local-path`** cho mọi 
 | Thành phần | File cấu hình | StorageClass k3d |
 |------------|---------------|------------------|
 | Harbor, Jenkins | `gitops-platform/applications/platform/*.yaml` | `local-path` (đã sửa) |
-| Postgres | `phase5-architecture-refactor/postgres-ha/values-postgres-ha.yaml` | đổi `pg-client` → `local-path` |
-| Redis | `phase5-architecture-refactor/redis-ha/values-redis-ha.yaml` | đổi `nfs-client` → `local-path` |
+| Postgres | `phase5-architecture-refactor/postgres-ha/values-postgres-ha.yaml` | mặc định `local-path` (k3d) |
+| Redis | `phase5-architecture-refactor/redis-ha/values-redis-ha.yaml` | mặc định `local-path` (k3d) |
 | RabbitMQ | `phase8-application-v3/rabbitmq/k8s-rabbitmq-standalone.yaml` | đổi → `local-path` |
 
-### 5.1 Chỉnh StorageClass cho k3d (trước khi sync infra)
+### 5.1 StorageClass (k3d)
 
-Sửa trên nhánh `dev-k3d`, commit push:
+Values Postgres/Redis/RabbitMQ đã mặc định **`local-path`** cho lab k3d. Cluster production có NFS → sửa lại `pg-client` / `nfs-client` trong các file values tương ứng.
 
-**Postgres** — `phase5-architecture-refactor/postgres-ha/values-postgres-ha.yaml`:
+Nếu PVC cũ đã tạo với StorageClass sai, xóa rồi sync lại ArgoCD:
 
-```yaml
-primary:
-  persistence:
-    storageClass: local-path
+```bash
+kubectl delete pvc -n postgres --all
+kubectl delete pvc -n redis --all
+# Chỉ khi chưa có data quan trọng
 ```
 
-**Redis** — `phase5-architecture-refactor/redis-ha/values-redis-ha.yaml`:
-
-```yaml
-master:
-  persistence:
-    storageClass: local-path
-```
-
-**RabbitMQ** — `phase8-application-v3/rabbitmq/k8s-rabbitmq-standalone.yaml`:
-
-```yaml
-storageClassName: local-path
-```
+Commit push rồi sync `infra-postgres`, `infra-redis`.
 
 ### 5.2 Apply infra App of Apps
 

@@ -15,7 +15,7 @@ master:
   persistence:
     enabled: true
     size: 20Gi
-    storageClass: nfs-client
+    storageClass: local-path   # k3d/lab; production cluster: nfs-client
 
   podAntiAffinityPreset: soft
 
@@ -28,7 +28,7 @@ replica:
   persistence:
     enabled: true
     size: 20Gi
-    storageClass: nfs-client
+    storageClass: local-path   # k3d/lab; production cluster: nfs-client
 
   podAntiAffinityPreset: soft
 
