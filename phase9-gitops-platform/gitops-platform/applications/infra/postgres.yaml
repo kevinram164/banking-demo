@@ -21,7 +21,7 @@ spec:
         valueFiles:
           - $values/phase5-architecture-refactor/postgres-ha/values-postgres-ha.yaml
     - repoURL: https://github.com/kevinram164/banking-demo.git
-      targetRevision: main
+      targetRevision: dev-k3d
       ref: values
   destination:
     server: https://kubernetes.default.svc
