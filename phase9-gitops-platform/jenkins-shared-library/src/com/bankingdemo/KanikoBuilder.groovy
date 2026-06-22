@@ -7,7 +7,7 @@ class KanikoBuilder implements Serializable {
         if (!meta) {
             steps.error("Unknown service: ${serviceName}")
         }
-        def tag = steps.env.GIT_COMMIT?.take(7) ?: 'latest'
+        def tag = GitRef.imageTag(steps)
         def image = "${cfg.harborHost}/${cfg.harborProject}/${serviceName}:${tag}"
         def cacheRepo = "${cfg.harborHost}/${cfg.harborProject}/cache/${serviceName}"
         def tlsFlag = cfg.kanikoSkipTlsVerify ? '--skip-tls-verify' : ''

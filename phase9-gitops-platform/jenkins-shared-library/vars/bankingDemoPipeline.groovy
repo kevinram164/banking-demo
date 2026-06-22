@@ -20,6 +20,7 @@ spec:
         node(POD_LABEL) {
             stage('Checkout') {
                 checkout scm
+                env.GIT_COMMIT = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
             }
 
             def changed = com.bankingdemo.ChangeDetector.detect(this, cfg)

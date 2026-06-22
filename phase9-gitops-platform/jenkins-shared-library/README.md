@@ -22,7 +22,7 @@ Hướng dẫn đầy đủ từng bước: [K3D-DEPLOY-GUIDE.md § 4.4](../K3D-
 | ID | Dùng cho |
 |----|----------|
 | `harbor-ci-push` | Robot Harbor push (`robot$ci-push` + token) |
-| `github-gitops-push` | GitHub PAT commit `values-images.yaml` |
+| `github-gitops-push` | GitHub PAT commit `values-images.yaml` — **Password** = PAT; Username tùy ý (script push dùng `x-access-token`) |
 
 ## Services được build
 

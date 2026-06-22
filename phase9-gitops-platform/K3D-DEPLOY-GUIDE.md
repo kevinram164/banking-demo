@@ -507,8 +507,8 @@ Pipeline đọc credential theo **ID cố định** — phải đặt đúng tê
 | Field | Giá trị |
 |-------|---------|
 | Kind | Username with password |
-| Username | GitHub username (vd. `kevinram164`) |
-| Password | PAT vừa tạo |
+| Username | tùy ý (vd. `kevinram164` hoặc email — **không** dùng trong URL push) |
+| Password | **PAT** (Fine-grained: Contents Read and write) |
 | ID | `github-gitops-push` |
 | Description | Push values-images.yaml |
 
@@ -589,7 +589,7 @@ git log -1 --oneline -- phase9-gitops-platform/gitops/values-images.yaml
 | `credentials harbor-ci-push not found` | Tạo credential ID đúng tên (Bước 4a) |
 | Kaniko push 401 | Robot Harbor sai user/token; user phải là `robot$ci-push` |
 | Kaniko `x509: certificate is not valid` / TLS verify | Harbor lab self-signed → `kanikoSkipTlsVerify: true` trong Jenkinsfile |
-| Git push failed stage Update GitOps | Thiếu `github-gitops-push` hoặc PAT không có quyền write |
+| Git push failed stage Update GitOps | PAT không có quyền write; hoặc username email (`@`) — script dùng `x-access-token:PAT@github.com/...` (Password = PAT) |
 | Pod Kaniko pending | Tạo SA `jenkins-kaniko` (Bước 5) |
 | Kaniko `stat /busybox/cat: no such file` | Image phải là `executor:*-debug` (có busybox); không dùng `executor` thường |
 | Kaniko `mkdir: cannot create directory '/kaniko': Permission denied` | Lệnh build phải chạy trong `container('kaniko')`, không phải container `jnlp` |
