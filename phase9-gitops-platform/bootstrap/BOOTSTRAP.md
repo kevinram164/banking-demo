@@ -1,6 +1,6 @@
 # Bootstrap — Cài platform lần đầu
 
-Một số thành phần **không thể** tự cài từ chính nó (gà/trứng). Thứ tự đúng:
+Thứ tự triển khai :
 
 1. **Platform + Infra trước**
 2. **Tích hợp CI/CD** (Jenkins → Harbor → Git)
@@ -31,8 +31,8 @@ kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications
 | # | Thành phần | Sau sync | Ghi chú |
 |---|------------|----------|---------|
 | 1 | **Harbor** | UI, project, robot accounts | `ci-push`, `k8s-pull` |
-| 2 | **Vault** | init/unseal, seed KV | `secret/banking/*` |
-| 3 | **External Secrets** | ClusterSecretStore + ExternalSecret | Xem `vault/external-secrets/` |
+| 2 | **Vault** | seed KV trong pod `vault-0` | `vault kv put secret/banking/*` — xem [vault/README.md](../vault/README.md) |
+| 3 | **External Secrets** | ESO + `vault-token` + ClusterSecretStore | **Thứ tự:** seed Vault → `vault-token` → sync config (xem bên dưới) |
 | 4 | **Jenkins** | Shared Library, credentials, webhook | Kaniko SA |
 
 **Không** apply `banking-app-of-apps` ở giai đoạn này.
@@ -99,6 +99,24 @@ kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/app-of-apps.
 | `secret/rabbitmq/admin` | `rabbitmq-secret` | `rabbit` |
 | `secret/platform/harbor` | `harbor-registry` (dockerconfigjson) | `banking`, `platform` |
 | `secret/platform/jenkins` | GitHub webhook / git push credential | `platform` |
+
+### External Secrets — thứ tự triển khai (lab)
+
+1. Pod `vault-0` Running → exec vào pod, `vault kv put` seed các path trên
+2. Pod ESO Running (`external-secrets` namespace)
+3. Tạo `vault-token` **trước** khi ClusterSecretStore reconcile:
+
+```bash
+kubectl create secret generic vault-token \
+  --from-literal=token=root \
+  -n external-secrets
+```
+
+4. Tạo namespace `banking`, `rabbit` nếu chưa có
+5. Sync / apply `vault/external-secrets/`
+6. Verify: `kubectl get externalsecret -A` → `SecretSynced`, `READY True`
+
+Chi tiết CLI, force-sync, xử lý lỗi: [vault/README.md](../vault/README.md).
 
 ---
 

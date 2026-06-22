@@ -319,12 +319,99 @@ Cập nhật `phase9-gitops-platform/gitops/values-images.yaml` → registry `ha
 
 ### 4.3 Vault + External Secrets
 
-1. Sync `platform-vault` → dev mode: token **`root`**, UI **https://vault-npd.co**
-2. Seed secret paths — xem [vault/README.md](./vault/README.md)
-3. Sync `platform-external-secrets` + `platform-external-secrets-config`
-4. Tạo secret `vault-token` trong `external-secrets` nếu dùng token auth lab
+Chi tiết CLI: [vault/README.md](./vault/README.md). **Thứ tự bắt buộc** — đảo bước sẽ lỗi `InvalidProviderConfig` / `SecretSyncedError`.
 
-Sau ESO sync → secret K8s được tạo tự động (thay `kubectl create secret` thủ công nếu đã cấu hình ExternalSecret).
+#### Bước 1 — Sync Vault, seed KV trong pod
+
+```bash
+kubectl get pods -n vault   # vault-0 Running
+
+kubectl exec -it vault-0 -n vault -- sh
+```
+
+Trong pod:
+
+```sh
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='root'
+
+vault kv put secret/banking/db \
+  DATABASE_URL='postgresql://banking:bankingpass@postgres.postgres.svc.cluster.local:5432/banking' \
+  REDIS_URL='redis://redis.redis.svc.cluster.local:6379/0'
+
+vault kv put secret/banking/rabbitmq \
+  RABBITMQ_URL='amqp://banking:bankingpass@rabbitmq.rabbit.svc.cluster.local:5672/'
+
+vault kv put secret/rabbitmq/admin \
+  username='banking' \
+  password='bankingpass'
+```
+
+UI lab (tùy chọn): **https://vault-npd.co**, token **`root`**.
+
+#### Bước 2 — Sync ESO controller
+
+ArgoCD: `platform-external-secrets` → Synced / Healthy.
+
+```bash
+kubectl get pods -n external-secrets
+```
+
+#### Bước 3 — Tạo `vault-token` **trước** ClusterSecretStore
+
+```bash
+kubectl create secret generic vault-token \
+  --from-literal=token=root \
+  -n external-secrets
+```
+
+> Nếu apply `ClusterSecretStore` khi chưa có `vault-token` → ArgoCD Events:  
+> `InvalidProviderConfig: cannot get Kubernetes secret "vault-token": secrets "vault-token" not found`.
+
+#### Bước 4 — Namespace + sync ExternalSecret manifest
+
+```bash
+kubectl create ns banking --dry-run=client -o yaml | kubectl apply -f -
+kubectl create ns rabbit --dry-run=client -o yaml | kubectl apply -f -
+```
+
+ArgoCD: `platform-external-secrets-config`  
+Hoặc thủ công: `kubectl apply -f phase9-gitops-platform/vault/external-secrets/`
+
+#### Bước 5 — Kiểm tra sync
+
+```bash
+kubectl get clustersecretstore vault-backend          # STATUS Valid
+kubectl get externalsecret -A                         # SecretSynced, READY True
+kubectl get secret banking-db-secret -n banking
+```
+
+Nếu vừa tạo `vault-token` hoặc vừa seed Vault — force reconcile:
+
+```bash
+kubectl annotate clustersecretstore vault-backend force-sync=$(date +%s) --overwrite
+kubectl annotate externalsecret banking-db-secret -n banking force-sync=$(date +%s) --overwrite
+kubectl annotate externalsecret rabbitmq-connection-secret -n banking force-sync=$(date +%s) --overwrite
+kubectl annotate externalsecret rabbitmq-secret -n rabbit force-sync=$(date +%s) --overwrite
+```
+
+#### Xử lý lỗi nhanh
+
+| Triệu chứng | Cách sửa |
+|-------------|----------|
+| `vault-token` not found | Bước 3 → annotate `clustersecretstore` |
+| `SecretSyncedError` | Seed Vault (bước 1) → annotate `externalsecret` |
+| `namespaces "rabbit" not found` | `kubectl create ns rabbit` → apply lại manifest |
+| `banking-db-secret` not found | `kubectl describe externalsecret banking-db-secret -n banking` |
+
+Test Vault đã có data:
+
+```bash
+kubectl exec -n vault vault-0 -- sh -c \
+  'export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root && vault kv get secret/banking/db'
+```
+
+Sau ESO sync → secret K8s được tạo tự động (thay `kubectl create secret` thủ công).
 
 ### 4.4 Jenkins — cấu hình CI (từng bước)
 
