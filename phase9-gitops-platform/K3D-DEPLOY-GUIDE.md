@@ -280,7 +280,8 @@ Thứ tự sync wave trong platform:
 | Wave | App | Ghi chú |
 |------|-----|---------|
 | 0 | Harbor, Vault, External Secrets (controller) | Chờ pod Running |
-| 1 | External Secrets config, Jenkins | Sau Vault + Harbor cơ bản |
+| 1 | External Secrets config (gồm `jenkins-platform-credentials`) | Seed Vault `secret/platform/jenkins` trước |
+| 2 | Jenkins | JCasC đọc credential từ K8s secret (Vault) |
 
 Theo dõi:
 
@@ -479,38 +480,48 @@ kubectl delete pod jenkins-0 -n platform
 
 ---
 
-#### Bước 4 — Tạo 2 Credentials (bắt buộc)
+#### Bước 4 — Credential Jenkins qua Vault (không tạo trên UI)
 
-Pipeline đọc credential theo **ID cố định** — phải đặt đúng tên.
+Toàn bộ credential Jenkins lưu tại **`secret/platform/jenkins`** → ESO → JCasC (ID giữ nguyên: `harbor-ci-push`, `github-gitops-push`).
 
-**4a. Harbor push** — robot account `ci-push` tạo ở Harbor UI (mục 4.2)
+**4a. Seed Vault** (trong pod `vault-0`, xem [vault/README.md](./vault/README.md)):
 
-1. **Manage Jenkins → Credentials**
-2. **(global)** → **Add Credentials**
-3. Điền:
+```bash
+vault kv put secret/platform/jenkins \
+  admin_password='YOUR_JENKINS_ADMIN_PASSWORD' \
+  harbor_username='robot$banking-demo+ci-push' \
+  harbor_password='HARBOR_ROBOT_TOKEN' \
+  github_username='kevinram164' \
+  github_pat='github_pat_xxxx'
+```
 
-| Field | Giá trị |
-|-------|---------|
-| Kind | Username with password |
-| Scope | Global |
-| Username | `robot$ci-push` |
-| Password | token robot Harbor (copy từ Harbor UI) |
-| ID | `harbor-ci-push` |
-| Description | Harbor push for Kaniko |
+**4b. Kiểm tra ESO sync** (sau `platform-external-secrets-config`):
 
-**4b. GitHub push GitOps** — Personal Access Token (PAT)
+```bash
+kubectl get externalsecret jenkins-platform-credentials -n platform
+kubectl get secret jenkins-platform-credentials -n platform
+```
 
-1. GitHub → Settings → Developer settings → **Fine-grained token** (hoặc classic)
-2. Quyền: **Contents: Read and write** trên repo `banking-demo`
-3. Jenkins → **Add Credentials**:
+**4c. Sync Jenkins** (wave 2 — sau khi secret đã có):
 
-| Field | Giá trị |
-|-------|---------|
-| Kind | Username with password |
-| Username | tùy ý (vd. `kevinram164` hoặc email — **không** dùng trong URL push) |
-| Password | **PAT** (Fine-grained: Contents Read and write) |
-| ID | `github-gitops-push` |
-| Description | Push values-images.yaml |
+ArgoCD → `platform-jenkins` → Sync. Hoặc:
+
+```bash
+kubectl delete pod jenkins-0 -n platform   # reload JCasC + admin password
+```
+
+**4d. Xác nhận trên Jenkins UI**
+
+Manage Jenkins → Credentials → (global) phải có `harbor-ci-push`, `github-gitops-push` (do JCasC, không cần Add thủ công).
+
+**GitHub PAT:** Fine-grained → repo `banking-demo` → **Contents: Read and write**. Kiểm tra:
+
+```bash
+curl -s -H "Authorization: Bearer github_pat_xxx" \
+  https://api.github.com/repos/kevinram164/banking-demo | grep -E '"push"|"admin"'
+```
+
+> **Rotate:** `vault kv patch secret/platform/jenkins github_pat='...'` → annotate ExternalSecret → restart `jenkins-0`.
 
 ---
 
@@ -586,10 +597,10 @@ git log -1 --oneline -- phase9-gitops-platform/gitops/values-images.yaml
 | Triệu chứng | Cách sửa |
 |-------------|----------|
 | `library banking-demo not found` | Sync `platform-jenkins`, restart `jenkins-0`, đợi plugin + JCasC load |
-| `credentials harbor-ci-push not found` | Tạo credential ID đúng tên (Bước 4a) |
+| `credentials harbor-ci-push not found` | Seed Vault `secret/platform/jenkins` → ESO sync → restart `jenkins-0` |
 | Kaniko push 401 | Robot Harbor sai user/token; user phải là `robot$ci-push` |
 | Kaniko `x509: certificate is not valid` / TLS verify | Harbor lab self-signed → `kanikoSkipTlsVerify: true` trong Jenkinsfile |
-| Git push failed stage Update GitOps | PAT không có quyền write; hoặc username email (`@`) — script dùng `x-access-token:PAT@github.com/...` (Password = PAT) |
+| Git push 403 Permission denied | PAT thiếu **Contents: Read and write** / scope `repo`; Password trong Jenkins phải là PAT (`ghp_` / `github_pat_`) |
 | Pod Kaniko pending | Tạo SA `jenkins-kaniko` (Bước 5) |
 | Kaniko `stat /busybox/cat: no such file` | Image phải là `executor:*-debug` (có busybox); không dùng `executor` thường |
 | Kaniko `mkdir: cannot create directory '/kaniko': Permission denied` | Lệnh build phải chạy trong `container('kaniko')`, không phải container `jnlp` |
@@ -815,8 +826,8 @@ git log -1 --oneline -- phase9-gitops-platform/gitops/values-images.yaml
 
 ### 6.2 Jenkins credentials & webhook checklist
 
-- [ ] `harbor-ci-push` — push image OK
-- [ ] `github-gitops-push` — commit GitOps OK
+- [ ] Vault `secret/platform/jenkins` seeded → `jenkins-platform-credentials` Bound
+- [ ] JCasC credentials `harbor-ci-push`, `github-gitops-push` (không cần UI)
 - [ ] Webhook GitHub → Jenkins trigger trên push `dev-k3d`
 - [ ] Pipeline green end-to-end
 

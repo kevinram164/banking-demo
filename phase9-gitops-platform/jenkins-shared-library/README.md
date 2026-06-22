@@ -12,17 +12,20 @@ Thư viện Groovy dùng trong `Jenkinsfile` (root repo) để:
 |------|----------|
 | Cài Jenkins + plugin | ArgoCD app `platform-jenkins` |
 | Đăng ký library `banking-demo` | **Tự động** qua JCasC trong `jenkins.yaml` |
-| Credential Harbor + GitHub | **Thủ công** trên Jenkins UI (2 ID cố định) |
+| Credential Harbor + GitHub | **Vault** `secret/platform/jenkins` | Xem [vault/README.md](../vault/README.md) |
 | Tạo job pipeline | **Thủ công** — Multibranch Pipeline trỏ repo |
 
 Hướng dẫn đầy đủ từng bước: [K3D-DEPLOY-GUIDE.md § 4.4](../K3D-DEPLOY-GUIDE.md#44-jenkins--cấu-hình-ci-từng-bước)
 
 ## Credential ID (bắt buộc đúng tên)
 
-| ID | Dùng cho |
-|----|----------|
-| `harbor-ci-push` | Robot Harbor push (`robot$ci-push` + token) |
-| `github-gitops-push` | GitHub PAT commit `values-images.yaml` — **Password** = PAT; Username tùy ý (script push dùng `x-access-token`) |
+| Credential ID | Nguồn | Vault path / key |
+|---------------|--------|------------------|
+| `harbor-ci-push` | Vault → ESO → JCasC | `platform/jenkins` → `harbor_username`, `harbor_password` |
+| `github-gitops-push` | Vault → ESO → JCasC | `platform/jenkins` → `github_username`, `github_pat` |
+| Jenkins admin | Vault → ESO → Helm | `platform/jenkins` → `admin_password` |
+
+Không tạo credential thủ công trên Jenkins UI. Chi tiết: [vault/README.md](../vault/README.md).
 
 ## Services được build
 

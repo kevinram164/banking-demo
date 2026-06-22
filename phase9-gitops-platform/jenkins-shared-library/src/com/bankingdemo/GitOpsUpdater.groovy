@@ -20,8 +20,6 @@ class GitOpsUpdater implements Serializable {
             """
         }
 
-        // GitHub PAT: dùng x-access-token — tránh username email (có @) làm vỡ URL
-        def gitHostPath = cfg.gitRepoUrl.replaceFirst('^https://', '')
         steps.withCredentials([steps.usernamePassword(
             credentialsId: cfg.gitopsCredId,
             usernameVariable: 'GIT_USER',
@@ -37,7 +35,13 @@ class GitOpsUpdater implements Serializable {
                   exit 0
                 fi
                 git commit -m "ci: bump image tags to ${tag} [${services.join(', ')}]"
-                git push https://x-access-token:\${GIT_TOKEN}@${gitHostPath} HEAD:${cfg.gitBranch}
+                # Header auth — tránh @ trong email/username làm vỡ URL
+                if echo "\${GIT_TOKEN}" | grep -q '^github_pat_'; then
+                  AUTH_HEADER="AUTHORIZATION: Bearer \${GIT_TOKEN}"
+                else
+                  AUTH_HEADER="AUTHORIZATION: token \${GIT_TOKEN}"
+                fi
+                git -c "http.extraHeader=\${AUTH_HEADER}" push ${cfg.gitRepoUrl} HEAD:${cfg.gitBranch}
             """
         }
         steps.echo "Updated ${file} — ArgoCD will sync."

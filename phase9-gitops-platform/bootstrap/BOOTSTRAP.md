@@ -101,7 +101,7 @@ kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/app-of-apps.
 | `secret/banking/rabbitmq` | `rabbitmq-connection-secret` | `banking` |
 | `secret/rabbitmq/admin` | `rabbitmq-secret` | `rabbit` |
 | `secret/platform/harbor` | `harbor-registry` (dockerconfigjson) | `banking`, `platform` |
-| `secret/platform/jenkins` | GitHub webhook / git push credential | `platform` |
+| `secret/platform/jenkins` | `jenkins-platform-credentials` | `platform` |
 
 ### External Secrets — thứ tự triển khai (lab)
 

@@ -136,16 +136,35 @@ kubectl get secret harbor-pull-creds -n platform -o jsonpath='{.data.\.dockercon
 vault kv put secret/platform/harbor .dockerconfigjson='<dán JSON ở trên>'
 ```
 
-#### 5.5 `secret/platform/jenkins`
+#### 5.5 `secret/platform/jenkins` — toàn bộ credential Jenkins
+
+JCasC tạo ID `harbor-ci-push`, `github-gitops-push` từ secret này (không nhập tay trên UI).
 
 ```bash
 vault kv put secret/platform/jenkins \
-  github_webhook_secret='YOUR_WEBHOOK_SECRET' \
-  git_username='git-user' \
-  git_password='YOUR_TOKEN_OR_PASSWORD'
+  admin_password='YOUR_JENKINS_ADMIN_PASSWORD' \
+  harbor_username='robot$banking-demo+ci-push' \
+  harbor_password='HARBOR_ROBOT_TOKEN' \
+  github_username='kevinram164' \
+  github_pat='github_pat_xxxx' \
+  github_webhook_secret='OPTIONAL_WEBHOOK_SECRET'
 ```
 
-(Điều chỉnh key theo `ExternalSecret` thực tế khi bạn thêm manifest Jenkins.)
+| Vault key | Jenkins dùng cho |
+|-----------|------------------|
+| `admin_password` | Login UI user `admin` |
+| `harbor_username` / `harbor_password` | Credential `harbor-ci-push` (Kaniko) |
+| `github_username` / `github_pat` | Credential `github-gitops-push` (push GitOps) |
+| `github_webhook_secret` | (Tùy chọn) GitHub webhook |
+
+Sau seed → ESO tạo secret `jenkins-platform-credentials` (ns `platform`) → Jenkins wave 2 đọc qua JCasC.
+
+Đổi secret (rotate): `vault kv patch` → force-sync ExternalSecret → restart Jenkins:
+
+```bash
+kubectl annotate externalsecret jenkins-platform-credentials -n platform force-sync=$(date +%s) --overwrite
+kubectl delete pod jenkins-0 -n platform
+```
 
 ### 6. Đọc, liệt kê, sửa secret
 
