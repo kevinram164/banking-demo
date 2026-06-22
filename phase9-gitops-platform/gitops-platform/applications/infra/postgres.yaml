@@ -20,6 +20,15 @@ spec:
         releaseName: postgres-ha
         valueFiles:
           - $values/phase5-architecture-refactor/postgres-ha/values-postgres-ha.yaml
+        values: |
+          global:
+            defaultStorageClass: local-path
+          primary:
+            persistence:
+              storageClass: local-path
+          readReplicas:
+            persistence:
+              storageClass: local-path
     - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: dev-k3d
       ref: values

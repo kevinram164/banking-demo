@@ -19,6 +19,15 @@ spec:
         releaseName: redis-ha
         valueFiles:
           - $values/phase5-architecture-refactor/redis-ha/values-redis-ha.yaml
+        values: |
+          global:
+            defaultStorageClass: local-path
+          master:
+            persistence:
+              storageClass: local-path
+          replica:
+            persistence:
+              storageClass: local-path
     - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: dev-k3d
       ref: values

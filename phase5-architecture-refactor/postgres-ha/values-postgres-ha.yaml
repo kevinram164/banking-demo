@@ -1,6 +1,9 @@
 # Phase 5 - Postgres HA (Bitnami PostgreSQL, primary + read replica)
 # Dùng: helm upgrade -i postgres-ha bitnami/postgresql -n postgres -f values-postgres-ha.yaml
 
+global:
+  defaultStorageClass: local-path   # k3d/lab — override mọi PVC trong chart
+
 # Mapping Phase 2: user banking, db banking, password bankingpass
 auth:
   enablePostgresUser: true

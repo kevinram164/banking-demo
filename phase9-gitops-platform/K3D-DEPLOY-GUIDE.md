@@ -674,15 +674,27 @@ k3d **không có** `nfs-client` / `pg-client`. Dùng **`local-path`** cho mọi 
 
 Values Postgres/Redis/RabbitMQ đã mặc định **`local-path`** cho lab k3d. Cluster production có NFS → sửa lại `pg-client` / `nfs-client` trong các file values tương ứng.
 
-Nếu PVC cũ đã tạo với StorageClass sai, xóa rồi sync lại ArgoCD:
+Nếu PVC cũ đã tạo với StorageClass sai, **xóa StatefulSet trước** (volumeClaimTemplates không đổi được), rồi sync lại ArgoCD:
 
 ```bash
-kubectl delete pvc -n postgres --all
+# Redis (sentinel → StatefulSet tên redis-ha-node)
+kubectl delete sts -n redis redis-ha-node --cascade=orphan
 kubectl delete pvc -n redis --all
+
+# Postgres
+kubectl delete sts -n postgres postgres-ha-postgresql-primary postgres-ha-postgresql-read --cascade=orphan
+kubectl delete pvc -n postgres --all
 # Chỉ khi chưa có data quan trọng
 ```
 
-Commit push rồi sync `infra-postgres`, `infra-redis`.
+Kiểm tra ArgoCD đọc đúng nhánh values:
+
+```bash
+kubectl get application infra-redis -n argocd -o jsonpath='{range .spec.sources[*]}{.ref}{.targetRevision}{"\n"}{end}'
+# phải thấy values + dev-k3d
+```
+
+ArgoCD → **Hard Refresh** (Clear cache) → Sync `infra-postgres`, `infra-redis`.
 
 ### 5.2 Apply infra App of Apps
 

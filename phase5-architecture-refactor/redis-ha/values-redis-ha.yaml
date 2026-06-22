@@ -1,6 +1,9 @@
 # Phase 5 - Redis HA (Bitnami Redis, master + replica)
 # Dùng: helm upgrade -i redis bitnami/redis -n redis -f values-redis-ha.yaml
 
+global:
+  defaultStorageClass: local-path   # k3d/lab — override mọi PVC trong chart
+
 architecture: replication
 
 auth:
