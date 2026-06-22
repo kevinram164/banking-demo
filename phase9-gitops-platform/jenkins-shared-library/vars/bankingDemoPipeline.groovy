@@ -6,17 +6,17 @@
 def call(Map config = [:]) {
     def cfg = com.bankingdemo.PipelineConfig.mergeDefaults(config)
 
-    podTemplate(yaml: '''
+    podTemplate(yaml: """
 apiVersion: v1
 kind: Pod
 spec:
   serviceAccountName: jenkins-kaniko
   containers:
     - name: kaniko
-      image: gcr.io/kaniko-project/executor:v1.23.2
+      image: ${cfg.kanikoImage}
       command: ["/busybox/cat"]
       tty: true
-''') {
+""") {
         node(POD_LABEL) {
             stage('Checkout') {
                 checkout scm

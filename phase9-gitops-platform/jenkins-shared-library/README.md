@@ -36,6 +36,8 @@ Hướng dẫn đầy đủ từng bước: [K3D-DEPLOY-GUIDE.md § 4.4](../K3D-
 
 Chỉ build service có file thay đổi dưới `phase8-application-v3/`.
 
+Pod agent dùng image **`gcr.io/kaniko-project/executor:*-debug`** — bản `executor` thường không có `/busybox/cat` (Jenkins giữ container sống trước khi `sh` chạy `/kaniko/executor`).
+
 ## Jenkinsfile mẫu
 
 Repo đã có `Jenkinsfile` ở root (nhánh `dev-k3d`):
