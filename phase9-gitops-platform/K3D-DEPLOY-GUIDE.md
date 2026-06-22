@@ -704,12 +704,26 @@ kubectl apply -f "$REPO_ROOT/phase9-gitops-platform/environments/dev-k3d/argocd/
 
 ArgoCD UI → **`infra-app-of-apps-dev-k3d`** → **Sync**.
 
+> **Lỗi Bitnami OCI 401:** Nếu `infra-postgres` / `infra-redis` báo  
+> `HEAD ... bitnamicharts/manifests/... 401 Unauthorized` — Docker Hub chặn pull OCI anonymous.  
+> Application phải dùng Helm repo `https://charts.bitnami.com/bitnami` (không dùng `oci://registry-1.docker.io/bitnamicharts`).  
+> Sau khi sửa manifest, **Refresh** + **Sync** lại app trong ArgoCD.
+
 Thứ tự sync wave:
 
 | Wave | App | Ghi chú |
 |------|-----|---------|
 | 0 | Postgres, Redis | Chờ PVC Bound + pod Running |
-| 1 | RabbitMQ, Kong | Sau postgres/redis |
+| 1 | RabbitMQ | Sau postgres/redis (sync-wave) |
+| 2 | **Kong** | Sau Postgres — PreSync hook chờ PG Ready + tạo DB `kong` rồi mới deploy chart |
+
+**Kong phụ thuộc Postgres:** `infra-kong` dùng ArgoCD **PreSync hooks** (`manifests/kong-prereq/`):
+
+1. Job `kong-wait-postgres` — poll `pg_isready` tới primary PG
+2. Job `kong-db-init` — tạo database/user `kong`
+3. Sau hooks thành công → Helm chart Kong mới apply
+
+`sync-wave: "2"` trên Application Kong giúp app-of-apps tạo/sync Kong **sau** Postgres/Redis (wave 0). Hooks đảm bảo PG **Running** trước khi Kong pod start.
 
 Theo dõi:
 

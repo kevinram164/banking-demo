@@ -43,6 +43,9 @@ kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications
 
 Chỉnh `storageClass: local-path` trên k3d trước khi sync.
 
+> **Bitnami chart:** `infra-postgres` / `infra-redis` dùng `https://charts.bitnami.com/bitnami`.  
+> Không dùng OCI Docker Hub (`oci://registry-1.docker.io/bitnamicharts`) — ArgoCD thường lỗi `401 Unauthorized`.
+
 ```bash
 kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/infra-app-of-apps.yaml -n argocd
 ```
@@ -51,7 +54,7 @@ kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications
 |---|------------|---------|
 | 1 | **Postgres, Redis** | Wave 0 — app DB |
 | 2 | **RabbitMQ** | Wave 1 — Phase 8 |
-| 3 | **Kong HA** | Wave 1 — chưa import routes |
+| 3 | **Kong HA** | Wave 2 — PreSync chờ PG Ready + tạo DB `kong` (`manifests/kong-prereq/`) |
 | 4 | **Secrets** | ESO hoặc `kubectl create secret` thủ công |
 
 ---

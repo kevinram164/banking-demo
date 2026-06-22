@@ -12,7 +12,7 @@ metadata:
 spec:
   project: banking-platform
   sources:
-    - repoURL: oci://registry-1.docker.io/bitnamicharts
+    - repoURL: https://charts.bitnami.com/bitnami
       chart: redis
       targetRevision: 20.6.2
       helm:

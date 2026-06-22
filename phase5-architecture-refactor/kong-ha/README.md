@@ -9,6 +9,8 @@ Hướng dẫn deploy Kong HA (2 replica) dùng Postgres làm datastore, config 
 - **Postgres HA** đã triển khai trong ns `postgres` (xem `postgres-ha/README.md`)
 - **Banking app** đang chạy trong ns `banking` (auth-service, account-service, transfer-service, notification-service)
 
+**GitOps (ArgoCD `infra-kong`):** PreSync hooks trong `phase9-gitops-platform/gitops-platform/manifests/kong-prereq/` tự chờ Postgres Ready và chạy `kong-db-init` trước khi deploy Helm chart — không cần `kubectl apply` Job thủ công.
+
 ---
 
 ## Bước 1: Tạo database Kong trên Postgres

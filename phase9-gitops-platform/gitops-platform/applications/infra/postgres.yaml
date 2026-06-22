@@ -13,7 +13,7 @@ metadata:
 spec:
   project: banking-platform
   sources:
-    - repoURL: oci://registry-1.docker.io/bitnamicharts
+    - repoURL: https://charts.bitnami.com/bitnami
       chart: postgresql
       targetRevision: 15.5.32
       helm:
