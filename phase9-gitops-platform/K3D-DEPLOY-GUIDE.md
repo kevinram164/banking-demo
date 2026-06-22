@@ -709,6 +709,10 @@ ArgoCD UI → **`infra-app-of-apps-dev-k3d`** → **Sync**.
 > Application phải dùng Helm repo `https://charts.bitnami.com/bitnami` (không dùng `oci://registry-1.docker.io/bitnamicharts`).  
 > Sau khi sửa manifest, **Refresh** + **Sync** lại app trong ArgoCD.
 
+> **Lỗi Bitnami ImagePullBackOff (`not found`):** Chart pin image `docker.io/bitnami/*` — nhiều tag đã gỡ khỏi Docker Hub.  
+> Values Postgres/Redis dùng `bitnamilegacy/*` + `global.security.allowInsecureImages: true`.  
+> Push → Hard Refresh → Sync → `kubectl delete pod -n postgres -l app.kubernetes.io/name=postgresql` (và tương tự redis).
+
 Thứ tự sync wave:
 
 | Wave | App | Ghi chú |

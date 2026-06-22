@@ -3,6 +3,13 @@
 
 global:
   defaultStorageClass: local-path   # k3d/lab — override mọi PVC trong chart
+  security:
+    allowInsecureImages: true       # bắt buộc khi dùng bitnamilegacy (Docker Hub)
+
+# Image legacy — tag do chart pin; docker.io/bitnami/* thường 404 trên lab 2025+
+image:
+  registry: docker.io
+  repository: bitnamilegacy/postgresql
 
 # Mapping Phase 2: user banking, db banking, password bankingpass
 auth:
@@ -58,7 +65,7 @@ metrics:
   enabled: true
   image:
     registry: docker.io
-    repository: bitnami/postgres-exporter
+    repository: bitnamilegacy/postgres-exporter
   resources:
     requests:
       memory: "32Mi"
