@@ -5,9 +5,10 @@
 @Library('banking-demo') _
 
 bankingDemoPipeline([
-  harborHost      : 'harbor-npd.co',
-  harborProject   : 'banking-demo',
-  gitBranch       : 'dev-k3d',
-  gitRepoUrl      : 'https://github.com/kevinram164/banking-demo.git',
-  gitopsValuesFile: 'phase9-gitops-platform/gitops/values-images.yaml',
+  harborHost           : 'harbor-npd.co',
+  harborProject        : 'banking-demo',
+  gitBranch            : 'dev-k3d',
+  gitRepoUrl           : 'https://github.com/kevinram164/banking-demo.git',
+  gitopsValuesFile     : 'phase9-gitops-platform/gitops/values-images.yaml',
+  kanikoSkipTlsVerify  : true,   // Harbor lab: cert self-signed / nginx terminate SSL
 ])

@@ -50,7 +50,8 @@ bankingDemoPipeline([
   harborProject   : 'banking-demo',
   gitBranch       : 'dev-k3d',
   gitRepoUrl      : 'https://github.com/kevinram164/banking-demo.git',
-  gitopsValuesFile: 'phase9-gitops-platform/gitops/values-images.yaml',
+  gitopsValuesFile     : 'phase9-gitops-platform/gitops/values-images.yaml',
+  kanikoSkipTlsVerify  : true,   // lab k3d — Harbor cert self-signed
 ])
 ```
 
