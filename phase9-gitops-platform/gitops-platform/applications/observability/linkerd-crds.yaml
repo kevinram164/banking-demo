@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: https://helm.linkerd.io/stable
     chart: linkerd-crds
-    targetRevision: 1.16.11
+    targetRevision: 1.8.0
     helm:
       releaseName: linkerd-crds
   destination:
@@ -24,3 +24,6 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+    automated:
+      prune: false
+      selfHeal: true
