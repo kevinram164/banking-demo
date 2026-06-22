@@ -590,6 +590,8 @@ git log -1 --oneline -- phase9-gitops-platform/gitops/values-images.yaml
 | Kaniko push 401 | Robot Harbor sai user/token; user phải là `robot$ci-push` |
 | Git push failed stage Update GitOps | Thiếu `github-gitops-push` hoặc PAT không có quyền write |
 | Pod Kaniko pending | Tạo SA `jenkins-kaniko` (Bước 5) |
+| Kaniko `stat /busybox/cat: no such file` | Image phải là `executor:*-debug` (có busybox); không dùng `executor` thường |
+| Kaniko `mkdir: cannot create directory '/kaniko': Permission denied` | Lệnh build phải chạy trong `container('kaniko')`, không phải container `jnlp` |
 
 Chi tiết library: [jenkins-shared-library/README.md](./jenkins-shared-library/README.md)
 

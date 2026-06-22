@@ -16,18 +16,20 @@ class KanikoBuilder implements Serializable {
             usernameVariable: 'HARBOR_USER',
             passwordVariable: 'HARBOR_PASS',
         )]) {
-            steps.sh """
+            steps.container('kaniko') {
+                steps.sh """
                 set -e
                 mkdir -p /kaniko/.docker
                 AUTH=\$(echo -n "\${HARBOR_USER}:\${HARBOR_PASS}" | base64 | tr -d '\\n')
                 echo "{\\"auths\\":{\\"${cfg.harborHost}\\":{\\"auth\\":\\"\$AUTH\\"}}}" > /kaniko/.docker/config.json
                 /kaniko/executor \\
-                  --context=dir://${meta.context} \\
+                  --context=dir://\$(pwd) \\
                   --dockerfile=${meta.dockerfile} \\
                   --destination=${image} \\
                   --cache=true \\
                   --cache-repo=${cacheRepo}
-            """
+                """
+            }
         }
         steps.env."IMAGE_TAG_${serviceName.replace('-', '_').toUpperCase()}" = tag
         steps.echo "Pushed ${image}"
