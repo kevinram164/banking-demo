@@ -30,8 +30,8 @@ spec:
             tag: "lts-jdk17"
             pullPolicy: Always
           admin:
-            username: "admin"
             existingSecret: jenkins-platform-credentials
+            userKey: jenkins-admin-user
             passwordKey: jenkins-admin-password
           jenkinsUrl: https://jenkins-npd.co/
           containerEnv:

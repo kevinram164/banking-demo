@@ -142,6 +142,7 @@ JCasC tạo ID `harbor-ci-push`, `github-gitops-push` từ secret này (không n
 
 ```bash
 vault kv put secret/platform/jenkins \
+  admin_username='admin' \
   admin_password='YOUR_JENKINS_ADMIN_PASSWORD' \
   harbor_username='robot$banking-demo+ci-push' \
   harbor_password='HARBOR_ROBOT_TOKEN' \
@@ -152,7 +153,7 @@ vault kv put secret/platform/jenkins \
 
 | Vault key | Jenkins dùng cho |
 |-----------|------------------|
-| `admin_password` | Login UI user `admin` |
+| `admin_username` / `admin_password` | Login UI (`jenkins-admin-user` / `jenkins-admin-password` trong K8s secret) |
 | `harbor_username` / `harbor_password` | Credential `harbor-ci-push` (Kaniko) |
 | `github_username` / `github_pat` | Credential `github-gitops-push` (push GitOps) |
 | `github_webhook_secret` | (Tùy chọn) GitHub webhook |
