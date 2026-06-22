@@ -35,13 +35,9 @@ class GitOpsUpdater implements Serializable {
                   exit 0
                 fi
                 git commit -m "ci: bump image tags to ${tag} [${services.join(', ')}]"
-                # Header auth — tránh @ trong email/username làm vỡ URL
-                if echo "\${GIT_TOKEN}" | grep -q '^github_pat_'; then
-                  AUTH_HEADER="AUTHORIZATION: Bearer \${GIT_TOKEN}"
-                else
-                  AUTH_HEADER="AUTHORIZATION: token \${GIT_TOKEN}"
-                fi
-                git -c "http.extraHeader=\${AUTH_HEADER}" push ${cfg.gitRepoUrl} HEAD:${cfg.gitBranch}
+                # x-access-token + PAT — hoạt động với classic/ghp_ và fine-grained/github_pat_ trên shell không TTY
+                export GIT_TERMINAL_PROMPT=0
+                git push "https://x-access-token:\${GIT_TOKEN}@${cfg.gitRepoUrl.replaceFirst('^https://', '')}" HEAD:${cfg.gitBranch}
             """
         }
         steps.echo "Updated ${file} — ArgoCD will sync."
