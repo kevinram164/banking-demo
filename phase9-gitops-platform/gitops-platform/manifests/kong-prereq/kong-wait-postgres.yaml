@@ -1,0 +1,40 @@
+# PreSync hook — chờ Postgres primary accept connection trước khi deploy Kong chart
+# Gắn vào Application infra-kong (ArgoCD chạy hook trước Helm release)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kong-wait-postgres
+  namespace: postgres
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    app.kubernetes.io/part-of: infra-kong
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 60
+  template:
+    metadata:
+      labels:
+        app: kong-wait-postgres
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: wait
+          image: postgres:16-alpine
+          env:
+            - name: PGHOST
+              value: postgres-ha-postgresql-primary.postgres.svc.cluster.local
+            - name: PGPORT
+              value: "5432"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for Postgres at ${PGHOST}:${PGPORT}..."
+              until pg_isready -h "$PGHOST" -p "$PGPORT" -U postgres; do
+                echo "Postgres not ready — retry in 5s"
+                sleep 5
+              done
+              echo "Postgres is ready"

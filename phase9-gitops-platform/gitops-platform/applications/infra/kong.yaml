@@ -1,4 +1,5 @@
 # Kong HA DB mode — Phase 5, ns kong
+# PreSync hooks (manifests/kong-prereq): chờ Postgres Ready → tạo DB kong → rồi mới deploy chart
 # Sau sync: chạy kong-import-job Phase 8 (Job không nằm trong chart Kong)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -9,7 +10,7 @@ metadata:
     app.kubernetes.io/part-of: phase9-gitops
     app.kubernetes.io/component: kong
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   project: banking-platform
   sources:
@@ -23,6 +24,9 @@ spec:
     - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: main
       ref: values
+    - repoURL: https://github.com/kevinram164/banking-demo.git
+      targetRevision: main
+      path: phase9-gitops-platform/gitops-platform/manifests/kong-prereq
   destination:
     server: https://kubernetes.default.svc
     namespace: kong
