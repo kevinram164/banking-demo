@@ -26,7 +26,7 @@ kubectl create namespace linkerd --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl create configmap linkerd-identity-trust-roots \
   -n linkerd \
-  --from-file=ca.crt="${CERT_DIR}/ca.crt" \
+  --from-file=ca-bundle.crt="${CERT_DIR}/ca.crt" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl create secret generic linkerd-identity-issuer \

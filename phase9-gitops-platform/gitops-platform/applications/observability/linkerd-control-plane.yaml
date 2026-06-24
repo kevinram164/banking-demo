@@ -1,5 +1,5 @@
 # Linkerd control-plane — mTLS service mesh
-# Identity TLS: inline PEM trong values-linkerd-k3d.yaml (externalCA: false)
+# Identity TLS: wave 0 bootstrap (secret + configmap) + externalCA:true bên dưới
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
