@@ -6,7 +6,7 @@ global:
 
 # Helm chart đọc imagePullSecrets theo từng service (không dùng global)
 x-harbor-pull: &harborPullSecrets
-  - name: harbor-registry
+  - name: harbor-pull-creds
 
 api-producer:
   imagePullSecrets: *harborPullSecrets

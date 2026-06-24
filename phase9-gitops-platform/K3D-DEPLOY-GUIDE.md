@@ -298,23 +298,20 @@ kubectl get pods -n external-secrets
 3. Tạo project **`banking-demo`**
 4. Robot accounts: **`ci-push`** (Jenkins push), **`k8s-pull`** (cluster pull)
 
-Pull secret (dùng ở Giai đoạn 5):
+Pull secret (dùng ở Giai đoạn 5) — **một tên cho cả cluster**: `harbor-pull-creds` (tránh `harbor-registry` trong ns `platform` vì Harbor Helm chart chiếm tên đó):
 
 ```bash
-# ns banking — tên harbor-registry (khớp values-images.yaml)
-kubectl create secret docker-registry harbor-registry \
+kubectl create secret docker-registry harbor-pull-creds \
   --docker-server=harbor-npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='ROBOT_TOKEN' \
   -n banking --dry-run=client -o yaml | kubectl apply -f -
 
-# ns platform — KHÔNG dùng tên harbor-registry (Harbor Helm chart chiếm tên đó)
-kubectl delete secret harbor-pull-creds -n platform 2>/dev/null || true
 kubectl create secret docker-registry harbor-pull-creds \
   --docker-server=harbor-npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='ROBOT_TOKEN' \
-  -n platform
+  -n platform --dry-run=client -o yaml | kubectl apply -f -
 ```
 
 **Kubelet pull qua TLS (x509):** Node k3d pull `harbor-npd.co` trực tiếp sẽ gặp cert self-signed từ Nginx WSL2 (khác Kaniko `--skip-tls-verify`). Cấu hình mirror HTTP nội bộ:

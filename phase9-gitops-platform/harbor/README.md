@@ -16,18 +16,18 @@ Registry nội bộ cho CI (Jenkins Kaniko) và CD (ArgoCD pull image).
 2. Tạo project **`banking-demo`** (public hoặc private).
 3. Tạo **Robot Accounts**:
    - `ci-push` — push image (Jenkins credential `harbor-ci-push`)
-   - `k8s-pull` — pull only (dockerconfigjson Secret `harbor-registry`)
+   - `k8s-pull` — pull only (dockerconfigjson Secret `harbor-pull-creds`)
 
 ## K8s pull secret (ns banking, platform)
 
 ```bash
-kubectl create secret docker-registry harbor-registry \
+kubectl create secret docker-registry harbor-pull-creds \
   --docker-server=harbor-npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='<TOKEN>' \
   -n banking
 
-kubectl create secret docker-registry harbor-registry \
+kubectl create secret docker-registry harbor-pull-creds \
   --docker-server=harbor-npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='<TOKEN>' \

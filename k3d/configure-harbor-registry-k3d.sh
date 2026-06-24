@@ -49,5 +49,5 @@ k3d cluster start "${CLUSTER_NAME}"
 
 echo ""
 echo "Done. Verify pull secret + restart banking pods:"
-echo "  kubectl get secret harbor-registry -n banking"
+echo "  kubectl get secret harbor-pull-creds -n banking"
 echo "  kubectl rollout restart deployment -n banking"
