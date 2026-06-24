@@ -1,3 +1,6 @@
-# Lab certs — không commit private key
-*.key
+# Script output — không commit
 linkerd-identity.yaml
+ca.key
+issuer.key
+
+# k3d-lab/ — static lab certs (commit cho GitOps Helm fileParameters; LAB ONLY)

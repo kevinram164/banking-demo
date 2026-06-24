@@ -1,6 +1,5 @@
 # Linkerd control-plane — k3d lab (cniEnabled=false, init container proxy)
-# Bắt buộc: scripts/generate-linkerd-certs.sh → secret + configmap (ns linkerd)
-# Helm: identity.externalCA=true + issuer scheme kubernetes.io/tls (trong Application)
+# Identity TLS: certs k3d-lab/ (Helm fileParameters trong Application ArgoCD) — LAB ONLY
 
 cniEnabled: false
 controllerReplicas: 1

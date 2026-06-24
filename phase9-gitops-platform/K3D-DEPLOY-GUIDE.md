@@ -618,22 +618,19 @@ Metrics + logs + traces qua **Coroot**; **OpenTelemetry Collector** làm gateway
 
 Chi tiết: [observability/README.md](./observability/README.md)
 
-### 4b.1 Linkerd certificates (một lần)
+### 4b.1 Linkerd certificates
+
+Linkerd dùng **cert tĩnh lab** trong Git (`observability/certs/k3d-lab/`) — ArgoCD truyền vào Helm qua `fileParameters`. **Không cần** chạy script trước sync.
+
+Tạo lại cert (chỉ khi rotate lab):
 
 ```bash
-chmod +x "$REPO_ROOT/phase9-gitops-platform/observability/scripts/generate-linkerd-certs.sh"
-"$REPO_ROOT/phase9-gitops-platform/observability/scripts/generate-linkerd-certs.sh"
-# Tạo: secret linkerd-identity-issuer (ca.crt + tls.crt + tls.key)
-#       configmap linkerd-identity-trust-roots (ns linkerd)
-# Helm cần identity.externalCA=true — xem linkerd-control-plane Application
+pip install cryptography   # một lần
+python "$REPO_ROOT/phase9-gitops-platform/observability/scripts/gen-k3d-lab-certs.py"
+# Commit ca.crt, issuer.crt, issuer.key trong k3d-lab/ rồi sync lại linkerd-control-plane
 ```
 
-Nếu Linkerd CrashLoopBackOff sau sync: chạy lại script (cập nhật secret 3 key), rồi:
-
-```bash
-kubectl delete pods -n linkerd --all
-argocd app sync observability-linkerd-control-plane --force
-```
+Script cũ `generate-linkerd-certs.sh` (secret + configmap) **không còn bắt buộc** với cách deploy mới.
 
 ### 4b.2 Apply observability App of Apps
 
