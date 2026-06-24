@@ -24,16 +24,6 @@ done
 
 kubectl create namespace linkerd --dry-run=client -o yaml | kubectl apply -f -
 
-kubectl create configmap linkerd-identity-trust-roots \
-  -n linkerd \
-  --from-file=ca-bundle.crt="${CERT_DIR}/ca.crt" \
-  --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -k "${SCRIPT_DIR}/../manifests/linkerd-identity-k3d/"
 
-kubectl create secret generic linkerd-identity-issuer \
-  -n linkerd \
-  --from-file=ca.crt="${CERT_DIR}/ca.crt" \
-  --from-file=tls.crt="${CERT_DIR}/issuer.crt" \
-  --from-file=tls.key="${CERT_DIR}/issuer.key" \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-echo "OK: linkerd-identity-trust-roots + linkerd-identity-issuer trong ns linkerd"
+echo "OK: linkerd-identity-trust-roots + linkerd-identity-issuer (kubernetes.io/tls)"

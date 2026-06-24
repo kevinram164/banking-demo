@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: linkerd-identity-issuer
+  namespace: linkerd
+  labels:
+    linkerd.io/control-plane-component: identity
+type: kubernetes.io/tls
+stringData:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIIBbzCCARWgAwIBAgIUZRzrDlE8wsn1GSsmyDOyGs6ClAYwCgYIKoZIzj0EAwIw
+    JTEjMCEGA1UEAwwacm9vdC5saW5rZXJkLmNsdXN0ZXIubG9jYWwwHhcNMjYwNjIz
+    MDIyODEzWhcNMzYwNjIxMDIyODEzWjAlMSMwIQYDVQQDDBpyb290LmxpbmtlcmQu
+    Y2x1c3Rlci5sb2NhbDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABLgtnntn5YSx
+    QYRGoXfukIxtrhFiJfUBhua7CbuGF6N7Md8GYgzuJqy1clmeEeGaRoCeBW/LgXCv
+    pgSeIUp8U3WjIzAhMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgGGMAoG
+    CCqGSM49BAMCA0gAMEUCIQCEhubf+fehcLX4wD4MNT/Hy4LbhM+38Q7rouVpqXqr
+    KAIgBhsfp5thTTxzDyfLU/hrNhP+N3jbJfSTJxu2VU8hB+E=
+    -----END CERTIFICATE-----
+  tls.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIIBoTCCAUegAwIBAgIULiWqsvQNQeihouPQuwSPuNU7udswCgYIKoZIzj0EAwIw
+    JTEjMCEGA1UEAwwacm9vdC5saW5rZXJkLmNsdXN0ZXIubG9jYWwwHhcNMjYwNjIz
+    MDIyODEzWhcNMzYwNjIxMDIyODEzWjApMScwJQYDVQQDDB5pZGVudGl0eS5saW5r
+    ZXJkLmNsdXN0ZXIubG9jYWwwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATyu5DJ
+    OdRFDCEDniiXt9TI0NA5bgWWK9nyLBMi36EzNVP+s8Iy5hR31/LstF8GtnlT+Sx2
+    jgojzMY9E5QqHS1jo1EwTzASBgNVHRMBAf8ECDAGAQH/AgEAMA4GA1UdDwEB/wQE
+    AwIBhjApBgNVHREEIjAggh5pZGVudGl0eS5saW5rZXJkLmNsdXN0ZXIubG9jYWww
+    CgYIKoZIzj0EAwIDSAAwRQIhAI9pEtigv9PArTskIQVsiu/dubDNhsIBfarGFdtC
+    tNIkAiAZ1pzcsoHt/s+YEzKRPRKiHTMxNy8T5rpcsMEvQ22i8w==
+    -----END CERTIFICATE-----
+  tls.key: |
+    -----BEGIN EC PRIVATE KEY-----
+    MHcCAQEEIEHCzIxCWy5CAha5aCsGosPPDOMU5ncjwS7NgVZEe+pBoAoGCCqGSM49
+    AwEHoUQDQgAE8ruQyTnURQwhA54ol7fUyNDQOW4FlivZ8iwTIt+hMzVT/rPCMuYU
+    d9fy7LRfBrZ5U/ksdo4KI8zGPROUKh0tYw==
+    -----END EC PRIVATE KEY-----
