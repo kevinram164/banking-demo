@@ -12,14 +12,33 @@ if [[ ! -f "${REG_FILE}" ]]; then
   exit 1
 fi
 
-nodes="$(docker ps --filter "label=k3d.cluster=${CLUSTER_NAME}" --format '{{.Names}}')"
-if [[ -z "${nodes}" ]]; then
-  echo "No k3d nodes for cluster '${CLUSTER_NAME}'. Is the cluster running?"
+all_nodes="$(docker ps --filter "label=k3d.cluster=${CLUSTER_NAME}" --format '{{.Names}}')"
+if [[ -z "${all_nodes}" ]]; then
+  echo "No k3d containers for cluster '${CLUSTER_NAME}'. Is the cluster running?"
+  exit 1
+fi
+
+# Chỉ server/agent — bỏ qua k3d-*-tools (không có /etc/rancher/k3s)
+nodes=()
+for node in ${all_nodes}; do
+  if [[ "${node}" == *-tools ]]; then
+    echo "Skipping tools container: ${node}"
+    continue
+  fi
+  if docker exec "${node}" test -d /etc/rancher/k3s 2>/dev/null; then
+    nodes+=("${node}")
+  else
+    echo "Skipping ${node} (no /etc/rancher/k3s)"
+  fi
+done
+
+if [[ ${#nodes[@]} -eq 0 ]]; then
+  echo "No k3s server/agent nodes found for cluster '${CLUSTER_NAME}'."
   exit 1
 fi
 
 echo "Applying ${REG_FILE} to cluster '${CLUSTER_NAME}'..."
-for node in ${nodes}; do
+for node in "${nodes[@]}"; do
   echo "  -> ${node}"
   docker cp "${REG_FILE}" "${node}:/etc/rancher/k3s/registries.yaml"
 done
