@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Bootstrap secret + configmap từ certs/k3d-lab/ (khi Helm release còn externalCA hoặc cần fix nhanh).
+# KHẨN CẤP: bootstrap identity secret/configmap khi Helm còn externalCA:true.
+# Với externalCA:false (mặc định hiện tại) → dùng reset-linkerd-control-plane-k3d.sh + ArgoCD Sync thay vì script này.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -620,18 +620,20 @@ Chi tiết: [observability/README.md](./observability/README.md)
 
 ### 4b.1 Linkerd certificates
 
-Linkerd dùng **PEM inline** trong `values-linkerd-k3d.yaml` (`identity.externalCA: false`). Helm tự tạo secret/configmap — **không xóa** `linkerd-identity-issuer` / `linkerd-identity-trust-roots` trước sync.
+Linkerd dùng **PEM inline** trong `values-linkerd-k3d.yaml` (`identity.externalCA: false`). Helm tự tạo **tất cả** secrets (identity + webhook TLS).
 
-Nếu pod kẹt `FailedMount` (secret/configmap not found), fix nhanh:
+**Không** dùng `apply-linkerd-identity-k3d.sh` rồi restart pod — secret thủ công thiếu webhook certs → `CreateContainerConfigError`.
+
+Nếu Linkerd lỗi / CrashLoop / CreateContainerConfigError:
 
 ```bash
-chmod +x "$REPO_ROOT/phase9-gitops-platform/observability/scripts/apply-linkerd-identity-k3d.sh"
-"$REPO_ROOT/phase9-gitops-platform/observability/scripts/apply-linkerd-identity-k3d.sh"
-# Script tự chạy gen-k3d-lab-certs.py nếu thiếu issuer.key (pip install cryptography)
-kubectl delete pods -n linkerd --all
+chmod +x "$REPO_ROOT/phase9-gitops-platform/observability/scripts/reset-linkerd-control-plane-k3d.sh"
+"$REPO_ROOT/phase9-gitops-platform/observability/scripts/reset-linkerd-control-plane-k3d.sh"
+argocd app sync observability-linkerd-control-plane --force --replace --grpc-web
+kubectl get pods -n linkerd -w
 ```
 
-Sau đó **Hard Refresh + Sync** `observability-linkerd-control-plane` (để Helm nhận `externalCA: false` + PEM mới).
+Đảm bảo đã `git pull` (values có `externalCA: false` + PEM khớp `certs/k3d-lab/`).
 
 ### 4b.2 Apply observability App of Apps
 

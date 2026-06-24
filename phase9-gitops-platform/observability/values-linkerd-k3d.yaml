@@ -5,6 +5,10 @@ cniEnabled: false
 controllerReplicas: 1
 enablePodAntiAffinity: false
 
+# Lab k3d: tắt policy controller → ít secret webhook, destination nhẹ hơn
+policyController:
+  enabled: false
+
 identityTrustAnchorsPEM: |
   -----BEGIN CERTIFICATE-----
   MIIBbzCCARWgAwIBAgIUZRzrDlE8wsn1GSsmyDOyGs6ClAYwCgYIKoZIzj0EAwIw
