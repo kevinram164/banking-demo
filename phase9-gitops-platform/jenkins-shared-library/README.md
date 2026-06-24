@@ -37,7 +37,19 @@ Không tạo credential thủ công trên Jenkins UI. Chi tiết: [vault/README.
 | transfer-service | `phase8-application-v3/services/transfer-service/Dockerfile` |
 | notification-service | `phase8-application-v3/services/notification-service/Dockerfile` |
 
-Chỉ build service có file thay đổi dưới `phase8-application-v3/`.
+Chỉ build service có file thay đổi dưới `phase8-application-v3/` khi **BUILD_TARGET = auto**.
+
+### Build with Parameters
+
+| BUILD_TARGET | Hành vi |
+|--------------|---------|
+| `auto` (mặc định) | Chỉ build service có diff trong commit; không diff → skip |
+| `all` | Build mọi service |
+| `api-producer`, `auth-service`, … | Build đúng một service |
+
+Lần chạy Multibranch **đầu tiên** sau khi thêm parameter: chạy job một lần, lần sau dùng **Build with Parameters**.
+
+Push thay đổi shared library → branch `dev-k3d` → Jenkins load library mới (hoặc restart `jenkins-0` nếu cache library cũ).
 
 Pod agent dùng image **`gcr.io/kaniko-project/executor:*-debug`** — bản `executor` thường không có `/busybox/cat` (Jenkins giữ container sống trước khi `sh` chạy `/kaniko/executor`).
 

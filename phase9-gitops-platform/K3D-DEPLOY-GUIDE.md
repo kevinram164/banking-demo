@@ -588,12 +588,22 @@ Jenkins quét nhánh `dev-k3d` và tạo job con. Bấm job con → **Build Now*
 
 #### Bước 8 — Kiểm tra pipeline chạy OK
 
+**Build with Parameters** (sau lần chạy đầu tiên khi job đã có parameter):
+
+| BUILD_TARGET | Khi nào dùng |
+|--------------|--------------|
+| `auto` | Push bình thường — chỉ build service có file đổi |
+| `all` | Rebuild mọi image (vd. sau khi sửa `common/`) |
+| `account-service`, … | Chỉ build một service (sửa Dockerfile / debug) |
+
 ```bash
 # Sửa code Phase 8 rồi push
 git add phase8-application-v3/
 git commit -m "test: trigger Jenkins CI"
 git push origin dev-k3d
 ```
+
+Webhook push dùng `BUILD_TARGET=auto` (mặc định). Rebuild một service: Jenkins UI → **Build with Parameters** → chọn tên service.
 
 Kỳ vọng trên Jenkins UI:
 

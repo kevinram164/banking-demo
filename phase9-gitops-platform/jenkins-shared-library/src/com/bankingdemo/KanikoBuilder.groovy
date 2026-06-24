@@ -12,6 +12,9 @@ class KanikoBuilder implements Serializable {
         def cacheRepo = "${cfg.harborHost}/${cfg.harborProject}/cache/${serviceName}"
         def tlsFlag = cfg.kanikoSkipTlsVerify ? '--skip-tls-verify' : ''
         def tlsArg = tlsFlag ? " \\\n                  ${tlsFlag}" : ''
+        def cacheArgs = (cfg.kanikoUseCache != false) ? """
+                  --cache=true \\
+                  --cache-repo=${cacheRepo}""" : ' \\\n                  --cache=false'
 
         steps.withCredentials([steps.usernamePassword(
             credentialsId: cfg.harborCredId,
@@ -27,9 +30,7 @@ class KanikoBuilder implements Serializable {
                 /kaniko/executor \\
                   --context=dir://\$(pwd) \\
                   --dockerfile=${meta.dockerfile} \\
-                  --destination=${image} \\
-                  --cache=true \\
-                  --cache-repo=${cacheRepo}${tlsArg}
+                  --destination=${image} \\${cacheArgs}${tlsArg}
                 """
             }
         }
