@@ -18,18 +18,22 @@ if [[ -z "${all_nodes}" ]]; then
   exit 1
 fi
 
-# Chỉ server/agent — bỏ qua k3d-*-tools (không có /etc/rancher/k3s)
+is_k3s_node() {
+  local node="$1"
+  [[ "${node}" == *-server-* ]] || [[ "${node}" == *-agent-* ]]
+}
+
 nodes=()
 for node in ${all_nodes}; do
-  if [[ "${node}" == *-tools ]]; then
-    echo "Skipping tools container: ${node}"
+  if [[ "${node}" == *-tools ]] || [[ "${node}" == *-serverlb ]]; then
+    echo "Skipping non-k3s container: ${node}"
     continue
   fi
-  if docker exec "${node}" test -d /etc/rancher/k3s 2>/dev/null; then
-    nodes+=("${node}")
-  else
-    echo "Skipping ${node} (no /etc/rancher/k3s)"
+  if ! is_k3s_node "${node}"; then
+    echo "Skipping unknown container: ${node}"
+    continue
   fi
+  nodes+=("${node}")
 done
 
 if [[ ${#nodes[@]} -eq 0 ]]; then
@@ -37,20 +41,20 @@ if [[ ${#nodes[@]} -eq 0 ]]; then
   exit 1
 fi
 
-echo "Applying ${REG_FILE} to cluster '${CLUSTER_NAME}'..."
+echo "Applying ${REG_FILE} to cluster '${CLUSTER_NAME}' (${#nodes[@]} nodes)..."
 for node in "${nodes[@]}"; do
   echo "  -> ${node}"
+  docker exec "${node}" mkdir -p /etc/rancher/k3s
   docker cp "${REG_FILE}" "${node}:/etc/rancher/k3s/registries.yaml"
 done
 
-echo "Restarting cluster (k3s reload registries)..."
+echo "Restarting cluster (k3s reload registries on server + agents)..."
 k3d cluster stop "${CLUSTER_NAME}"
 k3d cluster start "${CLUSTER_NAME}"
 
 echo ""
-echo "Verify registries on nodes:"
+echo "Verify all nodes:"
 echo "  ./k3d/verify-harbor-registry-k3d.sh"
 echo ""
-echo "Done. Verify pull secret + restart banking pods:"
-echo "  kubectl get secret harbor-pull-creds -n banking"
+echo "Then restart banking pods:"
 echo "  kubectl rollout restart deployment -n banking"
