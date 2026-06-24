@@ -5,8 +5,9 @@ cniEnabled: false
 controllerReplicas: 1
 enablePodAntiAffinity: false
 
+# Viz cần policy controller (AuthorizationPolicy, Server CRs)
 policyController:
-  enabled: false
+  enabled: true
 
 proxy:
   resources:
@@ -20,8 +21,8 @@ controllerResources:
   cpu:
     request: 50m
   memory:
-    request: 128Mi
-    limit: 512Mi
+    request: 256Mi
+    limit: 768Mi
 
 heartbeatSchedule: ""
 
