@@ -97,7 +97,7 @@ spec:
             - name: KONG_DATABASE
               value: "postgres"
             - name: KONG_PG_HOST
-              value: "postgres-postgresql-primary.postgres.svc.cluster.local"
+              value: "postgres-ha-postgresql-primary.postgres.svc.cluster.local"
             - name: KONG_PG_PORT
               value: "5432"
             - name: KONG_PG_DATABASE

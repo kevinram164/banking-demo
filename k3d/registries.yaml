@@ -1,0 +1,7 @@
+# k3s/containerd registry config — mount vào mọi node k3d (@all)
+# Kubelet pull harbor-npd.co qua Harbor Service HTTP trong cluster,
+# tránh TLS self-signed từ Nginx WSL2 (lỗi x509 khi pull từ node).
+mirrors:
+  harbor-npd.co:
+    endpoint:
+      - http://harbor.platform.svc.cluster.local:80

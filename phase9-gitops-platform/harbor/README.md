@@ -46,4 +46,6 @@ harbor-npd.co/banking-demo/auth-service:<sha>
 
 ## TLS
 
-Nginx WSL2 terminate SSL; Traefik nhận HTTP (Mô hình SSL 1). Kaniko/Jenkins cần trust cert hoặc cấu hình insecure registry nếu lab dùng self-signed.
+Nginx WSL2 terminate SSL cho trình duyệt; Traefik nhận HTTP (Mô hình SSL 1). Kaniko/Jenkins dùng `--skip-tls-verify` (lab).
+
+**Kubelet pull image:** Node k3d không dùng Kaniko — cần `k3d/registries.yaml` mirror `harbor-npd.co` → `http://harbor.platform.svc.cluster.local:80`. Cluster mới: `cluster-create.sh`. Cluster đã có: `./configure-harbor-registry-k3d.sh`.

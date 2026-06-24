@@ -301,13 +301,14 @@ kubectl get pods -n external-secrets
 Pull secret (dùng ở Giai đoạn 5):
 
 ```bash
-# Tên harbor-pull-creds — KHÔNG dùng harbor-registry (Harbor Helm chart chiếm tên đó)
-kubectl create secret docker-registry harbor-pull-creds \
+# ns banking — tên harbor-registry (khớp values-images.yaml)
+kubectl create secret docker-registry harbor-registry \
   --docker-server=harbor-npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='ROBOT_TOKEN' \
   -n banking --dry-run=client -o yaml | kubectl apply -f -
 
+# ns platform — KHÔNG dùng tên harbor-registry (Harbor Helm chart chiếm tên đó)
 kubectl delete secret harbor-pull-creds -n platform 2>/dev/null || true
 kubectl create secret docker-registry harbor-pull-creds \
   --docker-server=harbor-npd.co \
@@ -315,6 +316,15 @@ kubectl create secret docker-registry harbor-pull-creds \
   --docker-password='ROBOT_TOKEN' \
   -n platform
 ```
+
+**Kubelet pull qua TLS (x509):** Node k3d pull `harbor-npd.co` trực tiếp sẽ gặp cert self-signed từ Nginx WSL2 (khác Kaniko `--skip-tls-verify`). Cấu hình mirror HTTP nội bộ:
+
+```bash
+chmod +x "$REPO_ROOT/k3d/configure-harbor-registry-k3d.sh"
+"$REPO_ROOT/k3d/configure-harbor-registry-k3d.sh"
+```
+
+Cluster mới: `k3d/cluster-create.sh` đã mount `k3d/registries.yaml` (mirror → `harbor.platform.svc.cluster.local:80`).
 
 Cập nhật `phase9-gitops-platform/gitops/values-images.yaml` → registry `harbor-npd.co/banking-demo/...`
 
@@ -868,7 +878,7 @@ kubectl get applications -n argocd | grep banking
 kubectl get pods -n banking
 ```
 
-Nếu `ImagePullBackOff` → kiểm tra Harbor pull secret (mục 4.2) và tag trong `values-images.yaml`.
+Nếu `ImagePullBackOff` → kiểm tra Harbor pull secret (mục 4.2), tag trong `values-images.yaml`, và registry mirror (mục 4.2 — lỗi `x509: certificate is not valid for any names`).
 
 ### 7.2 (Tùy chọn) Apply root App of Apps — quản lý tập trung
 
@@ -886,7 +896,8 @@ Sau Kong infra + banking pods Running:
 
 ```bash
 kubectl apply -f "$REPO_ROOT/phase8-application-v3/kong-ha/kong-import-job.yaml"
-kubectl wait -n kong --for=condition=complete job/kong-import-phase8 --timeout=300s
+kubectl wait -n kong --for=condition=complete job/kong-config-import-phase8 --timeout=300s
+kubectl logs -n kong job/kong-config-import-phase8 --tail=20
 kubectl rollout restart deployment -n kong -l app.kubernetes.io/name=kong
 ```
 
@@ -967,7 +978,7 @@ Chi tiết: [WSL2-K3D-ARGOCD-GUIDE.md](../k3d/WSL2-K3D-ARGOCD-GUIDE.md).
 | 502 / 404 ArgoCD | Upstream Nginx phải `127.0.0.1:9080`, Ingress host đúng |
 | 400 Header Too Large | `large_client_header_buffers` + xóa cookie |
 | kubectl localhost:8080 | `k3d kubeconfig merge npd` |
-| ImagePullBackOff | Harbor secret + robot account; CI đã push image? |
+| ImagePullBackOff | Harbor secret + robot account; CI đã push image? Lỗi **x509 harbor-npd.co** → chạy `k3d/configure-harbor-registry-k3d.sh` |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 — cần image trên Harbor trước |
 | ArgoCD OutOfSync lâu | Sync từng app; kiểm tra repo branch `dev-k3d` |
 | PVC Pending | Đổi `storageClass: local-path` |
