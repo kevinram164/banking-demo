@@ -8,7 +8,12 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 
-OUT = Path(__file__).resolve().parent.parent / "certs" / "k3d-lab"
+OUT = (
+    Path(__file__).resolve().parent.parent
+    / "manifests"
+    / "linkerd-identity-k3d"
+    / "certs"
+)
 OUT.mkdir(parents=True, exist_ok=True)
 
 ca_key = ec.generate_private_key(ec.SECP256R1())

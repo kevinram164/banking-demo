@@ -28,7 +28,7 @@ Linkerd (ns linkerd) — mTLS mesh, Viz dashboard
 ## ArgoCD apply (Giai đoạn 2b — sau platform, trước infra)
 
 ```bash
-# Linkerd: cert tĩnh trong Git (certs/k3d-lab/) — không cần script trước sync
+# Linkerd: cert trong manifests/linkerd-identity-k3d/certs/ (Kustomize wave 0)
 
 # 2. Sync observability apps
 kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/observability-app-of-apps.yaml -n argocd

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CERT_DIR="${SCRIPT_DIR}/../certs/k3d-lab"
+CERT_DIR="${SCRIPT_DIR}/../manifests/linkerd-identity-k3d/certs"
 
 need_gen=false
 for f in ca.crt issuer.crt issuer.key; do
