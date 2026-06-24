@@ -11,8 +11,8 @@ Banking pods (ns banking, Linkerd sidecar)
 OpenTelemetry Collector (ns observability)
     │ OTLP → Coroot
     ▼
-Coroot CE (UI + ClickHouse + eBPF node-agent)
-    ├── Metrics (eBPF + OTLP)
+Coroot CE (UI + ClickHouse + cluster-agent)
+    ├── Metrics (OTLP + cluster-agent; node-agent eBPF tắt trên k3d/WSL2)
     ├── Logs (OTLP)
     └── Traces (OTLP gRPC/HTTP)
 
@@ -78,7 +78,7 @@ linkerd viz tap deploy/auth-service -n banking
 
 | | Phase 3 | Phase 9 (k3d) |
 |--|---------|---------------|
-| Metrics | Prometheus | Coroot + eBPF |
+| Metrics | Prometheus | Coroot OTLP (+ eBPF trên cluster thật) |
 | Logs | Loki + Promtail | Coroot OTLP |
 | Traces | Tempo + OTEL | Coroot OTLP |
 | UI | Grafana | Coroot |

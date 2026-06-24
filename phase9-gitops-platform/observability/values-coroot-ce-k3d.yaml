@@ -18,13 +18,18 @@ prometheus:
     size: 5Gi
     className: local-path
 
+# k3d/WSL2: node-agent eBPF cần tracefs/debugfs — không có trên WSL2.
+# Tắt DaemonSet (nodeSelector không match); metrics/traces qua OTLP + cluster-agent.
 nodeAgent:
-  resources:
-    requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
-      memory: 512Mi
+  nodeSelector:
+    coroot-node-agent: enabled
+  ebpfTracer:
+    enabled: false
+  ebpfProfiler:
+    enabled: false
+  logCollector:
+    collectLogBasedMetrics: false
+    collectLogEntries: false
 
 clusterAgent:
   resources:
