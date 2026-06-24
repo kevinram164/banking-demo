@@ -9,31 +9,31 @@ global:
 api-producer:
   image:
     repository: harbor-npd.co/banking-demo/api-producer
-    tag: 0cfc993
+    tag: ae63979
     pullPolicy: Always
 
 auth-service:
   image:
     repository: harbor-npd.co/banking-demo/auth-service
-    tag: 0cfc993
+    tag: ae63979
     pullPolicy: Always
 
 account-service:
   image:
     repository: harbor-npd.co/banking-demo/account-service
-    tag: 0cfc993
+    tag: ae63979
     pullPolicy: Always
 
 transfer-service:
   image:
     repository: harbor-npd.co/banking-demo/transfer-service
-    tag: 0cfc993
+    tag: ae63979
     pullPolicy: Always
 
 notification-service:
   image:
     repository: harbor-npd.co/banking-demo/notification-service
-    tag: 0cfc993
+    tag: ae63979
     pullPolicy: Always
 
 frontend:
