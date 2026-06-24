@@ -26,7 +26,7 @@ spec:
             hosts:
               core: harbor-npd.co
             className: traefik
-        externalURL: https://harbor-npd.co
+        externalURL: http://harbor-npd.co
         harborAdminPassword: "ChangeMe-Harbor-Admin"
         internalTLS:
           enabled: false

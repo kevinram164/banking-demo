@@ -321,7 +321,18 @@ chmod +x "$REPO_ROOT/k3d/configure-harbor-registry-k3d.sh"
 "$REPO_ROOT/k3d/configure-harbor-registry-k3d.sh"
 ```
 
-Cluster mới: `k3d/cluster-create.sh` đã mount `k3d/registries.yaml` (mirror → `harbor.platform.svc.cluster.local:80`).
+Cluster mới: `k3d/cluster-create.sh` đã mount `k3d/registries.yaml` (mirror → `harbor-registry.platform.svc.cluster.local:5000`).
+
+Sau khi chạy script, **bắt buộc verify** mọi server/agent có file:
+
+```bash
+chmod +x "$REPO_ROOT/k3d/verify-harbor-registry-k3d.sh"
+"$REPO_ROOT/k3d/verify-harbor-registry-k3d.sh"
+```
+
+Nếu vẫn lỗi **x509** → lần đầu script có thể fail ở `k3d-npd-tools` trước khi copy xong — chạy lại `configure-harbor-registry-k3d.sh` (bản mới bỏ qua tools).
+
+Harbor `externalURL` lab dùng `http://harbor-npd.co` (tránh redirect HTTPS khi pull nội bộ) — Sync lại app `platform-harbor` sau khi pull code.
 
 Cập nhật `phase9-gitops-platform/gitops/values-images.yaml` → registry `harbor-npd.co/banking-demo/...`
 
