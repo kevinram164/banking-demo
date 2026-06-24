@@ -627,6 +627,7 @@ Nếu pod kẹt `FailedMount` (secret/configmap not found), fix nhanh:
 ```bash
 chmod +x "$REPO_ROOT/phase9-gitops-platform/observability/scripts/apply-linkerd-identity-k3d.sh"
 "$REPO_ROOT/phase9-gitops-platform/observability/scripts/apply-linkerd-identity-k3d.sh"
+# Script tự chạy gen-k3d-lab-certs.py nếu thiếu issuer.key (pip install cryptography)
 kubectl delete pods -n linkerd --all
 ```
 

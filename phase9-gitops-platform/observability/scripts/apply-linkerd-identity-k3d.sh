@@ -5,8 +5,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CERT_DIR="${SCRIPT_DIR}/../certs/k3d-lab"
 
+need_gen=false
 for f in ca.crt issuer.crt issuer.key; do
-  [[ -f "${CERT_DIR}/${f}" ]] || { echo "Missing ${CERT_DIR}/${f} — chạy gen-k3d-lab-certs.py"; exit 1; }
+  [[ -f "${CERT_DIR}/${f}" ]] || need_gen=true
+done
+
+if $need_gen; then
+  echo "Thiếu file trong ${CERT_DIR}/ — tạo bằng gen-k3d-lab-certs.py ..."
+  if ! python3 "${SCRIPT_DIR}/gen-k3d-lab-certs.py" 2>/dev/null; then
+    python "${SCRIPT_DIR}/gen-k3d-lab-certs.py"
+  fi
+fi
+
+for f in ca.crt issuer.crt issuer.key; do
+  [[ -f "${CERT_DIR}/${f}" ]] || { echo "Vẫn thiếu ${CERT_DIR}/${f}. Cài: pip install cryptography"; exit 1; }
 done
 
 kubectl create namespace linkerd --dry-run=client -o yaml | kubectl apply -f -

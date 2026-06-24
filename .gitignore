@@ -5,3 +5,6 @@ yarn-error.log*
 **/node_modules/
 *.crt
 *.key
+# Linkerd k3d lab — commit bundle (LAB ONLY)
+!phase9-gitops-platform/observability/certs/k3d-lab/
+!phase9-gitops-platform/observability/certs/k3d-lab/**
