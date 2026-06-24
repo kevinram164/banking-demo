@@ -1,11 +1,6 @@
 # Coroot CE — lab k3d (namespace observability)
-# UI: https://coroot-npd.co | OTLP: coroot-coroot.observability:4317 (gRPC) / :8080 (HTTP)
-
-ingress:
-  className: traefik
-  host: coroot-npd.co
-  path: /
-  tls: []
+# UI: https://coroot-npd.co qua k3d/coroot-ingress.yaml (không dùng spec.ingress trong CR)
+# OTLP: coroot-coroot.observability:4317 (gRPC) / :8080 (HTTP)
 
 storage:
   size: 5Gi
