@@ -2,6 +2,7 @@
 loki:
   commonConfig:
     replication_factor: 1
+  useTestSchema: false
   schemaConfig:
     configs:
       - from: "2024-04-01"

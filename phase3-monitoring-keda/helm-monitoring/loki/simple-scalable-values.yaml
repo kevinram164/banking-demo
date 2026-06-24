@@ -1,5 +1,6 @@
 ---
 loki:
+  useTestSchema: false  # có schemaConfig rồi
   schemaConfig:
     configs:
       - from: 2024-04-01

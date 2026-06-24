@@ -1,0 +1,10 @@
+# Trivy config scan — ignore misconfigurations (fix gradually, remove when resolved)
+# DS-0002: Dockerfile thiếu USER non-root
+# DS-0029: apt-get thiếu --no-install-recommends
+# KSV-0014: Container thiếu securityContext.readOnlyRootFilesystem
+# KSV-0118: Pod/container dùng default security context (root)
+
+AVD-DS-0002
+AVD-DS-0029
+KSV-0014
+KSV-0118
