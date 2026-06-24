@@ -10,11 +10,18 @@ class KanikoBuilder implements Serializable {
         def tag = GitRef.imageTag(steps)
         def image = "${cfg.harborHost}/${cfg.harborProject}/${serviceName}:${tag}"
         def cacheRepo = "${cfg.harborHost}/${cfg.harborProject}/cache/${serviceName}"
-        def tlsFlag = cfg.kanikoSkipTlsVerify ? '--skip-tls-verify' : ''
-        def tlsArg = tlsFlag ? " \\\n                  ${tlsFlag}" : ''
-        def cacheArgs = (cfg.kanikoUseCache != false) ? """
-                  --cache=true \\
-                  --cache-repo=${cacheRepo}""" : ' \\\n                  --cache=false'
+
+        def extras = []
+        if (cfg.kanikoUseCache != false) {
+            extras << '--cache=true'
+            extras << "--cache-repo=${cacheRepo}"
+        } else {
+            extras << '--cache=false'
+        }
+        if (cfg.kanikoSkipTlsVerify) {
+            extras << '--skip-tls-verify'
+        }
+        def extraFlags = extras.join(' ')
 
         steps.withCredentials([steps.usernamePassword(
             credentialsId: cfg.harborCredId,
@@ -30,7 +37,8 @@ class KanikoBuilder implements Serializable {
                 /kaniko/executor \\
                   --context=dir://\$(pwd) \\
                   --dockerfile=${meta.dockerfile} \\
-                  --destination=${image} \\${cacheArgs}${tlsArg}
+                  --destination=${image} \\
+                  ${extraFlags}
                 """
             }
         }
