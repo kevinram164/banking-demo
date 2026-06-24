@@ -38,7 +38,7 @@ Thứ tự sync wave:
 
 | Wave | App |
 |------|-----|
-| 0 | coroot-operator, linkerd-crds |
+| 0 | coroot-operator, linkerd-crds, linkerd-identity-bootstrap |
 | 1 | otel-collector, linkerd-control-plane |
 | 2 | coroot-ce, linkerd-viz |
 

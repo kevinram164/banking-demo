@@ -1,48 +1,12 @@
 # Linkerd control-plane — k3d lab (cniEnabled=false, init container proxy)
-# Identity TLS inline (LAB ONLY — regenerate: scripts/gen-k3d-lab-certs.py)
+# Identity: manifest wave 0 (linkerd-identity-bootstrap) + externalCA:true trong Application
 
 cniEnabled: false
 controllerReplicas: 1
 enablePodAntiAffinity: false
 
-# Lab k3d: tắt policy controller → ít secret webhook, destination nhẹ hơn
 policyController:
   enabled: false
-
-identityTrustAnchorsPEM: |
-  -----BEGIN CERTIFICATE-----
-  MIIBbzCCARWgAwIBAgIUZRzrDlE8wsn1GSsmyDOyGs6ClAYwCgYIKoZIzj0EAwIw
-  JTEjMCEGA1UEAwwacm9vdC5saW5rZXJkLmNsdXN0ZXIubG9jYWwwHhcNMjYwNjIz
-  MDIyODEzWhcNMzYwNjIxMDIyODEzWjAlMSMwIQYDVQQDDBpyb290LmxpbmtlcmQu
-  Y2x1c3Rlci5sb2NhbDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABLgtnntn5YSx
-  QYRGoXfukIxtrhFiJfUBhua7CbuGF6N7Md8GYgzuJqy1clmeEeGaRoCeBW/LgXCv
-  pgSeIUp8U3WjIzAhMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgGGMAoG
-  CCqGSM49BAMCA0gAMEUCIQCEhubf+fehcLX4wD4MNT/Hy4LbhM+38Q7rouVpqXqr
-  KAIgBhsfp5thTTxzDyfLU/hrNhP+N3jbJfSTJxu2VU8hB+E=
-  -----END CERTIFICATE-----
-
-identity:
-  externalCA: false
-  issuer:
-    tls:
-      crtPEM: |
-        -----BEGIN CERTIFICATE-----
-        MIIBoTCCAUegAwIBAgIULiWqsvQNQeihouPQuwSPuNU7udswCgYIKoZIzj0EAwIw
-        JTEjMCEGA1UEAwwacm9vdC5saW5rZXJkLmNsdXN0ZXIubG9jYWwwHhcNMjYwNjIz
-        MDIyODEzWhcNMzYwNjIxMDIyODEzWjApMScwJQYDVQQDDB5pZGVudGl0eS5saW5r
-        ZXJkLmNsdXN0ZXIubG9jYWwwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATyu5DJ
-        OdRFDCEDniiXt9TI0NA5bgWWK9nyLBMi36EzNVP+s8Iy5hR31/LstF8GtnlT+Sx2
-        jgojzMY9E5QqHS1jo1EwTzASBgNVHRMBAf8ECDAGAQH/AgEAMA4GA1UdDwEB/wQE
-        AwIBhjApBgNVHREEIjAggh5pZGVudGl0eS5saW5rZXJkLmNsdXN0ZXIubG9jYWww
-        CgYIKoZIzj0EAwIDSAAwRQIhAI9pEtigv9PArTskIQVsiu/dubDNhsIBfarGFdtC
-        tNIkAiAZ1pzcsoHt/s+YEzKRPRKiHTMxNy8T5rpcsMEvQ22i8w==
-        -----END CERTIFICATE-----
-      keyPEM: |
-        -----BEGIN EC PRIVATE KEY-----
-        MHcCAQEEIEHCzIxCWy5CAha5aCsGosPPDOMU5ncjwS7NgVZEe+pBoAoGCCqGSM49
-        AwEHoUQDQgAE8ruQyTnURQwhA54ol7fUyNDQOW4FlivZ8iwTIt+hMzVT/rPCMuYU
-        d9fy7LRfBrZ5U/ksdo4KI8zGPROUKh0tYw==
-        -----END EC PRIVATE KEY-----
 
 proxy:
   resources:

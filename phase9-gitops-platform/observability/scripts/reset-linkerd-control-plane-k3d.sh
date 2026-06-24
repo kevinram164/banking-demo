@@ -1,18 +1,14 @@
 #!/usr/bin/env bash
-# Reset Linkerd control-plane trên k3d — để Helm (externalCA:false) tạo lại TOÀN BỘ secrets.
-# Không dùng apply-linkerd-identity-k3d.sh trước bước này (secret thủ công thiếu webhook TLS).
+# Reset Linkerd control-plane trên k3d — sync lại bootstrap (wave 0) rồi control-plane (wave 1).
 set -euo pipefail
 
 NS=linkerd
 
-echo ">>> Xóa workloads control-plane (giữ namespace + CRDs)"
+echo ">>> Xóa workloads control-plane"
 kubectl delete deployment,replicaset,pod -n "$NS" --all --ignore-not-found --wait=false
 
-echo ">>> Xóa secrets/configmaps do Helm quản lý"
-kubectl delete secret,configmap -n "$NS" -l linkerd.io/control-plane-component --ignore-not-found
+echo ">>> Xóa secrets/configmaps do Helm tạo (GIỮ identity bootstrap)"
 for name in \
-  linkerd-identity-issuer \
-  linkerd-identity-trust-roots \
   linkerd-config \
   linkerd-proxy-injector-k8s-tls \
   linkerd-sp-validator-k8s-tls \
@@ -20,12 +16,16 @@ for name in \
   kubectl delete secret -n "$NS" "$name" --ignore-not-found
   kubectl delete configmap -n "$NS" "$name" --ignore-not-found
 done
+kubectl delete secret,configmap -n "$NS" -l linkerd.io/control-plane-component --ignore-not-found
 
 echo ""
-echo ">>> Tiếp theo — sync ArgoCD (Helm tạo identity + webhook certs từ values-linkerd-k3d.yaml):"
-echo "    argocd app sync observability-linkerd-control-plane --force --replace --grpc-web"
+echo ">>> ArgoCD sync (theo thứ tự):"
+echo "    1. observability-linkerd-identity-bootstrap"
+echo "    2. observability-linkerd-control-plane  (--force --replace)"
 echo ""
-echo ">>> Hoặc ArgoCD UI: observability-linkerd-control-plane → Hard Refresh → Sync → Replace"
+echo ">>> Kiểm tra identity trước khi sync control-plane:"
+echo "    kubectl get secret linkerd-identity-issuer -n $NS"
+echo "    kubectl get configmap linkerd-identity-trust-roots -n $NS"
 echo ""
 echo ">>> Theo dõi:"
 echo "    kubectl get pods -n $NS -w"

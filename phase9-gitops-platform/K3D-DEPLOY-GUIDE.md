@@ -620,20 +620,20 @@ Chi tiết: [observability/README.md](./observability/README.md)
 
 ### 4b.1 Linkerd certificates
 
-Linkerd dùng **PEM inline** trong `values-linkerd-k3d.yaml` (`identity.externalCA: false`). Helm tự tạo **tất cả** secrets (identity + webhook TLS).
+Linkerd: **wave 0** app `linkerd-identity-bootstrap` (Kustomize → secret + configmap) → **wave 1** Helm `externalCA: true`.
 
-**Không** dùng `apply-linkerd-identity-k3d.sh` rồi restart pod — secret thủ công thiếu webhook certs → `CreateContainerConfigError`.
-
-Nếu Linkerd lỗi / CrashLoop / CreateContainerConfigError:
+Nếu Linkerd lỗi / CreateContainerConfigError:
 
 ```bash
 chmod +x "$REPO_ROOT/phase9-gitops-platform/observability/scripts/reset-linkerd-control-plane-k3d.sh"
 "$REPO_ROOT/phase9-gitops-platform/observability/scripts/reset-linkerd-control-plane-k3d.sh"
+# ArgoCD: sync linkerd-identity-bootstrap → rồi linkerd-control-plane (Replace)
+argocd app sync observability-linkerd-identity-bootstrap --grpc-web
 argocd app sync observability-linkerd-control-plane --force --replace --grpc-web
 kubectl get pods -n linkerd -w
 ```
 
-Đảm bảo đã `git pull` (values có `externalCA: false` + PEM khớp `certs/k3d-lab/`).
+Phải có **cả** `linkerd-identity-issuer` (secret) và `linkerd-config` (configmap) trước khi pod Running.
 
 ### 4b.2 Apply observability App of Apps
 
@@ -645,7 +645,7 @@ ArgoCD UI → **`observability-app-of-apps-dev-k3d`** → **Sync**.
 
 | Wave | App |
 |------|-----|
-| 0 | coroot-operator, linkerd-crds |
+| 0 | coroot-operator, linkerd-crds, **linkerd-identity-bootstrap** |
 | 1 | otel-collector, linkerd-control-plane |
 | 2 | coroot-ce, linkerd-viz |
 

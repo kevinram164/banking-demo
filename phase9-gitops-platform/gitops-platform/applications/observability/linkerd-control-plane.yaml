@@ -20,6 +20,11 @@ spec:
         releaseName: linkerd-control-plane
         valueFiles:
           - $values/phase9-gitops-platform/observability/values-linkerd-k3d.yaml
+        values: |
+          identity:
+            externalCA: true
+            issuer:
+              scheme: kubernetes.io/tls
     - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: dev-k3d
       ref: values

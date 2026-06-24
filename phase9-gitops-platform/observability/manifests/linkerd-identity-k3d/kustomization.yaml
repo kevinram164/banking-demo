@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: linkerd
+
+secretGenerator:
+  - name: linkerd-identity-issuer
+    type: Opaque
+    files:
+      - ca.crt=../../certs/k3d-lab/ca.crt
+      - tls.crt=../../certs/k3d-lab/issuer.crt
+      - tls.key=../../certs/k3d-lab/issuer.key
+    options:
+      disableNameSuffixHash: true
+      labels:
+        linkerd.io/control-plane-component: identity
+
+configMapGenerator:
+  - name: linkerd-identity-trust-roots
+    files:
+      - ca.crt=../../certs/k3d-lab/ca.crt
+    options:
+      disableNameSuffixHash: true
+      labels:
+        linkerd.io/control-plane-component: identity
