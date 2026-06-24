@@ -620,17 +620,17 @@ Chi tiết: [observability/README.md](./observability/README.md)
 
 ### 4b.1 Linkerd certificates
 
-Linkerd dùng **cert tĩnh lab** trong Git (`observability/certs/k3d-lab/`) — ArgoCD truyền vào Helm qua `fileParameters`. **Không cần** chạy script trước sync.
+Linkerd dùng **PEM inline** trong `values-linkerd-k3d.yaml` (`identity.externalCA: false`). Helm tự tạo secret/configmap — **không xóa** `linkerd-identity-issuer` / `linkerd-identity-trust-roots` trước sync.
 
-Tạo lại cert (chỉ khi rotate lab):
+Nếu pod kẹt `FailedMount` (secret/configmap not found), fix nhanh:
 
 ```bash
-pip install cryptography   # một lần
-python "$REPO_ROOT/phase9-gitops-platform/observability/scripts/gen-k3d-lab-certs.py"
-# Commit ca.crt, issuer.crt, issuer.key trong k3d-lab/ rồi sync lại linkerd-control-plane
+chmod +x "$REPO_ROOT/phase9-gitops-platform/observability/scripts/apply-linkerd-identity-k3d.sh"
+"$REPO_ROOT/phase9-gitops-platform/observability/scripts/apply-linkerd-identity-k3d.sh"
+kubectl delete pods -n linkerd --all
 ```
 
-Script cũ `generate-linkerd-certs.sh` (secret + configmap) **không còn bắt buộc** với cách deploy mới.
+Sau đó **Hard Refresh + Sync** `observability-linkerd-control-plane` (để Helm nhận `externalCA: false` + PEM mới).
 
 ### 4b.2 Apply observability App of Apps
 

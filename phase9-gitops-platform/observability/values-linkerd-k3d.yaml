@@ -1,9 +1,44 @@
 # Linkerd control-plane — k3d lab (cniEnabled=false, init container proxy)
-# Identity TLS: certs k3d-lab/ (Helm fileParameters trong Application ArgoCD) — LAB ONLY
+# Identity TLS inline (LAB ONLY — regenerate: scripts/gen-k3d-lab-certs.py)
 
 cniEnabled: false
 controllerReplicas: 1
 enablePodAntiAffinity: false
+
+identityTrustAnchorsPEM: |
+  -----BEGIN CERTIFICATE-----
+  MIIBbzCCARWgAwIBAgIUUKNT1QoY7jHLC7OtZOYyx+TaXuswCgYIKoZIzj0EAwIw
+  JTEjMCEGA1UEAwwacm9vdC5saW5rZXJkLmNsdXN0ZXIubG9jYWwwHhcNMjYwNjIz
+  MDIwOTM1WhcNMzYwNjIxMDIwOTM1WjAlMSMwIQYDVQQDDBpyb290LmxpbmtlcmQu
+  Y2x1c3Rlci5sb2NhbDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJ20wpxK7gWh
+  CYp5XM8s7PitH5WEumJi+QwcVLLmYkbMs4HTz+IYAO2HgmYa738hfLfnT7AKi+An
+  qnClfVdR04SjIzAhMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgGGMAoG
+  CCqGSM49BAMCA0gAMEUCIAiY0zluf2iHjk5mDAisAynL180UReknEG+4MsbH/WQc
+  AiEAzm6SheijWYrGJL2amT0/4c58wSxAPmzqclbnBxVYwiU=
+  -----END CERTIFICATE-----
+
+identity:
+  externalCA: false
+  issuer:
+    tls:
+      crtPEM: |
+        -----BEGIN CERTIFICATE-----
+        MIIBoDCCAUegAwIBAgIUTPv5aY9Inf/YuuOR3UHj68CEJ0cwCgYIKoZIzj0EAwIw
+        JTEjMCEGA1UEAwwacm9vdC5saW5rZXJkLmNsdXN0ZXIubG9jYWwwHhcNMjYwNjIz
+        MDIwOTM1WhcNMzYwNjIxMDIwOTM1WjApMScwJQYDVQQDDB5pZGVudGl0eS5saW5r
+        ZXJkLmNsdXN0ZXIubG9jYWwwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQAeURN
+        tDAjvVNLW35hiP0BWqNEBYcPlWbuSjRjL+by8+yLHjDPoxzzWYzkRLh3g/7U+Vp3
+        0/b+MHHhm1iX5RL4o1EwTzASBgNVHRMBAf8ECDAGAQH/AgEAMA4GA1UdDwEB/wQE
+        AwIBhjApBgNVHREEIjAggh5pZGVudGl0eS5saW5rZXJkLmNsdXN0ZXIubG9jYWww
+        CgYIKoZIzj0EAwIDRwAwRAIga7+ZItoTGvIJuJ7fRTVnnoUoHPztgRAlBql9ZMgU
+        DbYCIDsHcGZhlc2p+wPQtqNdiKHaMwcL8H1JKBmy6+CIbFrn
+        -----END CERTIFICATE-----
+      keyPEM: |
+        -----BEGIN EC PRIVATE KEY-----
+        MHcCAQEEIP777FBgTV2zgeoo/s5d52gRrH9pDrNhO9wb81aFZG3koAoGCCqGSM49
+        AwEHoUQDQgAEAHlETbQwI71TS1t+YYj9AVqjRAWHD5Vm7ko0Yy/m8vPsix4wz6Mc
+        81mM5ES4d4P+1Plad9P2/jBx4ZtYl+US+A==
+        -----END EC PRIVATE KEY-----
 
 proxy:
   resources:

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Bootstrap secret + configmap từ certs/k3d-lab/ (khi Helm release còn externalCA hoặc cần fix nhanh).
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CERT_DIR="${SCRIPT_DIR}/../certs/k3d-lab"
+
+for f in ca.crt issuer.crt issuer.key; do
+  [[ -f "${CERT_DIR}/${f}" ]] || { echo "Missing ${CERT_DIR}/${f} — chạy gen-k3d-lab-certs.py"; exit 1; }
+done
+
+kubectl create namespace linkerd --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create configmap linkerd-identity-trust-roots \
+  -n linkerd \
+  --from-file=ca.crt="${CERT_DIR}/ca.crt" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic linkerd-identity-issuer \
+  -n linkerd \
+  --from-file=ca.crt="${CERT_DIR}/ca.crt" \
+  --from-file=tls.crt="${CERT_DIR}/issuer.crt" \
+  --from-file=tls.key="${CERT_DIR}/issuer.key" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+echo "OK: linkerd-identity-trust-roots + linkerd-identity-issuer trong ns linkerd"

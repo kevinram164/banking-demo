@@ -1,5 +1,5 @@
 # Linkerd control-plane — mTLS service mesh
-# Identity TLS: phase9-gitops-platform/observability/certs/k3d-lab/ (Helm fileParameters)
+# Identity TLS: inline PEM trong values-linkerd-k3d.yaml (externalCA: false)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -20,13 +20,6 @@ spec:
         releaseName: linkerd-control-plane
         valueFiles:
           - $values/phase9-gitops-platform/observability/values-linkerd-k3d.yaml
-        fileParameters:
-          - name: identityTrustAnchorsPEM
-            path: $values/phase9-gitops-platform/observability/certs/k3d-lab/ca.crt
-          - name: identity.issuer.tls.crtPEM
-            path: $values/phase9-gitops-platform/observability/certs/k3d-lab/issuer.crt
-          - name: identity.issuer.tls.keyPEM
-            path: $values/phase9-gitops-platform/observability/certs/k3d-lab/issuer.key
     - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: dev-k3d
       ref: values
