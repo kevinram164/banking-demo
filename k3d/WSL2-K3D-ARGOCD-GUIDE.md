@@ -328,7 +328,7 @@ Sau khi ArgoCD UI chạy ổn, làm việc trên nhánh **`dev-k3d`**:
 
 ```bash
 git checkout dev-k3d
-kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
+kubectl apply -f phase9-gitops-platform/gitops-platform/project.yaml -n argocd
 kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/app-of-apps.yaml -n argocd
 ```
 

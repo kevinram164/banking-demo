@@ -71,7 +71,7 @@ Tóm tắt (4 giai đoạn — **app deploy sau cùng**):
 ./k3d/cluster-create.sh
 # Giai đoạn 1: ArgoCD bootstrap + Nginx — xem K3D-DEPLOY-GUIDE.md mục 3
 
-kubectl apply -f phase9-gitops-platform/argocd/project.yaml -n argocd
+kubectl apply -f phase9-gitops-platform/gitops-platform/project.yaml -n argocd
 
 # Giai đoạn 2: Platform (Harbor, Vault, Jenkins)
 kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/platform-app-of-apps.yaml -n argocd
