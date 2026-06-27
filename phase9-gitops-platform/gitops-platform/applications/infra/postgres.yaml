@@ -13,15 +13,24 @@ metadata:
 spec:
   project: banking-platform
   sources:
-    - repoURL: oci://registry-1.docker.io/bitnamicharts
+    - repoURL: https://charts.bitnami.com/bitnami
       chart: postgresql
       targetRevision: 15.5.32
       helm:
         releaseName: postgres-ha
         valueFiles:
           - $values/phase5-architecture-refactor/postgres-ha/values-postgres-ha.yaml
+        values: |
+          global:
+            defaultStorageClass: local-path
+          primary:
+            persistence:
+              storageClass: local-path
+          readReplicas:
+            persistence:
+              storageClass: local-path
     - repoURL: https://github.com/kevinram164/banking-demo.git
-      targetRevision: main
+      targetRevision: dev-k3d
       ref: values
   destination:
     server: https://kubernetes.default.svc

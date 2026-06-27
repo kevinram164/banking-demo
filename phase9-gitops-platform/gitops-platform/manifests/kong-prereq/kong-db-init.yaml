@@ -1,0 +1,43 @@
+# PreSync hook — tạo DB kong + user trên Postgres HA (release postgres-ha)
+# Chạy sau kong-wait-postgres (sync-wave 1)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kong-db-init
+  namespace: postgres
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/part-of: infra-kong
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: kong-db-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: postgres:16-alpine
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-ha-postgresql
+                  key: postgres-password
+            - name: POSTGRES_SVC
+              value: postgres-ha-postgresql-primary.postgres.svc.cluster.local
+          command:
+            - /bin/sh
+            - -c
+            - |
+              psql -h "$POSTGRES_SVC" -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='kong'" | grep -q 1 || \
+              psql -h "$POSTGRES_SVC" -U postgres -d postgres -c "CREATE DATABASE kong;"
+              psql -h "$POSTGRES_SVC" -U postgres -d postgres -c "CREATE USER kong WITH PASSWORD 'kongpass';" 2>/dev/null || true
+              psql -h "$POSTGRES_SVC" -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE kong TO kong;"
+              psql -h "$POSTGRES_SVC" -U postgres -d kong -c "GRANT ALL ON SCHEMA public TO kong;"
+              echo "Kong DB init done"

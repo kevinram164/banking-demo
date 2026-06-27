@@ -7,7 +7,7 @@ class GitOpsUpdater implements Serializable {
      * Production: dùng yq hoặc Groovy YAML parser; skeleton dùng sed đơn giản.
      */
     static void bumpImageTags(def steps, Map cfg, List<String> services) {
-        def tag = steps.env.GIT_COMMIT?.take(7) ?: 'latest'
+        def tag = GitRef.imageTag(steps)
         def file = cfg.gitopsValuesFile
 
         services.each { svc ->
@@ -20,7 +20,6 @@ class GitOpsUpdater implements Serializable {
             """
         }
 
-        def repoUrl = cfg.gitRepoUrl.replace('https://', '')
         steps.withCredentials([steps.usernamePassword(
             credentialsId: cfg.gitopsCredId,
             usernameVariable: 'GIT_USER',
@@ -36,7 +35,9 @@ class GitOpsUpdater implements Serializable {
                   exit 0
                 fi
                 git commit -m "ci: bump image tags to ${tag} [${services.join(', ')}]"
-                git push https://\${GIT_USER}:\${GIT_TOKEN}@${repoUrl} HEAD:${cfg.gitBranch}
+                # x-access-token + PAT — hoạt động với classic/ghp_ và fine-grained/github_pat_ trên shell không TTY
+                export GIT_TERMINAL_PROMPT=0
+                git push "https://x-access-token:\${GIT_TOKEN}@${cfg.gitRepoUrl.replaceFirst('^https://', '')}" HEAD:${cfg.gitBranch}
             """
         }
         steps.echo "Updated ${file} — ArgoCD will sync."

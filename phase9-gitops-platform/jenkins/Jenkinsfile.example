@@ -1,5 +1,7 @@
 @Library('banking-demo') _
 
+// BUILD_TARGET: auto | all | api-producer | auth-service | ...
+
 bankingDemoPipeline([
   harborHost: 'harbor.example.com',
   harborProject: 'banking-demo',

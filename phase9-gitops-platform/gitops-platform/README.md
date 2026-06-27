@@ -25,8 +25,8 @@ kubectl apply -f phase9-gitops-platform/gitops-platform/app-of-apps.yaml -n argo
 |------|------|
 | -1 | `banking-namespace` |
 | 0 | platform (ESO, Vault), infra postgres/redis |
-| 1 | kong, rabbitmq, api-producer |
-| 2 | auth, account, transfer, notification, frontend, ingress |
+| 1 | rabbitmq, api-producer |
+| 2 | **kong** (PreSync chờ PG), auth, account, transfer, notification, frontend, ingress |
 
 ## GitOps values
 

@@ -37,10 +37,10 @@ class PipelineConfig implements Serializable {
             gitBranch        : 'main',
             gitRepoUrl       : 'https://github.com/kevinram164/banking-demo.git',
             gitopsValuesFile : 'phase9-gitops-platform/gitops/values-images.yaml',
-            kanikoImage      : 'gcr.io/kaniko-project/executor:v1.23.2',
+            kanikoImage      : 'gcr.io/kaniko-project/executor:v1.23.2-debug',
             harborCredId     : 'harbor-ci-push',
             gitopsCredId     : 'github-gitops-push',
-            watchPathPrefix  : 'phase8-application-v3/',
+            kanikoSkipTlsVerify: false,  // lab k3d Harbor self-signed → true trong Jenkinsfile
         ]
         return defaults + user
     }

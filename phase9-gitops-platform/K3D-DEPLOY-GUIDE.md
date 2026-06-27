@@ -280,7 +280,8 @@ Thứ tự sync wave trong platform:
 | Wave | App | Ghi chú |
 |------|-----|---------|
 | 0 | Harbor, Vault, External Secrets (controller) | Chờ pod Running |
-| 1 | External Secrets config, Jenkins | Sau Vault + Harbor cơ bản |
+| 1 | External Secrets config (gồm `jenkins-platform-credentials`) | Seed Vault `secret/platform/jenkins` trước |
+| 2 | Jenkins | JCasC đọc credential từ K8s secret (Vault) |
 
 Theo dõi:
 
@@ -297,34 +298,139 @@ kubectl get pods -n external-secrets
 3. Tạo project **`banking-demo`**
 4. Robot accounts: **`ci-push`** (Jenkins push), **`k8s-pull`** (cluster pull)
 
-Pull secret (dùng ở Giai đoạn 5):
+Pull secret (dùng ở Giai đoạn 5) — **một tên cho cả cluster**: `harbor-pull-creds` (tránh `harbor-registry` trong ns `platform` vì Harbor Helm chart chiếm tên đó):
 
 ```bash
-# Tên harbor-pull-creds — KHÔNG dùng harbor-registry (Harbor Helm chart chiếm tên đó)
 kubectl create secret docker-registry harbor-pull-creds \
   --docker-server=harbor-npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='ROBOT_TOKEN' \
   -n banking --dry-run=client -o yaml | kubectl apply -f -
 
-kubectl delete secret harbor-pull-creds -n platform 2>/dev/null || true
 kubectl create secret docker-registry harbor-pull-creds \
   --docker-server=harbor-npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='ROBOT_TOKEN' \
-  -n platform
+  -n platform --dry-run=client -o yaml | kubectl apply -f -
 ```
+
+**Kubelet pull qua TLS (x509):** Node k3d pull `harbor-npd.co` trực tiếp sẽ gặp cert self-signed từ Nginx WSL2 (khác Kaniko `--skip-tls-verify`). Cấu hình mirror HTTP nội bộ:
+
+```bash
+chmod +x "$REPO_ROOT/k3d/configure-harbor-registry-k3d.sh"
+"$REPO_ROOT/k3d/configure-harbor-registry-k3d.sh"
+```
+
+Cluster mới: `k3d/cluster-create.sh` đã mount `k3d/registries.yaml` (mirror → `harbor-registry.platform.svc.cluster.local:5000`).
+
+Sau khi chạy script, **bắt buộc verify** mọi server/agent có file:
+
+```bash
+chmod +x "$REPO_ROOT/k3d/verify-harbor-registry-k3d.sh"
+"$REPO_ROOT/k3d/verify-harbor-registry-k3d.sh"
+```
+
+Nếu vẫn lỗi **x509** → lần đầu script có thể fail ở `k3d-npd-tools` trước khi copy xong — chạy lại `configure-harbor-registry-k3d.sh` (bản mới bỏ qua tools).
+
+Harbor `externalURL` lab dùng `http://harbor-npd.co` (tránh redirect HTTPS khi pull nội bộ) — Sync lại app `platform-harbor` sau khi pull code.
 
 Cập nhật `phase9-gitops-platform/gitops/values-images.yaml` → registry `harbor-npd.co/banking-demo/...`
 
 ### 4.3 Vault + External Secrets
 
-1. Sync `platform-vault` → dev mode: token **`root`**, UI **https://vault-npd.co**
-2. Seed secret paths — xem [vault/README.md](./vault/README.md)
-3. Sync `platform-external-secrets` + `platform-external-secrets-config`
-4. Tạo secret `vault-token` trong `external-secrets` nếu dùng token auth lab
+Chi tiết CLI: [vault/README.md](./vault/README.md). **Thứ tự bắt buộc** — đảo bước sẽ lỗi `InvalidProviderConfig` / `SecretSyncedError`.
 
-Sau ESO sync → secret K8s được tạo tự động (thay `kubectl create secret` thủ công nếu đã cấu hình ExternalSecret).
+#### Bước 1 — Sync Vault, seed KV trong pod
+
+```bash
+kubectl get pods -n vault   # vault-0 Running
+
+kubectl exec -it vault-0 -n vault -- sh
+```
+
+Trong pod:
+
+```sh
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='root'
+
+vault kv put secret/banking/db \
+  DATABASE_URL='postgresql://banking:bankingpass@postgres.postgres.svc.cluster.local:5432/banking' \
+  REDIS_URL='redis://redis.redis.svc.cluster.local:6379/0'
+
+vault kv put secret/banking/rabbitmq \
+  RABBITMQ_URL='amqp://banking:bankingpass@rabbitmq.rabbit.svc.cluster.local:5672/'
+
+vault kv put secret/rabbitmq/admin \
+  username='banking' \
+  password='bankingpass'
+```
+
+UI lab (tùy chọn): **https://vault-npd.co**, token **`root`**.
+
+#### Bước 2 — Sync ESO controller
+
+ArgoCD: `platform-external-secrets` → Synced / Healthy.
+
+```bash
+kubectl get pods -n external-secrets
+```
+
+#### Bước 3 — Tạo `vault-token` **trước** ClusterSecretStore
+
+```bash
+kubectl create secret generic vault-token \
+  --from-literal=token=root \
+  -n external-secrets
+```
+
+> Nếu apply `ClusterSecretStore` khi chưa có `vault-token` → ArgoCD Events:  
+> `InvalidProviderConfig: cannot get Kubernetes secret "vault-token": secrets "vault-token" not found`.
+
+#### Bước 4 — Namespace + sync ExternalSecret manifest
+
+```bash
+kubectl create ns banking --dry-run=client -o yaml | kubectl apply -f -
+kubectl create ns rabbit --dry-run=client -o yaml | kubectl apply -f -
+```
+
+ArgoCD: `platform-external-secrets-config`  
+Hoặc thủ công: `kubectl apply -f phase9-gitops-platform/vault/external-secrets/`
+
+#### Bước 5 — Kiểm tra sync
+
+```bash
+kubectl get clustersecretstore vault-backend          # STATUS Valid
+kubectl get externalsecret -A                         # SecretSynced, READY True
+kubectl get secret banking-db-secret -n banking
+```
+
+Nếu vừa tạo `vault-token` hoặc vừa seed Vault — force reconcile:
+
+```bash
+kubectl annotate clustersecretstore vault-backend force-sync=$(date +%s) --overwrite
+kubectl annotate externalsecret banking-db-secret -n banking force-sync=$(date +%s) --overwrite
+kubectl annotate externalsecret rabbitmq-connection-secret -n banking force-sync=$(date +%s) --overwrite
+kubectl annotate externalsecret rabbitmq-secret -n rabbit force-sync=$(date +%s) --overwrite
+```
+
+#### Xử lý lỗi nhanh
+
+| Triệu chứng | Cách sửa |
+|-------------|----------|
+| `vault-token` not found | Bước 3 → annotate `clustersecretstore` |
+| `SecretSyncedError` | Seed Vault (bước 1) → annotate `externalsecret` |
+| `namespaces "rabbit" not found` | `kubectl create ns rabbit` → apply lại manifest |
+| `banking-db-secret` not found | `kubectl describe externalsecret banking-db-secret -n banking` |
+
+Test Vault đã có data:
+
+```bash
+kubectl exec -n vault vault-0 -- sh -c \
+  'export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root && vault kv get secret/banking/db'
+```
+
+Sau ESO sync → secret K8s được tạo tự động (thay `kubectl create secret` thủ công).
 
 ### 4.4 Jenkins — cấu hình CI (từng bước)
 
@@ -392,38 +498,49 @@ kubectl delete pod jenkins-0 -n platform
 
 ---
 
-#### Bước 4 — Tạo 2 Credentials (bắt buộc)
+#### Bước 4 — Credential Jenkins qua Vault (không tạo trên UI)
 
-Pipeline đọc credential theo **ID cố định** — phải đặt đúng tên.
+Toàn bộ credential Jenkins lưu tại **`secret/platform/jenkins`** → ESO → JCasC (ID giữ nguyên: `harbor-ci-push`, `github-gitops-push`).
 
-**4a. Harbor push** — robot account `ci-push` tạo ở Harbor UI (mục 4.2)
+**4a. Seed Vault** (trong pod `vault-0`, xem [vault/README.md](./vault/README.md)):
 
-1. **Manage Jenkins → Credentials**
-2. **(global)** → **Add Credentials**
-3. Điền:
+```bash
+vault kv put secret/platform/jenkins \
+  admin_username='admin' \
+  admin_password='YOUR_JENKINS_ADMIN_PASSWORD' \
+  harbor_username='robot$banking-demo+ci-push' \
+  harbor_password='HARBOR_ROBOT_TOKEN' \
+  github_username='kevinram164' \
+  github_pat='github_pat_xxxx'
+```
 
-| Field | Giá trị |
-|-------|---------|
-| Kind | Username with password |
-| Scope | Global |
-| Username | `robot$ci-push` |
-| Password | token robot Harbor (copy từ Harbor UI) |
-| ID | `harbor-ci-push` |
-| Description | Harbor push for Kaniko |
+**4b. Kiểm tra ESO sync** (sau `platform-external-secrets-config`):
 
-**4b. GitHub push GitOps** — Personal Access Token (PAT)
+```bash
+kubectl get externalsecret jenkins-platform-credentials -n platform
+kubectl get secret jenkins-platform-credentials -n platform
+```
 
-1. GitHub → Settings → Developer settings → **Fine-grained token** (hoặc classic)
-2. Quyền: **Contents: Read and write** trên repo `banking-demo`
-3. Jenkins → **Add Credentials**:
+**4c. Sync Jenkins** (wave 2 — sau khi secret đã có):
 
-| Field | Giá trị |
-|-------|---------|
-| Kind | Username with password |
-| Username | GitHub username (vd. `kevinram164`) |
-| Password | PAT vừa tạo |
-| ID | `github-gitops-push` |
-| Description | Push values-images.yaml |
+ArgoCD → `platform-jenkins` → Sync. Hoặc:
+
+```bash
+kubectl delete pod jenkins-0 -n platform   # reload JCasC + admin password
+```
+
+**4d. Xác nhận trên Jenkins UI**
+
+Manage Jenkins → Credentials → (global) phải có `harbor-ci-push`, `github-gitops-push` (do JCasC, không cần Add thủ công).
+
+**GitHub PAT:** Fine-grained → repo `banking-demo` → **Contents: Read and write**. Kiểm tra:
+
+```bash
+curl -s -H "Authorization: Bearer github_pat_xxx" \
+  https://api.github.com/repos/kevinram164/banking-demo | grep -E '"push"|"admin"'
+```
+
+> **Rotate:** `vault kv patch secret/platform/jenkins github_pat='...'` → annotate ExternalSecret → restart `jenkins-0`.
 
 ---
 
@@ -471,12 +588,22 @@ Jenkins quét nhánh `dev-k3d` và tạo job con. Bấm job con → **Build Now*
 
 #### Bước 8 — Kiểm tra pipeline chạy OK
 
+**Build with Parameters** (sau lần chạy đầu tiên khi job đã có parameter):
+
+| BUILD_TARGET | Khi nào dùng |
+|--------------|--------------|
+| `auto` | Push bình thường — chỉ build service có file đổi |
+| `all` | Rebuild mọi image (vd. sau khi sửa `common/`) |
+| `account-service`, … | Chỉ build một service (sửa Dockerfile / debug) |
+
 ```bash
 # Sửa code Phase 8 rồi push
 git add phase8-application-v3/
 git commit -m "test: trigger Jenkins CI"
 git push origin dev-k3d
 ```
+
+Webhook push dùng `BUILD_TARGET=auto` (mặc định). Rebuild một service: Jenkins UI → **Build with Parameters** → chọn tên service.
 
 Kỳ vọng trên Jenkins UI:
 
@@ -499,10 +626,13 @@ git log -1 --oneline -- phase9-gitops-platform/gitops/values-images.yaml
 | Triệu chứng | Cách sửa |
 |-------------|----------|
 | `library banking-demo not found` | Sync `platform-jenkins`, restart `jenkins-0`, đợi plugin + JCasC load |
-| `credentials harbor-ci-push not found` | Tạo credential ID đúng tên (Bước 4a) |
+| `credentials harbor-ci-push not found` | Seed Vault `secret/platform/jenkins` → ESO sync → restart `jenkins-0` |
 | Kaniko push 401 | Robot Harbor sai user/token; user phải là `robot$ci-push` |
-| Git push failed stage Update GitOps | Thiếu `github-gitops-push` hoặc PAT không có quyền write |
+| Kaniko `x509: certificate is not valid` / TLS verify | Harbor lab self-signed → `kanikoSkipTlsVerify: true` trong Jenkinsfile |
+| Git push 403 Permission denied | PAT thiếu **Contents: Read and write** / scope `repo`; Password trong Jenkins phải là PAT (`ghp_` / `github_pat_`) |
 | Pod Kaniko pending | Tạo SA `jenkins-kaniko` (Bước 5) |
+| Kaniko `stat /busybox/cat: no such file` | Image phải là `executor:*-debug` (có busybox); không dùng `executor` thường |
+| Kaniko `mkdir: cannot create directory '/kaniko': Permission denied` | Lệnh build phải chạy trong `container('kaniko')`, không phải container `jnlp` |
 
 Chi tiết library: [jenkins-shared-library/README.md](./jenkins-shared-library/README.md)
 
@@ -516,13 +646,22 @@ Metrics + logs + traces qua **Coroot**; **OpenTelemetry Collector** làm gateway
 
 Chi tiết: [observability/README.md](./observability/README.md)
 
-### 4b.1 Linkerd certificates (một lần)
+### 4b.1 Linkerd certificates
+
+Linkerd: **wave 0** app `linkerd-identity-bootstrap` (Kustomize → secret + configmap) → **wave 1** Helm `externalCA: true`.
+
+Nếu Linkerd lỗi / CreateContainerConfigError:
 
 ```bash
-chmod +x "$REPO_ROOT/phase9-gitops-platform/observability/scripts/generate-linkerd-certs.sh"
-"$REPO_ROOT/phase9-gitops-platform/observability/scripts/generate-linkerd-certs.sh"
-# Tạo: secret linkerd-identity-issuer + configmap linkerd-identity-trust-roots (ns linkerd)
+chmod +x "$REPO_ROOT/phase9-gitops-platform/observability/scripts/reset-linkerd-control-plane-k3d.sh"
+"$REPO_ROOT/phase9-gitops-platform/observability/scripts/reset-linkerd-control-plane-k3d.sh"
+# ArgoCD: sync linkerd-identity-bootstrap → rồi linkerd-control-plane (Replace)
+argocd app sync observability-linkerd-identity-bootstrap --grpc-web
+argocd app sync observability-linkerd-control-plane --force --replace --grpc-web
+kubectl get pods -n linkerd -w
 ```
+
+Phải có **cả** `linkerd-identity-issuer` (secret) và `linkerd-config` (configmap) trước khi pod Running.
 
 ### 4b.2 Apply observability App of Apps
 
@@ -534,9 +673,9 @@ ArgoCD UI → **`observability-app-of-apps-dev-k3d`** → **Sync**.
 
 | Wave | App |
 |------|-----|
-| 0 | coroot-operator, linkerd-crds |
-| 1 | coroot-ce, otel-collector, linkerd-control-plane |
-| 2 | linkerd-viz |
+| 0 | coroot-operator, linkerd-crds, **linkerd-identity-bootstrap** |
+| 1 | otel-collector, linkerd-control-plane |
+| 2 | coroot-ce, linkerd-viz |
 
 Theo dõi:
 
@@ -579,35 +718,35 @@ k3d **không có** `nfs-client` / `pg-client`. Dùng **`local-path`** cho mọi 
 | Thành phần | File cấu hình | StorageClass k3d |
 |------------|---------------|------------------|
 | Harbor, Jenkins | `gitops-platform/applications/platform/*.yaml` | `local-path` (đã sửa) |
-| Postgres | `phase5-architecture-refactor/postgres-ha/values-postgres-ha.yaml` | đổi `pg-client` → `local-path` |
-| Redis | `phase5-architecture-refactor/redis-ha/values-redis-ha.yaml` | đổi `nfs-client` → `local-path` |
+| Postgres | `phase5-architecture-refactor/postgres-ha/values-postgres-ha.yaml` | mặc định `local-path` (k3d) |
+| Redis | `phase5-architecture-refactor/redis-ha/values-redis-ha.yaml` | mặc định `local-path` (k3d) |
 | RabbitMQ | `phase8-application-v3/rabbitmq/k8s-rabbitmq-standalone.yaml` | đổi → `local-path` |
 
-### 5.1 Chỉnh StorageClass cho k3d (trước khi sync infra)
+### 5.1 StorageClass (k3d)
 
-Sửa trên nhánh `dev-k3d`, commit push:
+Values Postgres/Redis/RabbitMQ đã mặc định **`local-path`** cho lab k3d. Cluster production có NFS → sửa lại `pg-client` / `nfs-client` trong các file values tương ứng.
 
-**Postgres** — `phase5-architecture-refactor/postgres-ha/values-postgres-ha.yaml`:
+Nếu PVC cũ đã tạo với StorageClass sai, **xóa StatefulSet trước** (volumeClaimTemplates không đổi được), rồi sync lại ArgoCD:
 
-```yaml
-primary:
-  persistence:
-    storageClass: local-path
+```bash
+# Redis (sentinel → StatefulSet tên redis-ha-node)
+kubectl delete sts -n redis redis-ha-node --cascade=orphan
+kubectl delete pvc -n redis --all
+
+# Postgres
+kubectl delete sts -n postgres postgres-ha-postgresql-primary postgres-ha-postgresql-read --cascade=orphan
+kubectl delete pvc -n postgres --all
+# Chỉ khi chưa có data quan trọng
 ```
 
-**Redis** — `phase5-architecture-refactor/redis-ha/values-redis-ha.yaml`:
+Kiểm tra ArgoCD đọc đúng nhánh values:
 
-```yaml
-master:
-  persistence:
-    storageClass: local-path
+```bash
+kubectl get application infra-redis -n argocd -o jsonpath='{range .spec.sources[*]}{.ref}{.targetRevision}{"\n"}{end}'
+# phải thấy values + dev-k3d
 ```
 
-**RabbitMQ** — `phase8-application-v3/rabbitmq/k8s-rabbitmq-standalone.yaml`:
-
-```yaml
-storageClassName: local-path
-```
+ArgoCD → **Hard Refresh** (Clear cache) → Sync `infra-postgres`, `infra-redis`.
 
 ### 5.2 Apply infra App of Apps
 
@@ -617,12 +756,30 @@ kubectl apply -f "$REPO_ROOT/phase9-gitops-platform/environments/dev-k3d/argocd/
 
 ArgoCD UI → **`infra-app-of-apps-dev-k3d`** → **Sync**.
 
+> **Lỗi Bitnami OCI 401:** Nếu `infra-postgres` / `infra-redis` báo  
+> `HEAD ... bitnamicharts/manifests/... 401 Unauthorized` — Docker Hub chặn pull OCI anonymous.  
+> Application phải dùng Helm repo `https://charts.bitnami.com/bitnami` (không dùng `oci://registry-1.docker.io/bitnamicharts`).  
+> Sau khi sửa manifest, **Refresh** + **Sync** lại app trong ArgoCD.
+
+> **Lỗi Bitnami ImagePullBackOff (`not found`):** Chart pin image `docker.io/bitnami/*` — nhiều tag đã gỡ khỏi Docker Hub.  
+> Values Postgres/Redis dùng `bitnamilegacy/*` + `global.security.allowInsecureImages: true`.  
+> Push → Hard Refresh → Sync → `kubectl delete pod -n postgres -l app.kubernetes.io/name=postgresql` (và tương tự redis).
+
 Thứ tự sync wave:
 
 | Wave | App | Ghi chú |
 |------|-----|---------|
 | 0 | Postgres, Redis | Chờ PVC Bound + pod Running |
-| 1 | RabbitMQ, Kong | Sau postgres/redis |
+| 1 | RabbitMQ | Sau postgres/redis (sync-wave) |
+| 2 | **Kong** | Sau Postgres — PreSync hook chờ PG Ready + tạo DB `kong` rồi mới deploy chart |
+
+**Kong phụ thuộc Postgres:** `infra-kong` dùng ArgoCD **PreSync hooks** (`manifests/kong-prereq/`):
+
+1. Job `kong-wait-postgres` — poll `pg_isready` tới primary PG
+2. Job `kong-db-init` — tạo database/user `kong`
+3. Sau hooks thành công → Helm chart Kong mới apply
+
+`sync-wave: "2"` trên Application Kong giúp app-of-apps tạo/sync Kong **sau** Postgres/Redis (wave 0). Hooks đảm bảo PG **Running** trước khi Kong pod start.
 
 Theo dõi:
 
@@ -707,8 +864,8 @@ git log -1 --oneline -- phase9-gitops-platform/gitops/values-images.yaml
 
 ### 6.2 Jenkins credentials & webhook checklist
 
-- [ ] `harbor-ci-push` — push image OK
-- [ ] `github-gitops-push` — commit GitOps OK
+- [ ] Vault `secret/platform/jenkins` seeded → `jenkins-platform-credentials` Bound
+- [ ] JCasC credentials `harbor-ci-push`, `github-gitops-push` (không cần UI)
 - [ ] Webhook GitHub → Jenkins trigger trên push `dev-k3d`
 - [ ] Pipeline green end-to-end
 
@@ -739,7 +896,7 @@ kubectl get applications -n argocd | grep banking
 kubectl get pods -n banking
 ```
 
-Nếu `ImagePullBackOff` → kiểm tra Harbor pull secret (mục 4.2) và tag trong `values-images.yaml`.
+Nếu `ImagePullBackOff` → kiểm tra Harbor pull secret (mục 4.2), tag trong `values-images.yaml`, và registry mirror (mục 4.2 — lỗi `x509: certificate is not valid for any names`).
 
 ### 7.2 (Tùy chọn) Apply root App of Apps — quản lý tập trung
 
@@ -757,7 +914,8 @@ Sau Kong infra + banking pods Running:
 
 ```bash
 kubectl apply -f "$REPO_ROOT/phase8-application-v3/kong-ha/kong-import-job.yaml"
-kubectl wait -n kong --for=condition=complete job/kong-import-phase8 --timeout=300s
+kubectl wait -n kong --for=condition=complete job/kong-config-import-phase8 --timeout=300s
+kubectl logs -n kong job/kong-config-import-phase8 --tail=20
 kubectl rollout restart deployment -n kong -l app.kubernetes.io/name=kong
 ```
 
@@ -838,7 +996,7 @@ Chi tiết: [WSL2-K3D-ARGOCD-GUIDE.md](../k3d/WSL2-K3D-ARGOCD-GUIDE.md).
 | 502 / 404 ArgoCD | Upstream Nginx phải `127.0.0.1:9080`, Ingress host đúng |
 | 400 Header Too Large | `large_client_header_buffers` + xóa cookie |
 | kubectl localhost:8080 | `k3d kubeconfig merge npd` |
-| ImagePullBackOff | Harbor secret + robot account; CI đã push image? |
+| ImagePullBackOff | Harbor secret + robot account; CI đã push image? Lỗi **x509 harbor-npd.co** → chạy `k3d/configure-harbor-registry-k3d.sh` |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 — cần image trên Harbor trước |
 | ArgoCD OutOfSync lâu | Sync từng app; kiểm tra repo branch `dev-k3d` |
 | PVC Pending | Đổi `storageClass: local-path` |

@@ -1,5 +1,5 @@
 # Linkerd control-plane — mTLS service mesh
-# Bắt buộc: chạy observability/scripts/generate-linkerd-certs.sh trước sync
+# Identity TLS: wave 0 bootstrap (secret + configmap) + externalCA:true bên dưới
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -22,6 +22,7 @@ spec:
           - $values/phase9-gitops-platform/observability/values-linkerd-k3d.yaml
         values: |
           identity:
+            externalCA: true
             issuer:
               scheme: kubernetes.io/tls
     - repoURL: https://github.com/kevinram164/banking-demo.git
@@ -33,3 +34,6 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
+    automated:
+      prune: false
+      selfHeal: true

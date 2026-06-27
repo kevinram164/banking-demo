@@ -1,6 +1,16 @@
 # Phase 5 - Redis HA (Bitnami Redis, master + replica)
 # Dùng: helm upgrade -i redis bitnami/redis -n redis -f values-redis-ha.yaml
 
+global:
+  defaultStorageClass: local-path   # k3d/lab — override mọi PVC trong chart
+  security:
+    allowInsecureImages: true       # bắt buộc khi dùng bitnamilegacy (Docker Hub)
+
+# Image legacy — tag do chart pin; docker.io/bitnami/* thường 404 trên lab 2025+
+image:
+  registry: docker.io
+  repository: bitnamilegacy/redis
+
 architecture: replication
 
 auth:
@@ -15,7 +25,7 @@ master:
   persistence:
     enabled: true
     size: 20Gi
-    storageClass: nfs-client
+    storageClass: local-path   # k3d/lab; production cluster: nfs-client
 
   podAntiAffinityPreset: soft
 
@@ -28,7 +38,7 @@ replica:
   persistence:
     enabled: true
     size: 20Gi
-    storageClass: nfs-client
+    storageClass: local-path   # k3d/lab; production cluster: nfs-client
 
   podAntiAffinityPreset: soft
 
@@ -38,6 +48,9 @@ replica:
 sentinel:
   enabled: true
   replicas: 3
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis-sentinel
 
 ####################
 # METRICS (Prometheus redis-exporter sidecar)
@@ -46,7 +59,7 @@ metrics:
   enabled: true
   image:
     registry: docker.io
-    repository: bitnami/redis-exporter
+    repository: bitnamilegacy/redis-exporter
   resources:
     requests:
       memory: "32Mi"

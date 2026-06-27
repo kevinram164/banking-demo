@@ -14,13 +14,20 @@ spec:
   source:
     repoURL: https://helm.linkerd.io/stable
     chart: linkerd-crds
-    targetRevision: 1.16.11
+    targetRevision: 1.8.0
     helm:
       releaseName: linkerd-crds
+      values: |
+        # k3d/Traefik có thể đã cài Gateway API CRDs — tránh xung đột storedVersions
+        enableHttpRoutes: false
+        enableTlsRoutes: false
+        enableTcpRoutes: false
   destination:
     server: https://kubernetes.default.svc
     namespace: linkerd
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
+    automated:
+      prune: false
+      selfHeal: true

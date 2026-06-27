@@ -13,7 +13,7 @@ postgresql:
 # Kong env - kết nối Postgres
 env:
   database: "postgres"
-  pg_host: "postgres-postgresql-primary.postgres.svc.cluster.local"  
+  pg_host: "postgres-ha-postgresql-primary.postgres.svc.cluster.local"
   pg_port: "5432"
   pg_database: "kong"
   pg_user: "kong"

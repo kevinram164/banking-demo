@@ -11,8 +11,8 @@ Banking pods (ns banking, Linkerd sidecar)
 OpenTelemetry Collector (ns observability)
     │ OTLP → Coroot
     ▼
-Coroot CE (UI + ClickHouse + eBPF node-agent)
-    ├── Metrics (eBPF + OTLP)
+Coroot CE (UI + ClickHouse + cluster-agent)
+    ├── Metrics (OTLP + cluster-agent; node-agent eBPF tắt trên k3d/WSL2)
     ├── Logs (OTLP)
     └── Traces (OTLP gRPC/HTTP)
 
@@ -28,9 +28,7 @@ Linkerd (ns linkerd) — mTLS mesh, Viz dashboard
 ## ArgoCD apply (Giai đoạn 2b — sau platform, trước infra)
 
 ```bash
-# 1. Linkerd certs (một lần)
-chmod +x phase9-gitops-platform/observability/scripts/generate-linkerd-certs.sh
-./phase9-gitops-platform/observability/scripts/generate-linkerd-certs.sh
+# Linkerd: cert trong manifests/linkerd-identity-k3d/certs/ (Kustomize wave 0)
 
 # 2. Sync observability apps
 kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/applications/observability-app-of-apps.yaml -n argocd
@@ -40,9 +38,9 @@ Thứ tự sync wave:
 
 | Wave | App |
 |------|-----|
-| 0 | coroot-operator, linkerd-crds |
-| 1 | coroot-ce, otel-collector, linkerd-control-plane |
-| 2 | linkerd-viz |
+| 0 | coroot-operator, linkerd-crds, linkerd-identity-bootstrap |
+| 1 | otel-collector, linkerd-control-plane |
+| 2 | coroot-ce, linkerd-viz |
 
 ## Nginx + Ingress (WSL2)
 
@@ -80,7 +78,7 @@ linkerd viz tap deploy/auth-service -n banking
 
 | | Phase 3 | Phase 9 (k3d) |
 |--|---------|---------------|
-| Metrics | Prometheus | Coroot + eBPF |
+| Metrics | Prometheus | Coroot OTLP (+ eBPF trên cluster thật) |
 | Logs | Loki + Promtail | Coroot OTLP |
 | Traces | Tempo + OTEL | Coroot OTLP |
 | UI | Grafana | Coroot |

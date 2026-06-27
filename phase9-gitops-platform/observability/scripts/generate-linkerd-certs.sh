@@ -28,12 +28,18 @@ kubectl create configmap linkerd-identity-trust-roots \
   -n linkerd \
   --from-file=ca.crt="$CERT_DIR/ca.crt" \
   --dry-run=client -o yaml | kubectl apply -f -
+kubectl label configmap linkerd-identity-trust-roots -n linkerd \
+  app.kubernetes.io/part-of=linkerd --overwrite
 
+# Linkerd externalCA cần secret kubernetes.io/tls đủ 3 key: ca.crt, tls.crt, tls.key
 kubectl create secret generic linkerd-identity-issuer \
   -n linkerd \
+  --from-file=ca.crt="$CERT_DIR/ca.crt" \
   --from-file=tls.crt="$CERT_DIR/issuer.crt" \
   --from-file=tls.key="$CERT_DIR/issuer.key" \
   --dry-run=client -o yaml | kubectl apply -f -
+kubectl label secret linkerd-identity-issuer -n linkerd \
+  app.kubernetes.io/part-of=linkerd --overwrite
 
 # Helm values snippet (ArgoCD inline values có thể copy từ đây)
 cat > "$CERT_DIR/linkerd-identity.yaml" <<EOF

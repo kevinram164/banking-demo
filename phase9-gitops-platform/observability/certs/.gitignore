@@ -1,3 +1,2 @@
-# Lab certs — không commit private key
-*.key
+# Script output động (không commit)
 linkerd-identity.yaml

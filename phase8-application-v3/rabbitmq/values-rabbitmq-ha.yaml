@@ -71,7 +71,7 @@ extraPlugins: ""
 # --- Persistence ---
 persistence:
   enabled: true
-  storageClass: "nfs-client"
+  storageClass: "local-path"
   size: 8Gi
 
 # --- StatefulSet: Parallel để tránh deadlock (pod 1 chờ peer, K8s chờ pod 1 ready)

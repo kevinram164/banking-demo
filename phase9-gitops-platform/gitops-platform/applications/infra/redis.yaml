@@ -12,15 +12,24 @@ metadata:
 spec:
   project: banking-platform
   sources:
-    - repoURL: oci://registry-1.docker.io/bitnamicharts
+    - repoURL: https://charts.bitnami.com/bitnami
       chart: redis
       targetRevision: 20.6.2
       helm:
         releaseName: redis-ha
         valueFiles:
           - $values/phase5-architecture-refactor/redis-ha/values-redis-ha.yaml
+        values: |
+          global:
+            defaultStorageClass: local-path
+          master:
+            persistence:
+              storageClass: local-path
+          replica:
+            persistence:
+              storageClass: local-path
     - repoURL: https://github.com/kevinram164/banking-demo.git
-      targetRevision: main
+      targetRevision: dev-k3d
       ref: values
   destination:
     server: https://kubernetes.default.svc

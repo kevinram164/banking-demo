@@ -7,7 +7,8 @@ WORKDIR /app
 COPY phase8-application-v3/common /app/common
 COPY phase8-application-v3/services/transfer-service /app
 
-RUN pip install --no-cache-dir -r common/requirements.txt
+RUN pip install --no-cache-dir -r common/requirements.txt \
+    && python -c "import uvicorn"
 
 EXPOSE 8003
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]

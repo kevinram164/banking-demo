@@ -1,5 +1,5 @@
 # Jenkins — lab k3d: UI https://jenkins-npd.co
-# Chart 5.7.14 default image = 2.479.1 — PHẢI override controller.image.tag
+# Credentials: Vault secret/platform/jenkins → ESO → JCasC (không tạo thủ công trên UI)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -8,7 +8,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: phase9-gitops
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   project: banking-platform
   source:
@@ -30,8 +30,31 @@ spec:
             tag: "lts-jdk17"
             pullPolicy: Always
           admin:
-            password: "ChangeMe-Jenkins"
+            existingSecret: jenkins-platform-credentials
+            userKey: jenkins-admin-user
+            passwordKey: jenkins-admin-password
           jenkinsUrl: https://jenkins-npd.co/
+          containerEnv:
+            - name: HARBOR_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: jenkins-platform-credentials
+                  key: harbor_username
+            - name: HARBOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: jenkins-platform-credentials
+                  key: harbor_password
+            - name: GITHUB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: jenkins-platform-credentials
+                  key: github_username
+            - name: GITHUB_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: jenkins-platform-credentials
+                  key: github_pat
           installLatestPlugins: false
           installPlugins:
             - kubernetes
@@ -70,6 +93,23 @@ spec:
           JCasC:
             defaultConfig: true
             configScripts:
+              banking-credentials: |
+                credentials:
+                  system:
+                    domainCredentials:
+                      - credentials:
+                          - usernamePassword:
+                              scope: GLOBAL
+                              id: "harbor-ci-push"
+                              username: "${HARBOR_USERNAME}"
+                              password: "${HARBOR_PASSWORD}"
+                              description: "Harbor Kaniko push (Vault → ESO)"
+                          - usernamePassword:
+                              scope: GLOBAL
+                              id: "github-gitops-push"
+                              username: "${GITHUB_USERNAME}"
+                              password: "${GITHUB_PAT}"
+                              description: "GitHub PAT GitOps push (Vault → ESO)"
               banking-shared-library: |
                 unclassified:
                   globalLibraries:

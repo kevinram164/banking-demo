@@ -14,7 +14,7 @@ spec:
   project: banking-platform
   source:
     repoURL: https://github.com/kevinram164/banking-demo.git
-    targetRevision: main
+    targetRevision: dev-k3d
     path: phase8-application-v3/rabbitmq
     directory:
       include: k8s-rabbitmq-standalone.yaml

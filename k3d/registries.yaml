@@ -1,0 +1,11 @@
+# k3s/containerd — mount vào mọi node k3d (@all)
+# Pull harbor-npd.co qua registry HTTP trong cluster (tránh TLS Nginx WSL2 / x509).
+mirrors:
+  harbor-npd.co:
+    endpoint:
+      - http://harbor-registry.platform.svc.cluster.local:5000
+
+configs:
+  harbor-npd.co:
+    tls:
+      insecure_skip_verify: true

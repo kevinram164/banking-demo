@@ -1,9 +1,13 @@
 # Linkerd control-plane — k3d lab (cniEnabled=false, init container proxy)
-# Chạy scripts/generate-linkerd-certs.sh trước sync → file certs/linkerd-identity.yaml
+# Identity: manifest wave 0 (linkerd-identity-bootstrap) + externalCA:true trong Application
 
 cniEnabled: false
+controllerReplicas: 1
+enablePodAntiAffinity: false
 
-# identityTrustAnchorsPEM + issuer TLS: set bởi script hoặc merge từ certs/linkerd-identity.yaml
+# Viz cần policy controller (AuthorizationPolicy, Server CRs)
+policyController:
+  enabled: true
 
 proxy:
   resources:
@@ -17,7 +21,8 @@ controllerResources:
   cpu:
     request: 50m
   memory:
-    limit: 250Mi
+    request: 256Mi
+    limit: 768Mi
 
 heartbeatSchedule: ""
 

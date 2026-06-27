@@ -18,6 +18,7 @@ spec:
     helm:
       releaseName: linkerd-viz
       values: |
+        linkerdNamespace: linkerd
         dashboard:
           enforcedHostRegexp: .*
         metricsAPI:
@@ -26,9 +27,24 @@ spec:
               request: 50m
             memory:
               limit: 256Mi
+        tap:
+          resources:
+            cpu:
+              request: 50m
+            memory:
+              limit: 256Mi
+        tapInjector:
+          resources:
+            cpu:
+              request: 50m
+            memory:
+              limit: 128Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: linkerd-viz
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
+    automated:
+      prune: false
+      selfHeal: true

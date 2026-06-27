@@ -1,6 +1,16 @@
 # Phase 5 - Postgres HA (Bitnami PostgreSQL, primary + read replica)
 # Dùng: helm upgrade -i postgres-ha bitnami/postgresql -n postgres -f values-postgres-ha.yaml
 
+global:
+  defaultStorageClass: local-path   # k3d/lab — override mọi PVC trong chart
+  security:
+    allowInsecureImages: true       # bắt buộc khi dùng bitnamilegacy (Docker Hub)
+
+# Image legacy — tag do chart pin; docker.io/bitnami/* thường 404 trên lab 2025+
+image:
+  registry: docker.io
+  repository: bitnamilegacy/postgresql
+
 # Mapping Phase 2: user banking, db banking, password bankingpass
 auth:
   enablePostgresUser: true
@@ -22,7 +32,7 @@ primary:
   persistence:
     enabled: true
     size: 1Gi
-    storageClass: pg-client
+    storageClass: local-path   # k3d/lab; production cluster: pg-client / pg-nfs
   resources:
     requests:
       memory: "256Mi"
@@ -39,7 +49,7 @@ readReplicas:
   persistence:
     enabled: true
     size: 1Gi
-    storageClass: pg-nfs
+    storageClass: local-path   # k3d/lab; production cluster: pg-nfs
   resources:
     requests:
       memory: "256Mi"
@@ -55,7 +65,7 @@ metrics:
   enabled: true
   image:
     registry: docker.io
-    repository: bitnami/postgres-exporter
+    repository: bitnamilegacy/postgres-exporter
   resources:
     requests:
       memory: "32Mi"
