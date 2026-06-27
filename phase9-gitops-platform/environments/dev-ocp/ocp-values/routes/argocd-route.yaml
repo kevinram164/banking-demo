@@ -1,0 +1,25 @@
+# ArgoCD UI — OpenShift GitOps (reencrypt vì argocd-server dùng HTTPS nội bộ)
+# Operator thường tạo Route openshift-gitops-server; manifest này để GitOps quản lý host/TLS.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: openshift-gitops-server
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/name: openshift-gitops-server
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  host: openshift-gitops-server-openshift-gitops.apps.ocp01.npd.co
+  to:
+    kind: Service
+    name: openshift-gitops-server
+    weight: 100
+  port:
+    targetPort: https
+  tls:
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

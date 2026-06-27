@@ -4,7 +4,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: platform-harbor
-  namespace: argocd
+  namespace: openshift-gitops
   labels:
     app.kubernetes.io/part-of: phase9-gitops
   annotations:
@@ -19,13 +19,9 @@ spec:
       releaseName: harbor
       values: |
         expose:
-          type: ingress
+          type: clusterIP
           tls:
             enabled: false
-          ingress:
-            hosts:
-              core: harbor-banking.apps.ocp01.npd.co
-            className: openshift-default
         externalURL: https://harbor-banking.apps.ocp01.npd.co
         harborAdminPassword: "ChangeMe-Harbor-Admin"
         internalTLS:

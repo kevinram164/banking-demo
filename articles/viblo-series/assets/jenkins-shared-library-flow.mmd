@@ -1,0 +1,52 @@
+%% Phase 9 — Jenkins Shared Library (banking-demo / dev-ocp)
+%% Style đồng bộ phase9-architecture-overview-ocp.mmd
+%% Render: npx @mermaid-js/mermaid-cli -i jenkins-shared-library-flow.mmd -o jenkins-shared-library-flow.png -w 3200 -H 2000 -b white
+flowchart TB
+  subgraph DEV["Developer Layer"]
+    DEV_USER["Developer\nGit push dev-ocp"]
+    GH["GitHub — branch dev-ocp\nJenkinsfile · jenkins-shared-library/ · values-images.yaml"]
+    DEV_USER --> GH
+  end
+
+  subgraph JEN["Jenkins CI — Shared Library · ns platform"]
+    JCasC["JCasC globalLibraries\nbanking-demo · dev-ocp · libraryPath"]
+    JF["Multibranch Pipeline\n@Library banking-demo _"]
+    LIB["Shared Library code\nvars/bankingDemoPipeline.groovy\nsrc/com/bankingdemo/"]
+
+  GH -->|webhook / SCM poll| JF
+  JCasC -.->|register & load| LIB
+  JF --> LIB
+
+    subgraph STAGES["bankingDemoPipeline() — pipeline stages"]
+      S1["Checkout\ngit SHA → image tag"]
+      S2["ChangeDetector\nBUILD_TARGET: auto · all · service"]
+      S3["KanikoBuilder\nPod jenkins-kaniko · kaniko-debug"]
+      S4["GitOpsUpdater\nbump values-images.yaml"]
+      S1 --> S2 --> S3 --> S4
+    end
+
+    LIB --> S1
+
+    VAULT["Vault\nsecret/platform/jenkins"]
+    ESO["External Secrets\nVault → K8s Secret → JCasC"]
+    VAULT --> ESO
+    ESO -.->|harbor-ci-push| S3
+    ESO -.->|github-gitops-push| S4
+  end
+
+  subgraph CD["CD Layer — GitOps closure"]
+    HARBOR["Harbor Registry\nharbor-banking.../banking-demo/<svc>:<sha>"]
+    VALUES["GitHub dev-ocp\nvalues-images.yaml tag updated"]
+    ARGO["ArgoCD OpenShift GitOps\nsync banking applications"]
+    RUN["banking namespace\nPods pull & deploy image mới"]
+    S3 -->|Kaniko push| HARBOR
+    S4 -->|git commit + push| VALUES
+    VALUES --> ARGO
+    ARGO --> RUN
+    HARBOR -.->|imagePull| RUN
+  end
+
+  style DEV fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+  style JEN fill:#fff8e1,stroke:#f9a825,stroke-width:2px
+  style CD fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+  style STAGES fill:#fffde7,stroke:#f9a825,stroke-width:1px

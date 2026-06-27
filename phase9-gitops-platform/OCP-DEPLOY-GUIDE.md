@@ -7,11 +7,15 @@ Triển khai Phase 9 GitOps trên **OpenShift** — nhánh Git **`dev-ocp`**, fo
 | Cluster | k3d + WSL + Nginx | OpenShift (OCP) |
 | Git branch | `dev-k3d` | **`dev-ocp`** |
 | ArgoCD | Cài thủ công, NS `argocd` | **OpenShift GitOps**, NS `openshift-gitops` |
-| Expose UI | Ingress Traefik + Nginx `*-npd.co` | **Route** `*.apps.<cluster-domain>` |
+| Expose UI | Ingress Traefik + Nginx `*-npd.co` | **Route** `*.apps.ocp01.npd.co` (Router OCP) |
 | Storage | `local-path` | `gp3-csi` / ODF / `oc get sc` |
 | Env manifests | `environments/dev-k3d/` | **`environments/dev-ocp/`** |
 
 Chi tiết k3d lab: [K3D-DEPLOY-GUIDE.md](./K3D-DEPLOY-GUIDE.md)
+
+**Kiến trúc OCP (Route, không Traefik):** [OCP-ARCHITECTURE.md](./OCP-ARCHITECTURE.md)
+
+![Phase 9 — OpenShift](../articles/viblo-series/assets/phase9-architecture-overview-ocp.png)
 
 ---
 
@@ -114,25 +118,27 @@ oc get sc
 # Sửa trong values Postgres/Redis/Harbor/Jenkins: storageClass → SC mặc định cluster
 ```
 
-### Route thay Ingress
+### Route (OpenShift Router)
 
-Harbor, Jenkins, Vault, Banking — expose bằng **Route** thay vì Traefik + Nginx. Ví dụ:
+Manifest GitOps: `environments/dev-ocp/ocp-values/routes/` — ArgoCD app `platform-routes-dev-ocp`.
 
-```yaml
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: harbor
-  namespace: platform
-spec:
-  host: harbor-banking.apps.<cluster-domain>
-  to:
-    kind: Service
-    name: harbor-portal
-  port:
-    targetPort: 8080
-  tls:
-    termination: edge
+| Route | Host | Backend |
+|-------|------|---------|
+| Harbor | `harbor-banking.apps.ocp01.npd.co` | `harbor:80` (ns `platform`) |
+| Jenkins | `jenkins-platform.apps.ocp01.npd.co` | `jenkins:http` |
+| Vault | `vault-banking.apps.ocp01.npd.co` | `vault:8200` (ns `vault`) |
+| ArgoCD | `openshift-gitops-server-openshift-gitops.apps.ocp01.npd.co` | `openshift-gitops-server:https` (reencrypt) |
+| Banking | `npd-banking.co` (`/`, `/api`, `/ws`) | `frontend`, `kong-proxy-ext` |
+| Kong | `kong.apps.ocp01.npd.co` | `kong-kong-proxy:8000` (ns `kong`) |
+
+Helm platform đã tắt Ingress. Banking Ingress Helm (`ingress.enabled: false`) — Route thay thế.
+
+**DNS `npd-banking.co`:** trỏ tới Router IP hoặc thêm vào hosts file máy client.
+
+```bash
+oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/platform-routes-app-of-apps.yaml
+oc get route -n banking
+oc get route -n kong kong-proxy
 ```
 
 ### SCC (Security Context Constraints)

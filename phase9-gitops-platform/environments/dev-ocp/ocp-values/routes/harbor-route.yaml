@@ -1,0 +1,25 @@
+# Harbor UI + registry API — OpenShift Router (thay Ingress Traefik)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: harbor-banking
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: harbor
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    haproxy.router.openshift.io/timeout: 600s
+spec:
+  host: harbor-banking.apps.ocp01.npd.co
+  to:
+    kind: Service
+    name: harbor
+    weight: 100
+  port:
+    targetPort: 80
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

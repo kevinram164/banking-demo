@@ -1,25 +1,26 @@
-# ExternalSecret manifests — apply sau ESO controller Ready
+# OpenShift Routes — Harbor, Jenkins, Vault, ArgoCD (sync sau platform Helm)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: platform-external-secrets-config
+  name: platform-routes-dev-ocp
   namespace: openshift-gitops
   labels:
     app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-ocp
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   project: banking-platform
   source:
     repoURL: https://github.com/kevinram164/banking-demo.git
-    targetRevision: dev-k3d
-    path: phase9-gitops-platform/vault/external-secrets
-    directory:
-      exclude: README.md
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/environments/dev-ocp/ocp-values/routes
   destination:
     server: https://kubernetes.default.svc
-    namespace: external-secrets
+    namespace: openshift-gitops
   syncPolicy:
     automated:
       prune: false
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

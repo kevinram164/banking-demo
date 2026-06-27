@@ -1,0 +1,52 @@
+%% Phase 9 — GitOps Platform on OpenShift (dev-ocp)
+%% Render: mermaid-cli hoặc VS Code Mermaid preview → export PNG
+flowchart TB
+  subgraph DEV["Developer Layer"]
+    GH["GitHub — branch dev-ocp\nvalues-images.yaml · Helm · ArgoCD apps"]
+    DEV_USER["Developer\nGit push dev-ocp"]
+    DEV_USER --> GH
+  end
+
+  subgraph OCP["OpenShift Cluster — ocp01.npd.co"]
+    subgraph PLAT["Platform Layer"]
+      JEN["Jenkins\nJenkinsfile · Kaniko build"]
+      HAR["Harbor Registry\nOCI images · Helm charts"]
+      VAULT["Vault\nSecrets Engine"]
+      ESO["External Secrets\nVault → K8s Secret"]
+      ARGO["ArgoCD\nOpenShift GitOps\nns: openshift-gitops"]
+      GH -->|webhook / poll| JEN
+      JEN -->|push image| HAR
+      JEN -->|commit tag| GH
+      VAULT --> ESO
+      ESO -.->|sync secrets| ARGO
+      GH -->|sync target state| ARGO
+    end
+
+    subgraph EDGE["Edge — OpenShift Router (HAProxy)"]
+      RT["Route\n*.apps.ocp01.npd.co + npd-banking.co\nTLS edge termination"]
+      RT -->|harbor-banking| HAR
+      RT -->|jenkins-platform| JEN
+      RT -->|vault-banking| VAULT
+      RT -->|openshift-gitops-server| ARGO
+      RT -->|kong.apps.ocp01.npd.co| KONG
+    end
+
+    subgraph RUN["Runtime Layer — Namespaced Workloads"]
+      BANK["banking\nApp pods · Service"]
+      PG["postgres\nStatefulSet · PVC"]
+      RD["redis\nStatefulSet · PVC"]
+      KONG["kong\nDeployment · Service"]
+      RAB["rabbit\nStatefulSet · PVC"]
+      OBS["observability\nCoroot · OTEL · Linkerd"]
+      ARGO --> BANK & PG & RD & KONG & RAB & OBS
+      RT -->|npd-banking.co /api,/ws| KONG
+      RT -->|npd-banking.co /| BANK
+    end
+  end
+
+  BROWSER["Browser / oc CLI\nHTTPS"] --> RT
+
+  style EDGE fill:#e8f4fc,stroke:#1a73e8
+  style OCP fill:#f5f5f5,stroke:#666
+  style PLAT fill:#fff8e1,stroke:#f9a825
+  style RUN fill:#e8f5e9,stroke:#2e7d32

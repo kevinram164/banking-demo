@@ -3,7 +3,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: platform-vault
-  namespace: argocd
+  namespace: openshift-gitops
   labels:
     app.kubernetes.io/part-of: phase9-gitops
   annotations:
@@ -24,14 +24,7 @@ spec:
             enabled: true
             devRootToken: "root"
           ingress:
-            enabled: true
-            ingressClassName: openshift-default
-            activeService: true
-            hosts:
-              - host: vault-banking.apps.ocp01.npd.co
-                paths:
-                  - /
-            tls: []
+            enabled: false
         ui:
           enabled: true
   destination:

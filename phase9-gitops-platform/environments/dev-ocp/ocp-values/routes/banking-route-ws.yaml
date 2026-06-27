@@ -1,0 +1,26 @@
+# Banking WebSocket — npd-banking.co/ws → Kong proxy
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: npd-banking-ws
+  namespace: banking
+  labels:
+    app.kubernetes.io/name: banking-demo
+    app.kubernetes.io/component: websocket
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    haproxy.router.openshift.io/timeout: 3600s
+spec:
+  host: npd-banking.co
+  path: /ws
+  to:
+    kind: Service
+    name: kong-proxy-ext
+    weight: 100
+  port:
+    targetPort: 8000
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

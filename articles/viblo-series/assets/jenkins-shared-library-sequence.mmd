@@ -1,0 +1,29 @@
+%% Sequence — Jenkins Shared Library (1 lần build auto)
+%% Render: npx @mermaid-js/mermaid-cli -i jenkins-shared-library-sequence.mmd -o jenkins-shared-library-sequence.png -w 2800 -H 1400 -b white
+sequenceDiagram
+  box Developer Layer #e3f2fd
+    actor Dev as Developer
+    participant GH as GitHub dev-ocp
+  end
+  box Jenkins CI #fff8e1
+    participant MB as Multibranch Job
+    participant Lib as bankingDemoPipeline
+    participant Kan as Kaniko Pod
+  end
+  box CD Layer #e8f5e9
+    participant HB as Harbor
+    participant Argo as ArgoCD
+    participant App as banking pods
+  end
+
+  Dev->>GH: push code auth-service
+  GH->>MB: webhook / poll
+  MB->>Lib: load Shared Library + Jenkinsfile config
+  Lib->>GH: checkout
+  Note over Lib: ChangeDetector auto → auth-service
+  Lib->>Kan: build image tag abc1234
+  Kan->>HB: push banking-demo/auth-service:abc1234
+  Lib->>GH: commit values-images.yaml
+  GH->>Argo: repo changed
+  Argo->>App: sync Helm · rolling update
+  App->>HB: pull image mới

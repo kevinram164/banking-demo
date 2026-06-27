@@ -4,7 +4,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: platform-jenkins
-  namespace: argocd
+  namespace: openshift-gitops
   labels:
     app.kubernetes.io/part-of: phase9-gitops
   annotations:
@@ -123,10 +123,7 @@ spec:
                               git:
                                 remote: "https://github.com/kevinram164/banking-demo.git"
           ingress:
-            enabled: true
-            hostName: jenkins-platform.apps.ocp01.npd.co
-            ingressClassName: traefik
-            tls: []
+            enabled: false
         agent:
           enabled: true
           kubernetes:

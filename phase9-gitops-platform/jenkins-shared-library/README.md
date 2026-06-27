@@ -17,6 +17,8 @@ Thư viện Groovy dùng trong `Jenkinsfile` (root repo) để:
 
 Hướng dẫn đầy đủ từng bước: [K3D-DEPLOY-GUIDE.md § 4.4](../K3D-DEPLOY-GUIDE.md#44-jenkins--cấu-hình-ci-từng-bước)
 
+**Sơ đồ chi tiết:** [overview (ảnh chính)](../../articles/viblo-series/assets/jenkins-shared-library-overview.png) · [flow](../../articles/viblo-series/assets/jenkins-shared-library-flow.png) · [sequence](../../articles/viblo-series/assets/jenkins-shared-library-sequence.png)
+
 ## Credential ID (bắt buộc đúng tên)
 
 | Credential ID | Nguồn | Vault path / key |

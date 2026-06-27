@@ -1,0 +1,25 @@
+# Kong API Gateway proxy — ns kong
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: kong-proxy
+  namespace: kong
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: proxy
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    haproxy.router.openshift.io/timeout: 600s
+spec:
+  host: kong.apps.ocp01.npd.co
+  to:
+    kind: Service
+    name: kong-kong-proxy
+    weight: 100
+  port:
+    targetPort: 8000
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

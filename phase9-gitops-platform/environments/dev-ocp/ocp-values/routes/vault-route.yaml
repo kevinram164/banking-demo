@@ -1,0 +1,24 @@
+# Vault UI + API — OpenShift Router (thay Ingress)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: vault-banking
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  host: vault-banking.apps.ocp01.npd.co
+  to:
+    kind: Service
+    name: vault
+    weight: 100
+  port:
+    targetPort: 8200
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

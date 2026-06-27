@@ -1,0 +1,19 @@
+# ExternalName — Kong proxy (ns kong) cho Route banking /api, /ws
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-proxy-ext
+  namespace: banking
+  labels:
+    app.kubernetes.io/name: banking-demo
+    app.kubernetes.io/component: kong-proxy
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  type: ExternalName
+  externalName: kong-kong-proxy.kong.svc.cluster.local
+  ports:
+    - name: http
+      port: 8000
+      protocol: TCP

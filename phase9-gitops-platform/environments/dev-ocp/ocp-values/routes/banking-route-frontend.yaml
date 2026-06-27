@@ -1,0 +1,25 @@
+# Banking UI — npd-banking.co (custom domain, cần DNS/hosts trỏ OpenShift Router)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: npd-banking
+  namespace: banking
+  labels:
+    app.kubernetes.io/name: banking-demo
+    app.kubernetes.io/component: frontend
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  host: npd-banking.co
+  path: /
+  to:
+    kind: Service
+    name: frontend
+    weight: 100
+  port:
+    targetPort: 80
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
