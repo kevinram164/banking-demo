@@ -1,0 +1,26 @@
+# Platform Jenkins/Harbor/Vault — dev-ocp (sync khi cluster đủ RAM)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-app-of-apps-dev-ocp
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/gitops-platform/applications/platform
+    directory:
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true

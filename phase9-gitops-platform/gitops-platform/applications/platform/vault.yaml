@@ -1,4 +1,4 @@
-# HashiCorp Vault — lab k3d: UI https://vault-npd.co (dev mode, không dùng cho production)
+# HashiCorp Vault — dev-ocp: https://vault-banking.apps.ocp01.npd.co (dev mode, lab only)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -25,10 +25,10 @@ spec:
             devRootToken: "root"
           ingress:
             enabled: true
-            ingressClassName: traefik
+            ingressClassName: openshift-default
             activeService: true
             hosts:
-              - host: vault-npd.co
+              - host: vault-banking.apps.ocp01.npd.co
                 paths:
                   - /
             tls: []

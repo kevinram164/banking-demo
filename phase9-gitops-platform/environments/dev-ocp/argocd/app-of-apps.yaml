@@ -1,0 +1,31 @@
+# Root App of Apps — nhánh dev-ocp
+# CHỈ apply sau khi platform + infra + CI/CD + banking đã chạy OK (quản lý tập trung).
+# Giai đoạn đầu: apply riêng platform-app-of-apps → infra-app-of-apps → (CI/CD) → banking-app-of-apps
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banking-platform-root-dev-ocp
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-ocp
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/environments/dev-ocp/argocd/applications
+    directory:
+      include: "*-app-of-apps.yaml"
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

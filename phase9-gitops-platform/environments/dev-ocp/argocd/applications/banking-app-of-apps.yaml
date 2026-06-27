@@ -1,0 +1,27 @@
+# Banking apps — CHỈ apply sau Giai đoạn 4 (CI/CD Jenkins→Harbor→Git đã chạy OK)
+# Apply: kubectl apply -f .../banking-app-of-apps.yaml -n argocd
+# Sync thủ công lần đầu trong ArgoCD UI
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banking-app-of-apps-dev-ocp
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/environments/dev-ocp/argocd/applications/banking
+    directory:
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

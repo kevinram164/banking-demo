@@ -17,7 +17,9 @@ Triển khai **CI (Jenkins + Kaniko + Harbor)** và **CD (ArgoCD App of Apps)** 
 
 Chi tiết kiến trúc: [PHASE9.md](./PHASE9.md) | Bootstrap: [bootstrap/BOOTSTRAP.md](./bootstrap/BOOTSTRAP.md)
 
-**Lab k3d / nhánh `dev-k3d`:** [k3d/DEV-K3D-WORKFLOW.md](../k3d/DEV-K3D-WORKFLOW.md) | [environments/dev-k3d/](./environments/dev-k3d/)
+**Lab k3d / nhánh `dev-k3d`:** [K3D-DEPLOY-GUIDE.md](./K3D-DEPLOY-GUIDE.md) | [environments/dev-k3d/](./environments/dev-k3d/)
+
+**OpenShift / nhánh `dev-ocp`:** [OCP-DEPLOY-GUIDE.md](./OCP-DEPLOY-GUIDE.md) | [environments/dev-ocp/](./environments/dev-ocp/)
 
 ## Apply theo giai đoạn (dev-k3d)
 

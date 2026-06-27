@@ -1,4 +1,4 @@
-# Harbor — lab k3d: harbor-npd.co, storageClass local-path
+# Harbor — dev-ocp: harbor-banking.apps.ocp01.npd.co
 # Xem harbor/README.md: TLS, admin password, robot accounts
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -24,9 +24,9 @@ spec:
             enabled: false
           ingress:
             hosts:
-              core: harbor-npd.co
-            className: traefik
-        externalURL: http://harbor-npd.co
+              core: harbor-banking.apps.ocp01.npd.co
+            className: openshift-default
+        externalURL: https://harbor-banking.apps.ocp01.npd.co
         harborAdminPassword: "ChangeMe-Harbor-Admin"
         internalTLS:
           enabled: false
@@ -94,17 +94,17 @@ spec:
           enabled: true
           persistentVolumeClaim:
             registry:
-              storageClass: local-path
+              storageClass: gp3-csi
               size: 10Gi
             jobservice:
               jobLog:
-                storageClass: local-path
+                storageClass: gp3-csi
                 size: 1Gi
             database:
-              storageClass: local-path
+              storageClass: gp3-csi
               size: 2Gi
             redis:
-              storageClass: local-path
+              storageClass: gp3-csi
               size: 1Gi
   destination:
     server: https://kubernetes.default.svc

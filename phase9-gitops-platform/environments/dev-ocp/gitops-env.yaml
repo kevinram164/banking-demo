@@ -1,0 +1,32 @@
+# Jenkins / GitOps — môi trường dev-ocp (cluster ocp01.npd.co)
+gitops:
+  repoUrl: https://github.com/kevinram164/banking-demo.git
+  branch: dev-ocp
+  valuesImagesPath: phase9-gitops-platform/gitops/values-images.yaml
+
+harbor:
+  host: harbor-banking.apps.ocp01.npd.co
+  project: banking-demo
+
+jenkins:
+  namespace: platform
+  kanikoImage: gcr.io/kaniko-project/executor:v1.23.2
+
+ci:
+  watchPaths:
+    - phase8-application-v3/**
+    - phase9-gitops-platform/gitops/values-images.yaml
+
+domains:
+  console: console-openshift-console.apps.ocp01.npd.co
+  argocd: openshift-gitops-server-openshift-gitops.apps.ocp01.npd.co
+  banking: banking-banking.apps.ocp01.npd.co
+  harbor: harbor-banking.apps.ocp01.npd.co
+  vault: vault-banking.apps.ocp01.npd.co
+  jenkins: jenkins-platform.apps.ocp01.npd.co
+
+openshift:
+  clusterDomain: ocp01.npd.co
+  appsDomain: apps.ocp01.npd.co
+  storageClass: gp3-csi
+  argocdNamespace: openshift-gitops

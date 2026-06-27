@@ -1,4 +1,4 @@
-# Jenkins — lab k3d: UI https://jenkins-npd.co
+# Jenkins — dev-ocp: UI https://jenkins-platform.apps.ocp01.npd.co
 # Credentials: Vault secret/platform/jenkins → ESO → JCasC (không tạo thủ công trên UI)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -20,7 +20,7 @@ spec:
       values: |
         persistence:
           enabled: true
-          storageClass: local-path
+          storageClass: gp3-csi
           size: 8Gi
           accessMode: ReadWriteOnce
         controller:
@@ -33,7 +33,7 @@ spec:
             existingSecret: jenkins-platform-credentials
             userKey: jenkins-admin-user
             passwordKey: jenkins-admin-password
-          jenkinsUrl: https://jenkins-npd.co/
+          jenkinsUrl: https://jenkins-platform.apps.ocp01.npd.co/
           containerEnv:
             - name: HARBOR_USERNAME
               valueFrom:
@@ -115,7 +115,7 @@ spec:
                   globalLibraries:
                     libraries:
                       - name: "banking-demo"
-                        defaultVersion: "dev-k3d"
+                        defaultVersion: "dev-ocp"
                         retriever:
                           modernSCM:
                             libraryPath: "phase9-gitops-platform/jenkins-shared-library"
@@ -124,7 +124,7 @@ spec:
                                 remote: "https://github.com/kevinram164/banking-demo.git"
           ingress:
             enabled: true
-            hostName: jenkins-npd.co
+            hostName: jenkins-platform.apps.ocp01.npd.co
             ingressClassName: traefik
             tls: []
         agent:
