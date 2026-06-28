@@ -20,6 +20,65 @@ watch oc get pods -n argocd
 
 ---
 
+## 1b. SCC — bắt buộc trên OpenShift (lab)
+
+Manifest upstream chạy container với UID cố định (`redis` **999**, `dex` **1001**, …). Namespace `argocd` mặc định chỉ cho UID range `1000740000+` → pod **Forbidden** SCC.
+
+Triệu chứng (Events):
+
+```text
+unable to validate against any security context constraint
+runAsUser: Invalid value: 999 / 1001
+seccomp may not be set   ← argocd-dex-server (cần privileged, không chỉ anyuid)
+```
+
+**Sửa (lab — cần `cluster-admin`):**
+
+```bash
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/argocd-scc-anyuid.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/argocd-scc-anyuid.sh argocd
+```
+
+Script gán **`anyuid` + `privileged`** cho `system:serviceaccounts:argocd`.
+
+Hoặc thủ công:
+
+```bash
+oc adm policy add-scc-to-group anyuid system:serviceaccounts:argocd
+oc adm policy add-scc-to-group privileged system:serviceaccounts:argocd
+oc rollout restart statefulset,deployment -n argocd
+watch oc get pods -n argocd
+```
+
+**Kiểm tra SCC đã gán chưa:**
+
+```bash
+oc get scc privileged -o yaml | grep 'system:serviceaccounts:argocd'
+oc get scc anyuid -o yaml | grep 'system:serviceaccounts:argocd'
+```
+
+Nếu không thấy dòng trên → lệnh chạy bằng user **không đủ quyền** (cần `cluster-admin`).
+
+**Tùy chọn — tắt Dex** (không dùng SSO/login OIDC):
+
+```bash
+oc scale deployment argocd-dex-server -n argocd --replicas=0
+```
+
+ArgoCD vẫn login `admin` + password local được.
+
+Kỳ vọng pods **Running**: `argocd-redis-*`, `argocd-dex-server-*` (nếu giữ dex).
+
+| Component | Vấn đề SCC | SCC lab |
+|-----------|------------|---------|
+| argocd-redis | UID 999 | `anyuid` |
+| argocd-dex-server | UID 1001 + **seccomp** annotation | `privileged` (hoặc scale 0) |
+| argocd-server | thường OK | — |
+
+> Production: gán SCC từng ServiceAccount, hạn chế `privileged` — lab NPD dùng group trên namespace `argocd`.
+
+---
+
 ## 2. Route (OpenShift Router)
 
 ```bash
@@ -35,8 +94,76 @@ https://argocd-server-argocd.apps.ocp01.npd.co
 Nếu 502 — thử `targetPort: http` + TLS `edge` (ArgoCD `--insecure`):
 
 ```bash
+oc patch configmap argocd-cmd-params-cm -n argocd --type merge \
+  -p '{"data":{"server.insecure":"true"}}'
+oc rollout restart deployment argocd-server -n argocd
+
 oc patch route argocd-server -n argocd --type=merge -p '
 {"spec":{"port":{"targetPort":"http"},"tls":{"termination":"edge","insecureEdgeTerminationPolicy":"Redirect"}}}'
+```
+
+---
+
+## 2b. Lỗi "Application is not available" (pods vẫn Running)
+
+Trang OpenShift Router khi **không route được** tới backend — pods ArgoCD có thể vẫn OK.
+
+### Chẩn đoán
+
+```bash
+oc get route -n argocd
+oc get svc,endpoints argocd-server -n argocd
+oc describe route argocd-server -n argocd
+```
+
+| Kiểm tra | Kỳ vọng |
+|----------|---------|
+| `oc get route -n argocd` | Có `argocd-server` |
+| `endpoints argocd-server` | IP pod (không `<none>`) |
+| Host Route | `argocd-server-argocd.apps.ocp01.npd.co` |
+
+### Sửa nhanh — tạo Route (nếu chưa có)
+
+```bash
+oc apply -f phase9-gitops-platform/environments/dev-ocp/ocp-values/routes/argocd-route.yaml
+```
+
+### Sửa nhanh — đổi sang edge + insecure (hay dùng nhất trên OCP lab)
+
+```bash
+oc patch configmap argocd-cmd-params-cm -n argocd --type merge \
+  -p '{"data":{"server.insecure":"true"}}'
+oc rollout restart deployment argocd-server -n argocd
+oc rollout status deployment argocd-server -n argocd
+
+oc apply -f - <<'EOF'
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  host: argocd-server-argocd.apps.ocp01.npd.co
+  to:
+    kind: Service
+    name: argocd-server
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+EOF
+```
+
+Đợi 30s → refresh `https://argocd-server-argocd.apps.ocp01.npd.co`
+
+### reencrypt (nếu giữ HTTPS nội bộ ArgoCD)
+
+```bash
+oc get svc argocd-server -n argocd -o yaml | grep -A5 ports:
+# targetPort phải khớp Route: https (443) hoặc tên port service
 ```
 
 ---

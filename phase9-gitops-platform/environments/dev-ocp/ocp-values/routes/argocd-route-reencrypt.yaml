@@ -1,6 +1,4 @@
-# ArgoCD UI — upstream ArgoCD (ns argocd)
-# Khuyến nghị lab: argocd-route-edge.yaml + server.insecure=true (xem INSTALL-ARGOCD-UPSTREAM.md §2b)
-# Hoặc: argocd-route-reencrypt.yaml nếu không bật insecure
+# ArgoCD UI — reencrypt (HTTPS backend, không cần server.insecure)
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
@@ -8,10 +6,7 @@ metadata:
   namespace: argocd
   labels:
     app.kubernetes.io/name: argocd-server
-    app.kubernetes.io/part-of: phase9-gitops
     banking-demo/environment: dev-ocp
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
 spec:
   host: argocd-server-argocd.apps.ocp01.npd.co
   to:
@@ -19,8 +14,8 @@ spec:
     name: argocd-server
     weight: 100
   port:
-    targetPort: http
+    targetPort: https
   tls:
-    termination: edge
+    termination: reencrypt
     insecureEdgeTerminationPolicy: Redirect
   wildcardPolicy: None
