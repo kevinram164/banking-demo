@@ -4,8 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT"
 
-# openshift-gitops (Operator) hoặc argocd (cài thủ công)
-ARGOCD_NS="${ARGOCD_NS:-openshift-gitops}"
+# Mặc định: ArgoCD upstream (opensource) ns argocd
+# Operator Red Hat: ARGOCD_NS=openshift-gitops (cần trial/subscription)
+ARGOCD_NS="${ARGOCD_NS:-argocd}"
 CLI="${CLI:-oc}"
 
 echo "==> ArgoCD namespace: $ARGOCD_NS"
@@ -20,5 +21,9 @@ $CLI apply -f phase9-gitops-platform/environments/dev-ocp/argocd/app-of-apps.yam
 echo "Done."
 echo "  Root app : banking-platform-root-dev-ocp"
 echo "  Branch   : dev-ocp"
-echo "  ArgoCD UI: https://openshift-gitops-server-${ARGOCD_NS}.apps.ocp01.npd.co"
+if [[ "$ARGOCD_NS" == "openshift-gitops" ]]; then
+  echo "  ArgoCD UI: https://openshift-gitops-server-openshift-gitops.apps.ocp01.npd.co"
+else
+  echo "  ArgoCD UI: https://argocd-server-argocd.apps.ocp01.npd.co"
+fi
 echo "  Console  : https://console-openshift-console.apps.ocp01.npd.co"

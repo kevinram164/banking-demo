@@ -5,7 +5,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: banking-app-of-apps-dev-ocp
-  namespace: openshift-gitops
+  namespace: argocd
   labels:
     app.kubernetes.io/part-of: phase9-gitops
     banking-demo/environment: dev-ocp
@@ -21,7 +21,7 @@ spec:
       recurse: false
   destination:
     server: https://kubernetes.default.svc
-    namespace: openshift-gitops
+    namespace: argocd
   syncPolicy:
     syncOptions:
       - CreateNamespace=true

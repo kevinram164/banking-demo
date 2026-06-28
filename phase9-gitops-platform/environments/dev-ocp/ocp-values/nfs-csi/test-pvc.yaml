@@ -1,0 +1,17 @@
+# PVC test — apply trong project nfs-test
+# oc new-project nfs-test
+# oc apply -f test-pvc.yaml -n nfs-test
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-nfs
+  namespace: nfs-test
+  labels:
+    banking-demo/environment: dev-ocp
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-csi
+  resources:
+    requests:
+      storage: 1Gi

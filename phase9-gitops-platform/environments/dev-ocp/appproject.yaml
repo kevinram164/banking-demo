@@ -1,10 +1,10 @@
 # AppProject — OpenShift GitOps (dev-ocp)
-# Áp dụng: oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n openshift-gitops
+# Áp dụng: oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n argocd
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
   name: banking-platform
-  namespace: openshift-gitops
+  namespace: argocd
   labels:
     app.kubernetes.io/name: banking-platform
     app.kubernetes.io/part-of: phase9-gitops
@@ -46,7 +46,7 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: linkerd-viz
       server: https://kubernetes.default.svc
-    - namespace: openshift-gitops
+    - namespace: argocd
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: ""

@@ -19,7 +19,7 @@ ci:
 
 domains:
   console: console-openshift-console.apps.ocp01.npd.co
-  argocd: openshift-gitops-server-openshift-gitops.apps.ocp01.npd.co
+  argocd: argocd-server-argocd.apps.ocp01.npd.co
   banking: npd-banking.co
   kong: kong.apps.ocp01.npd.co
   harbor: harbor-banking.apps.ocp01.npd.co
@@ -29,5 +29,5 @@ domains:
 openshift:
   clusterDomain: ocp01.npd.co
   appsDomain: apps.ocp01.npd.co
-  storageClass: gp3-csi
-  argocdNamespace: openshift-gitops
+  storageClass: nfs-csi
+  argocdNamespace: argocd

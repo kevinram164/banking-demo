@@ -6,9 +6,9 @@ Triển khai Phase 9 GitOps trên **OpenShift** — nhánh Git **`dev-ocp`**, fo
 |---|---------|---------|
 | Cluster | k3d + WSL + Nginx | OpenShift (OCP) |
 | Git branch | `dev-k3d` | **`dev-ocp`** |
-| ArgoCD | Cài thủ công, NS `argocd` | **OpenShift GitOps**, NS `openshift-gitops` |
+| ArgoCD | Cài thủ công, NS `argocd` | **ArgoCD upstream**, NS `argocd` + Route OCP |
 | Expose UI | Ingress Traefik + Nginx `*-npd.co` | **Route** `*.apps.ocp01.npd.co` (Router OCP) |
-| Storage | `local-path` | `gp3-csi` / ODF / `oc get sc` |
+| Storage | `local-path` | **`nfs-csi`** (NFS `10.100.1.180`) — xem [INSTALL-NFS-CSI.md](./environments/dev-ocp/INSTALL-NFS-CSI.md) |
 | Env manifests | `environments/dev-k3d/` | **`environments/dev-ocp/`** |
 
 Chi tiết k3d lab: [K3D-DEPLOY-GUIDE.md](./K3D-DEPLOY-GUIDE.md)
@@ -29,14 +29,27 @@ export CLUSTER_DOMAIN=$(oc get ingresses.config cluster -o jsonpath='{.spec.doma
 echo "Cluster domain: $CLUSTER_DOMAIN"
 ```
 
-Cài **OpenShift GitOps Operator** (nếu chưa có):
+Cài **ArgoCD upstream** (opensource, khuyến nghị — không cần Red Hat trial):
 
 ```bash
-oc get csv -n openshift-gitops
-# Route ArgoCD: openshift-gitops-server-openshift-gitops.apps.$CLUSTER_DOMAIN
+# Xem: environments/dev-ocp/INSTALL-ARGOCD-UPSTREAM.md
+oc get pods -n argocd
+oc apply -f phase9-gitops-platform/environments/dev-ocp/ocp-values/routes/argocd-route.yaml
+# UI: https://argocd-server-argocd.apps.$CLUSTER_DOMAIN
 ```
 
+*(Tùy chọn)* OpenShift GitOps Operator — cần subscription/trial: [INSTALL-GITOPS-OPERATOR.md](./environments/dev-ocp/INSTALL-GITOPS-OPERATOR.md)
+
 Kết nối repo GitHub trong ArgoCD UI (branch `dev-ocp`).
+
+### Storage NFS (làm trước khi sync platform/infra)
+
+```bash
+# Hướng dẫn đầy đủ: environments/dev-ocp/INSTALL-NFS-CSI.md
+oc apply -f phase9-gitops-platform/environments/dev-ocp/ocp-values/nfs-csi/00-namespace.yaml
+# helm install csi-driver-nfs … → SCC → storageclass.yaml → test PVC
+oc get sc nfs-csi
+```
 
 ---
 
@@ -83,15 +96,14 @@ Platform (Harbor, Vault, ESO, Jenkins)
 ## 4. Bootstrap ArgoCD (dev-ocp)
 
 ```bash
-# Mặc định: openshift-gitops
-export ARGOCD_NS=openshift-gitops
+export ARGOCD_NS=argocd
 ./phase9-gitops-platform/environments/dev-ocp/apply-argocd.sh
 ```
 
 Apply từng giai đoạn (khuyến nghị):
 
 ```bash
-ARGOCD_NS=openshift-gitops
+ARGOCD_NS=argocd
 
 oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n $ARGOCD_NS
 
@@ -111,12 +123,16 @@ oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/bank
 
 ## 5. Khác biệt cần xử lý trên OCP
 
-### StorageClass
+### StorageClass (NFS CSI)
+
+Lab NPD: **`nfs-csi`** → NFS `10.100.1.180:/shares/registry`.
 
 ```bash
 oc get sc
-# Sửa trong values Postgres/Redis/Harbor/Jenkins: storageClass → SC mặc định cluster
+# Chi tiết cài đặt: environments/dev-ocp/INSTALL-NFS-CSI.md
 ```
+
+Trong GitOps values: `openshift.storageClass: nfs-csi` (`gitops-env.yaml`, Harbor, Jenkins, Postgres, Redis…).
 
 ### Route (OpenShift Router)
 

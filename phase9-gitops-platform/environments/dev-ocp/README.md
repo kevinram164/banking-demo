@@ -9,7 +9,7 @@ Cấu hình ArgoCD + GitOps cho nhánh **`dev-ocp`** trên cluster **OpenShift**
 | Service | URL |
 |---------|-----|
 | OpenShift Console | https://console-openshift-console.apps.ocp01.npd.co |
-| ArgoCD (GitOps) | https://openshift-gitops-server-openshift-gitops.apps.ocp01.npd.co |
+| ArgoCD (GitOps) | https://argocd-server-argocd.apps.ocp01.npd.co |
 | Harbor | https://harbor-banking.apps.ocp01.npd.co |
 | Jenkins | https://jenkins-platform.apps.ocp01.npd.co |
 | Vault | https://vault-banking.apps.ocp01.npd.co |
@@ -26,19 +26,20 @@ Cluster domain: **`ocp01.npd.co`** — route pattern: `<tên>.apps.ocp01.npd.co`
 
 | Bước | File apply | Giai đoạn |
 |------|------------|-----------|
-| 1 | `appproject.yaml` | Sau OpenShift GitOps Operator |
-| 2 | `argocd/applications/platform-app-of-apps.yaml` | Platform (Harbor, Vault, ESO, Jenkins) |
-| 2a | `argocd/applications/platform-routes-app-of-apps.yaml` | **Routes** (sau platform pods Running) |
-| 2b | `argocd/applications/observability-app-of-apps.yaml` | Observability |
-| 3 | `argocd/applications/infra-app-of-apps.yaml` | Infra |
-| 4 | Jenkins pipeline → Harbor → Git | CI/CD |
-| 5 | `argocd/applications/banking-app-of-apps.yaml` | **Banking app** |
-| 5b | `platform-routes-app-of-apps.yaml` (nếu chưa sync) | Routes banking + Kong |
+| 0 | **NFS CSI** — [INSTALL-NFS-CSI.md](./INSTALL-NFS-CSI.md) | Trước platform (PVC Harbor/Postgres…) |
+| 1 | ArgoCD upstream — [INSTALL-ARGOCD-UPSTREAM.md](./INSTALL-ARGOCD-UPSTREAM.md) | Pods Running trong `argocd` |
+| 2 | `appproject.yaml` | |
+| 3 | `argocd/applications/platform-app-of-apps.yaml` | Platform (Harbor, Vault, ESO, Jenkins) |
+| 3a | `argocd/applications/platform-routes-app-of-apps.yaml` | Routes (sau platform Running) |
+| 3b | `argocd/applications/observability-app-of-apps.yaml` | Observability (tùy chọn) |
+| 4 | `argocd/applications/infra-app-of-apps.yaml` | Infra |
+| 5 | Jenkins pipeline → Harbor → Git | CI/CD |
+| 6 | `argocd/applications/banking-app-of-apps.yaml` | **Banking app** |
 
 **Lưu ý:** Sau Kong import, cập nhật CORS origins thành `https://npd-banking.co` trong `kong-import-job.yaml`.
 
 ```bash
-export ARGOCD_NS=openshift-gitops
+export ARGOCD_NS=argocd
 ./phase9-gitops-platform/environments/dev-ocp/apply-argocd.sh
 ```
 
@@ -46,8 +47,8 @@ export ARGOCD_NS=openshift-gitops
 
 | | dev-k3d | dev-ocp |
 |---|---------|---------|
-| ArgoCD NS | `argocd` | `openshift-gitops` |
+| ArgoCD NS | `argocd` | `argocd` (upstream + Route) |
 | Domain | `*-npd.co` (hosts file) | `*.apps.ocp01.npd.co` |
-| Storage | `local-path` | `gp3-csi` (kiểm tra `oc get sc`) |
+| Storage | `local-path` | **`nfs-csi`** (10.100.1.180) |
 
 Xem overlay: [ocp-values/README.md](./ocp-values/README.md)

@@ -3,7 +3,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: banking-auth-service
-  namespace: openshift-gitops
+  namespace: argocd
   labels:
     app.kubernetes.io/name: banking-demo
     app.kubernetes.io/component: auth-service

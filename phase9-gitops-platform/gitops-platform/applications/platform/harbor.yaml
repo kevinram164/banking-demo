@@ -4,7 +4,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: platform-harbor
-  namespace: openshift-gitops
+  namespace: argocd
   labels:
     app.kubernetes.io/part-of: phase9-gitops
   annotations:
@@ -90,17 +90,17 @@ spec:
           enabled: true
           persistentVolumeClaim:
             registry:
-              storageClass: gp3-csi
+              storageClass: nfs-csi
               size: 10Gi
             jobservice:
               jobLog:
-                storageClass: gp3-csi
+                storageClass: nfs-csi
                 size: 1Gi
             database:
-              storageClass: gp3-csi
+              storageClass: nfs-csi
               size: 2Gi
             redis:
-              storageClass: gp3-csi
+              storageClass: nfs-csi
               size: 1Gi
   destination:
     server: https://kubernetes.default.svc
