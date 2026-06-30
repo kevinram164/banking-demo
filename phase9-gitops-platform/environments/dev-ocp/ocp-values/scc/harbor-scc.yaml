@@ -27,12 +27,12 @@ runAsUser:
   uidRangeMin: 999
   uidRangeMax: 10000
 runAsGroup:
-  type: MustRunAsRange
+  type: MustRunAs
   ranges:
     - min: 999
       max: 10000
 fsGroup:
-  type: MustRunAsRange
+  type: MustRunAs
   ranges:
     - min: 999
       max: 10000
