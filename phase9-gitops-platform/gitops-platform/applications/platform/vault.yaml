@@ -17,12 +17,20 @@ spec:
     helm:
       releaseName: vault
       values: |
+        # Lab OCP: ESO không dùng Agent Injector; image từ Docker Hub (tránh Red Hat registry tag lỗi)
+        global:
+          openshift: false
+        injector:
+          enabled: false
         server:
           ha:
             enabled: false
           dev:
             enabled: true
             devRootToken: "root"
+          image:
+            repository: hashicorp/vault
+            tag: "1.17.2"
           ingress:
             enabled: false
         ui:
