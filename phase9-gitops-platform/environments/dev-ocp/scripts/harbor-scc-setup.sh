@@ -10,16 +10,23 @@ oc apply -f "${ROOT}/ocp-values/platform/harbor-serviceaccount.yaml"
 echo "==> SCC harbor-uid-range"
 oc apply -f "${ROOT}/ocp-values/scc/harbor-scc.yaml"
 
-echo "==> Sync Harbor (ArgoCD) — khôi phục securityContext runAsUser 10000 từ Helm"
+if ! oc get csidriver nfs.csi.k8s.io &>/dev/null; then
+  echo ""
+  echo "WARN: NFS CSI driver chưa có — Harbor PVC (jobservice/registry/db) sẽ FailedMount."
+  echo "      Cài theo: phase9-gitops-platform/environments/dev-ocp/INSTALL-NFS-CSI.md"
+  echo ""
+fi
+
+echo "==> Sync Harbor (ArgoCD) — khôi phục runAsUser 999/10000 từ Helm"
 if command -v argocd &>/dev/null; then
   argocd app sync platform-harbor --force || true
 else
   echo "    (argocd CLI không có — sync platform-harbor thủ công trên UI)"
 fi
 
-echo "==> Restart Harbor workloads"
-oc rollout restart deployment,statefulset -n platform -l app.kubernetes.io/instance=harbor 2>/dev/null || \
-  oc rollout restart deployment,statefulset -n platform 2>/dev/null || true
+echo "==> Xóa pod Harbor cũ (SCC/UID cũ)"
+oc delete pod -n platform -l app.kubernetes.io/instance=harbor --ignore-not-found
+oc delete pod harbor-database-0 -n platform --ignore-not-found 2>/dev/null || true
 
 echo ""
 echo "Done. Kiểm tra:"
