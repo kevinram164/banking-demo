@@ -15,7 +15,7 @@ metadata:
   name: rabbitmq-data
   namespace: rabbit
 spec:
-  storageClassName: local-path   # k3d/lab; cluster production có nfs-client → đổi lại
+  storageClassName: nfs-csi
   accessModes: [ReadWriteOnce]
   resources:
     requests:

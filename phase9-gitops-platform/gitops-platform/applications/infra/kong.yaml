@@ -22,10 +22,10 @@ spec:
         valueFiles:
           - $values/phase5-architecture-refactor/kong-ha/values-kong-ha.yaml
     - repoURL: https://github.com/kevinram164/banking-demo.git
-      targetRevision: dev-k3d
+      targetRevision: dev-ocp
       ref: values
     - repoURL: https://github.com/kevinram164/banking-demo.git
-      targetRevision: dev-k3d
+      targetRevision: dev-ocp
       path: phase9-gitops-platform/gitops-platform/manifests/kong-prereq
   destination:
     server: https://kubernetes.default.svc

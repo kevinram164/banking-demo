@@ -20,62 +20,36 @@ watch oc get pods -n argocd
 
 ---
 
-## 1b. SCC — bắt buộc trên OpenShift (lab)
+## 1b. SCC — theo namespace UID range (khuyến nghị)
 
-Manifest upstream chạy container với UID cố định (`redis` **999**, `dex` **1001**, …). Namespace `argocd` mặc định chỉ cho UID range `1000740000+` → pod **Forbidden** SCC.
+Manifest upstream chạy UID cố định thấp (`redis` **999**, `dex` **1001**, …). Namespace OpenShift chỉ cho phép dải `openshift.io/sa.scc.uid-range` (vd. `1000740000/10000`) → pod **Forbidden** nếu không patch.
 
-Triệu chứng (Events):
+**Cách làm:** patch workload vào dải UID namespace + gán SCC **`nonroot`** cho `system:serviceaccounts:argocd` (một lần cho cả namespace — **không** `anyuid`).
 
-```text
-unable to validate against any security context constraint
-runAsUser: Invalid value: 999 / 1001
-seccomp may not be set   ← argocd-dex-server (cần privileged, không chỉ anyuid)
-```
-
-**Sửa (lab — cần `cluster-admin`):**
+Chi tiết: **[INSTALL-SCC-HARDENED.md](./INSTALL-SCC-HARDENED.md)**
 
 ```bash
-chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/argocd-scc-anyuid.sh
-./phase9-gitops-platform/environments/dev-ocp/scripts/argocd-scc-anyuid.sh argocd
-```
-
-Script gán **`anyuid` + `privileged`** cho `system:serviceaccounts:argocd`.
-
-Hoặc thủ công:
-
-```bash
-oc adm policy add-scc-to-group anyuid system:serviceaccounts:argocd
-oc adm policy add-scc-to-group privileged system:serviceaccounts:argocd
-oc rollout restart statefulset,deployment -n argocd
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/namespace-scc-setup.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/namespace-scc-setup.sh argocd
 watch oc get pods -n argocd
 ```
 
-**Kiểm tra SCC đã gán chưa:**
+Script tự: patch Deployment/STS, tắt Dex (lab), gỡ `anyuid`/`privileged`, gán `nonroot` cho namespace.
 
-```bash
-oc get scc privileged -o yaml | grep 'system:serviceaccounts:argocd'
-oc get scc anyuid -o yaml | grep 'system:serviceaccounts:argocd'
+Triệu chứng nếu chưa chạy:
+
+```text
+unable to validate against any security context constraint
+runAsUser: Invalid value: 999
 ```
 
-Nếu không thấy dòng trên → lệnh chạy bằng user **không đủ quyền** (cần `cluster-admin`).
+**PoC nhanh (không khuyến nghị):** `scripts/argocd-scc-anyuid.sh` — cảnh báo trước khi gán `anyuid`.
 
-**Tùy chọn — tắt Dex** (không dùng SSO/login OIDC):
-
-```bash
-oc scale deployment argocd-dex-server -n argocd --replicas=0
-```
-
-ArgoCD vẫn login `admin` + password local được.
-
-Kỳ vọng pods **Running**: `argocd-redis-*`, `argocd-dex-server-*` (nếu giữ dex).
-
-| Component | Vấn đề SCC | SCC lab |
-|-----------|------------|---------|
-| argocd-redis | UID 999 | `anyuid` |
-| argocd-dex-server | UID 1001 + **seccomp** annotation | `privileged` (hoặc scale 0) |
-| argocd-server | thường OK | — |
-
-> Production: gán SCC từng ServiceAccount, hạn chế `privileged` — lab NPD dùng group trên namespace `argocd`.
+| Component | Sau namespace-scc-setup |
+|-----------|-------------------------|
+| argocd-redis | runAsUser → MIN_UID dải namespace |
+| argocd-dex-server | scale 0 (không SSO) |
+| argocd-server, repo-server, … | nonroot + UID trong dải |
 
 ---
 
@@ -196,9 +170,6 @@ Thứ tự sync: platform → routes → infra → banking — xem [README.md](.
 
 ## 5. Hết trial OCP
 
-Trial cluster Red Hat hết hạn ≠ ArgoCD hỏng — nhưng **cả cluster** có thể không dùng tiếp. Khi đó:
-
-- Lab tiếp trên **k3d** (`dev-k3d`) — ArgoCD upstream tương tự, ns `argocd`
-- Hoặc cluster OCP mới + cài lại ArgoCD manifest (bước 1–4)
+Trial cluster Red Hat hết hạn → cluster không dùng tiếp. Cài lại ArgoCD manifest trên cluster OCP mới (bước 1–4).
 
 Không cần OpenShift GitOps Operator để học GitOps Phase 9.

@@ -1,8 +1,8 @@
-# Image tags — CI (Jenkins) cập nhật trên nhánh dev-k3d
-# Registry lab k3d: harbor-npd.co
+# Image tags — CI (Jenkins) cập nhật trên nhánh dev-ocp
+# Registry OCP: harbor-banking.apps.ocp01.npd.co
 
 global:
-  imageRegistry: harbor-npd.co/banking-demo
+  imageRegistry: harbor-banking.apps.ocp01.npd.co/banking-demo
 
 # Helm chart đọc imagePullSecrets theo từng service (không dùng global)
 x-harbor-pull: &harborPullSecrets
@@ -11,41 +11,41 @@ x-harbor-pull: &harborPullSecrets
 api-producer:
   imagePullSecrets: *harborPullSecrets
   image:
-    repository: harbor-npd.co/banking-demo/api-producer
+    repository: harbor-banking.apps.ocp01.npd.co/banking-demo/api-producer
     tag: c949566
     pullPolicy: Always
 
 auth-service:
   imagePullSecrets: *harborPullSecrets
   image:
-    repository: harbor-npd.co/banking-demo/auth-service
+    repository: harbor-banking.apps.ocp01.npd.co/banking-demo/auth-service
     tag: c949566
     pullPolicy: Always
 
 account-service:
   imagePullSecrets: *harborPullSecrets
   image:
-    repository: harbor-npd.co/banking-demo/account-service
+    repository: harbor-banking.apps.ocp01.npd.co/banking-demo/account-service
     tag: c949566
     pullPolicy: Always
 
 transfer-service:
   imagePullSecrets: *harborPullSecrets
   image:
-    repository: harbor-npd.co/banking-demo/transfer-service
+    repository: harbor-banking.apps.ocp01.npd.co/banking-demo/transfer-service
     tag: c949566
     pullPolicy: Always
 
 notification-service:
   imagePullSecrets: *harborPullSecrets
   image:
-    repository: harbor-npd.co/banking-demo/notification-service
+    repository: harbor-banking.apps.ocp01.npd.co/banking-demo/notification-service
     tag: c949566
     pullPolicy: Always
 
 frontend:
   imagePullSecrets: *harborPullSecrets
   image:
-    repository: harbor-npd.co/banking-demo/frontend
+    repository: harbor-banking.apps.ocp01.npd.co/banking-demo/frontend
     tag: latest
     pullPolicy: Always

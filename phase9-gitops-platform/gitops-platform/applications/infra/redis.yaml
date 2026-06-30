@@ -21,15 +21,15 @@ spec:
           - $values/phase5-architecture-refactor/redis-ha/values-redis-ha.yaml
         values: |
           global:
-            defaultStorageClass: local-path
+            defaultStorageClass: nfs-csi
           master:
             persistence:
-              storageClass: local-path
+              storageClass: nfs-csi
           replica:
             persistence:
-              storageClass: local-path
+              storageClass: nfs-csi
     - repoURL: https://github.com/kevinram164/banking-demo.git
-      targetRevision: dev-k3d
+      targetRevision: dev-ocp
       ref: values
   destination:
     server: https://kubernetes.default.svc

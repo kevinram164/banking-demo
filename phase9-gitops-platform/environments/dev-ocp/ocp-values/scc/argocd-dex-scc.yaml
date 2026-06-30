@@ -1,0 +1,54 @@
+# SCC cho argocd-dex-server — UID 1001 + seccomp (chỉ SA dex, không privileged cả ns)
+# Nếu không dùng SSO: oc scale deployment argocd-dex-server -n argocd --replicas=0
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: argocd-dex-uid1001
+  labels:
+    banking-demo/environment: dev-ocp
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+requiredDropCapabilities:
+  - KILL
+  - MCK
+  - NET_BIND_SERVICE
+  - SYS_CHROOT
+  - SETUID
+  - SETGID
+runAsUser:
+  type: MustRunAs
+  uid: 1001
+runAsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1001
+      max: 1001
+fsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1001
+      max: 1001
+supplementalGroups:
+  type: RunAsAny
+# Dex upstream set seccompProfile — cần cho phép (restricted-v2 chặn)
+seccompProfiles:
+  - runtime/default
+  - localhost/*
+seLinuxContext:
+  type: RunAsAny
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  - system:serviceaccount:argocd:argocd-dex-server

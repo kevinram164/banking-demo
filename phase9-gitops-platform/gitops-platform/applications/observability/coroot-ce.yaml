@@ -20,7 +20,7 @@ spec:
         valueFiles:
           - $values/phase9-gitops-platform/observability/values-coroot-ce-k3d.yaml
     - repoURL: https://github.com/kevinram164/banking-demo.git
-      targetRevision: dev-k3d
+      targetRevision: dev-ocp
       ref: values
   destination:
     server: https://kubernetes.default.svc

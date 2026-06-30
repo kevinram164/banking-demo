@@ -9,7 +9,7 @@ Cấu hình ArgoCD + GitOps cho nhánh **`dev-ocp`** trên cluster **OpenShift**
 | Service | URL |
 |---------|-----|
 | OpenShift Console | https://console-openshift-console.apps.ocp01.npd.co |
-| ArgoCD (GitOps) | https://argocd-server-argocd.apps.ocp01.npd.co |
+| ArgoCD | https://argocd-server-argocd.apps.ocp01.npd.co |
 | Harbor | https://harbor-banking.apps.ocp01.npd.co |
 | Jenkins | https://jenkins-platform.apps.ocp01.npd.co |
 | Vault | https://vault-banking.apps.ocp01.npd.co |
@@ -18,37 +18,38 @@ Cấu hình ArgoCD + GitOps cho nhánh **`dev-ocp`** trên cluster **OpenShift**
 
 Cluster domain: **`ocp01.npd.co`** — route pattern: `<tên>.apps.ocp01.npd.co`
 
-**Kiến trúc (Route thay Traefik/Nginx):** [OCP-ARCHITECTURE.md](../../OCP-ARCHITECTURE.md)
+**Kiến trúc:** [OCP-ARCHITECTURE.md](../../OCP-ARCHITECTURE.md)
 
 ---
 
 ## Thứ tự triển khai
 
-| Bước | File apply | Giai đoạn |
-|------|------------|-----------|
-| 0 | **NFS CSI** — [INSTALL-NFS-CSI.md](./INSTALL-NFS-CSI.md) | Trước platform (PVC Harbor/Postgres…) |
-| 1 | ArgoCD upstream — [INSTALL-ARGOCD-UPSTREAM.md](./INSTALL-ARGOCD-UPSTREAM.md) | Pods Running trong `argocd` |
-| 2 | `appproject.yaml` | |
-| 3 | `argocd/applications/platform-app-of-apps.yaml` | Platform (Harbor, Vault, ESO, Jenkins) |
-| 3a | `argocd/applications/platform-routes-app-of-apps.yaml` | Routes (sau platform Running) |
+| Bước | File / tài liệu | Giai đoạn |
+|------|-----------------|-----------|
+| 0 | [INSTALL-NFS-CSI.md](./INSTALL-NFS-CSI.md) | NFS CSI + `nfs-csi` SC |
+| 1 | [INSTALL-ARGOCD-UPSTREAM.md](./INSTALL-ARGOCD-UPSTREAM.md) | ArgoCD + SCC + Route |
+| 2 | `appproject.yaml` | AppProject |
+| 3 | `argocd/applications/platform-app-of-apps.yaml` | Platform |
+| 3a | `argocd/applications/platform-routes-app-of-apps.yaml` | Routes |
 | 3b | `argocd/applications/observability-app-of-apps.yaml` | Observability (tùy chọn) |
 | 4 | `argocd/applications/infra-app-of-apps.yaml` | Infra |
 | 5 | Jenkins pipeline → Harbor → Git | CI/CD |
 | 6 | `argocd/applications/banking-app-of-apps.yaml` | **Banking app** |
 
-**Lưu ý:** Sau Kong import, cập nhật CORS origins thành `https://npd-banking.co` trong `kong-import-job.yaml`.
+**Lưu ý:** Sau Kong import, CORS origins là `https://npd-banking.co` trong `kong-import-job.yaml`.
 
 ```bash
 export ARGOCD_NS=argocd
 ./phase9-gitops-platform/environments/dev-ocp/apply-argocd.sh
 ```
 
-## Khác dev-k3d
+## Đặc thù OpenShift
 
-| | dev-k3d | dev-ocp |
-|---|---------|---------|
-| ArgoCD NS | `argocd` | `argocd` (upstream + Route) |
-| Domain | `*-npd.co` (hosts file) | `*.apps.ocp01.npd.co` |
-| Storage | `local-path` | **`nfs-csi`** (10.100.1.180) |
+| Hạng mục | Giá trị |
+|----------|---------|
+| ArgoCD NS | `argocd` (upstream + Route) |
+| Storage | **`nfs-csi`** (NFS `10.100.1.180`) |
+| Expose | Route (không Ingress Helm) |
+| SCC | `namespace-scc-setup.sh` — nonroot + UID range namespace |
 
-Xem overlay: [ocp-values/README.md](./ocp-values/README.md)
+Overlay: [ocp-values/README.md](./ocp-values/README.md)

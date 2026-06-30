@@ -22,15 +22,15 @@ spec:
           - $values/phase5-architecture-refactor/postgres-ha/values-postgres-ha.yaml
         values: |
           global:
-            defaultStorageClass: local-path
+            defaultStorageClass: nfs-csi
           primary:
             persistence:
-              storageClass: local-path
+              storageClass: nfs-csi
           readReplicas:
             persistence:
-              storageClass: local-path
+              storageClass: nfs-csi
     - repoURL: https://github.com/kevinram164/banking-demo.git
-      targetRevision: dev-k3d
+      targetRevision: dev-ocp
       ref: values
   destination:
     server: https://kubernetes.default.svc

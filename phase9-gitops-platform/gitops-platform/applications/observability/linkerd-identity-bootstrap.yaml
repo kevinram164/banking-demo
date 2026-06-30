@@ -13,7 +13,7 @@ spec:
   project: banking-platform
   source:
     repoURL: https://github.com/kevinram164/banking-demo.git
-    targetRevision: dev-k3d
+    targetRevision: dev-ocp
     path: phase9-gitops-platform/observability/manifests/linkerd-identity-k3d
   destination:
     server: https://kubernetes.default.svc

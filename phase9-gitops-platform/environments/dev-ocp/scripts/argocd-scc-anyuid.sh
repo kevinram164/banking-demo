@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# SCC cho ArgoCD upstream trên OpenShift (lab dev-ocp)
-# - anyuid: redis UID 999, dex UID 1001
-# - privileged: dex seccomp annotations (OCP 4.20 restricted-v2 chặn seccomp)
-# Cần quyền cluster-admin.
+# DEPRECATED — dùng namespace-scc-setup.sh (SCC nonroot + UID range namespace)
+# Giữ lại chỉ cho PoC nhanh khi chưa kịp patch UID.
 set -euo pipefail
 NS="${1:-argocd}"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
 
-echo "==> Grant SCC to system:serviceaccounts:${NS}"
+echo "WARNING: anyuid/privileged cả namespace — không khuyến nghị production."
+echo "Khuyến nghị: $ROOT/namespace-scc-setup.sh $NS"
+if [[ -t 0 ]]; then
+  read -r -p "Tiếp tục gán anyuid? [y/N] " ans
+  [[ "${ans,,}" == "y" ]] || exit 0
+else
+  echo "Non-interactive — thoát. Dùng namespace-scc-setup.sh"
+  exit 1
+fi
+
 oc adm policy add-scc-to-group anyuid "system:serviceaccounts:${NS}"
 oc adm policy add-scc-to-group privileged "system:serviceaccounts:${NS}"
-
-echo "==> Verify (users/groups on SCC)"
-oc get scc anyuid -o jsonpath='{.users}{"\n"}{.groups}{"\n"}' | tr ' ' '\n' | grep "system:serviceaccounts:${NS}" || true
-oc get scc privileged -o jsonpath='{.groups}{"\n"}' | tr ' ' '\n' | grep "system:serviceaccounts:${NS}" || true
-
-echo "==> Restart workloads"
 oc rollout restart statefulset,deployment,daemonset -n "$NS" 2>/dev/null || true
-
-echo "Done. watch: oc get pods -n $NS"
-echo "Nếu dex vẫn fail và không dùng SSO: oc scale deployment argocd-dex-server -n $NS --replicas=0"
+echo "Done (lab only)."

@@ -1,11 +1,11 @@
-# Biến môi trường GitOps — ít thay đổi, không chứa secret
+# Biến môi trường GitOps — dev-ocp (OpenShift)
 gitops:
   repoUrl: https://github.com/kevinram164/banking-demo.git
-  branch: dev-k3d
+  branch: dev-ocp
   valuesImagesPath: phase9-gitops-platform/gitops/values-images.yaml
 
 harbor:
-  host: harbor-npd.co
+  host: harbor-banking.apps.ocp01.npd.co
   project: banking-demo
 
 jenkins:
@@ -13,7 +13,6 @@ jenkins:
   kanikoImage: gcr.io/kaniko-project/executor:v1.23.2
 
 ci:
-  # Path filters — chỉ build khi đổi Phase 8 code
   watchPaths:
     - phase8-application-v3/**
     - phase9-gitops-platform/gitops/values-images.yaml

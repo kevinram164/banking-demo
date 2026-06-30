@@ -1,25 +1,24 @@
-# Coroot CE — lab k3d (namespace observability)
-# UI: https://coroot-npd.co qua k3d/coroot-ingress.yaml (không dùng spec.ingress trong CR)
+# Coroot CE — OpenShift dev-ocp (namespace observability)
+# UI: oc expose svc coroot-coroot -n observability --hostname=coroot.apps.ocp01.npd.co
 # OTLP: coroot-coroot.observability:4317 (gRPC) / :8080 (HTTP)
 
 storage:
   size: 5Gi
-  className: local-path
+  className: nfs-csi
 
 clickhouse:
   shards: 1
   replicas: 1
   storage:
     size: 10Gi
-    className: local-path
+    className: nfs-csi
 
 prometheus:
   storage:
     size: 5Gi
-    className: local-path
+    className: nfs-csi
 
-# k3d/WSL2: node-agent eBPF cần tracefs/debugfs — không có trên WSL2.
-# Tắt DaemonSet (nodeSelector không match); metrics/traces qua OTLP + cluster-agent.
+# OCP worker có tracefs/debugfs — có thể bật node-agent sau khi lab ổn định
 nodeAgent:
   nodeSelector:
     coroot-node-agent: enabled

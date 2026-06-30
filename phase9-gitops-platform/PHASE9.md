@@ -85,7 +85,7 @@ flowchart TB
   end
 
   subgraph phase2 [Giai đoạn 4 — CI/CD]
-    GH[GitHub push dev-k3d]
+    GH[GitHub push dev-ocp]
     GH -->|webhook| JEN
     JEN -->|Kaniko| HAR
     JEN -->|commit| GIT[values-images.yaml]
@@ -112,7 +112,7 @@ flowchart TB
 |----------------|---------|----------|
 | 1 | GitHub | Push vào `phase8-application-v3/**` |
 | 2 | Jenkins | Shared library `bankingDemoPipeline` — Kaniko build |
-| 3 | Harbor | `harbor-npd.co/banking-demo/<service>:<sha>` |
+| 3 | Harbor | `harbor-banking.apps.ocp01.npd.co/banking-demo/<service>:<sha>` |
 | 4 | Jenkins | Commit `gitops/values-images.yaml` (tag = short SHA) |
 | 5 | ArgoCD | Auto-sync Application banking → rollout Deployment |
 
@@ -131,14 +131,15 @@ Dockerfile build từ **repo root** (`.`), giống README Phase 8:
 
 ## Điều kiện tiên quyết
 
-- Cluster K8s + kubectl
-- ArgoCD đã cài (Phase 2) hoặc bootstrap theo `bootstrap/BOOTSTRAP.md`
+- Cluster OpenShift + `oc` CLI
+- ArgoCD upstream đã cài (xem [INSTALL-ARGOCD-UPSTREAM.md](./environments/dev-ocp/INSTALL-ARGOCD-UPSTREAM.md))
 - Phase 5 infra đã chạy hoặc deploy qua `infra-app-of-apps`
 - Phase 8 code trong `phase8-application-v3/`
 
 ## Liên kết
 
-- **Triển khai k3d từ đầu:** [K3D-DEPLOY-GUIDE.md](./K3D-DEPLOY-GUIDE.md)
+- **Triển khai OpenShift (dev-ocp):** [OCP-DEPLOY-GUIDE.md](./OCP-DEPLOY-GUIDE.md)
+- **Kiến trúc OCP:** [OCP-ARCHITECTURE.md](./OCP-ARCHITECTURE.md)
 - **Phase 5**: `phase5-architecture-refactor/` — namespace split, HA
 - **Phase 8**: `phase8-application-v3/` — code + RabbitMQ + Kong routes
 - **Phase 2**: `phase2-helm-chart/banking-demo/` — Helm chart + `values-phase8.yaml`

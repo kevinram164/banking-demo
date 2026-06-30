@@ -30,7 +30,7 @@ config:
     resource:
       attributes:
         - key: cluster.name
-          value: k3d-npd
+          value: dev-ocp
           action: upsert
   exporters:
     otlphttp/coroot:

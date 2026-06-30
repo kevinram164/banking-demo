@@ -67,17 +67,14 @@ spec:
           overwritePluginsFromImage: true
           initializeOnce: false
           podSecurityContextOverride:
-            runAsUser: 1000
-            runAsGroup: 1000
-            fsGroup: 1000
+            # UID do OpenShift cấp theo openshift.io/sa.scc.uid-range (ns platform)
+            # Sau sync: scripts/namespace-scc-setup.sh platform
             fsGroupChangePolicy: OnRootMismatch
             runAsNonRoot: true
-            supplementalGroups: [1000]
           containerSecurityContext:
             readOnlyRootFilesystem: false
             allowPrivilegeEscalation: false
-            runAsUser: 1000
-            runAsGroup: 1000
+            runAsNonRoot: true
           resources:
             requests:
               cpu: 250m
