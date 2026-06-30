@@ -194,6 +194,31 @@ oc patch storageclass nfs-csi --type=json \
   -p='[{"op":"replace","path":"/mountOptions","value":["nfsvers=3","hard"]}]'
 ```
 
+### 4.1 `mountPermissions` và Harbor Postgres
+
+CSI driver mặc định tạo subdir NFS với quyền **0750** (root). Harbor Postgres (UID **999**) cần ghi `pgdata` → lỗi:
+
+```text
+initdb: error: could not create directory ".../pgdata": Permission denied
+```
+
+**Khi tạo StorageClass lần đầu**, thêm trong `parameters`:
+
+```yaml
+mountPermissions: "0777"   # lab; production dùng 0770 + chown 999 trên NFS
+```
+
+**Lưu ý:** Kubernetes **cấm sửa** `parameters` sau khi SC đã tạo:
+
+```text
+updates to parameters are forbidden
+```
+
+| Tình huống | Cách xử lý |
+|------------|------------|
+| PVC **đã Bound** | `chmod -R 777` subdir trên NFS server (`/shares/registry/<ns>/<pvc-name>`) |
+| Cluster **mới** / PVC mới | Tạo SC mới `nfs-csi-v2` có `mountPermissions: "0777"` (xem [INSTALL-TROUBLESHOOTING.md](./INSTALL-TROUBLESHOOTING.md) §3.3) |
+
 ---
 
 ## 5. Test PVC

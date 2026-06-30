@@ -12,6 +12,8 @@ parameters:
   server: "10.100.1.180"
   share: "/shares/registry"
   subDir: "${pvc.metadata.namespace}/${pvc.metadata.name}"
+  # Lab: Harbor Postgres (UID 999) cần ghi pgdata — mặc định CSI là 0750 (root) → Permission denied
+  mountPermissions: "0777"
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true

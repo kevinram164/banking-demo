@@ -731,11 +731,18 @@ oc get pods -n banking
 
 ## 12. Xử lý lỗi nhanh (OCP)
 
+**Runbook đầy đủ:** [environments/dev-ocp/INSTALL-TROUBLESHOOTING.md](./environments/dev-ocp/INSTALL-TROUBLESHOOTING.md) (Vault image UBI, Harbor SCC/NFS, CSR kubelet, Jenkins ESO).
+
 | Triệu chứng | Cách sửa |
 |-------------|----------|
 | Pod `Forbidden` SCC | `namespace-scc-setup.sh <ns>` — xem INSTALL-SCC-HARDENED.md |
+| Harbor `Permission denied` entrypoint | `harbor-scc-setup.sh` — **không** patch harbor-* bằng namespace-scc-setup |
+| Harbor DB `initdb Permission denied` | `chmod 777` subdir PVC trên NFS server — xem INSTALL-TROUBLESHOOTING.md §3.3 |
+| `oc logs` tls internal error | Approve CSR Pending: `oc get csr -o name \| xargs oc adm certificate approve` |
+| Vault ImagePullBackOff Red Hat | Image `*-ubi`; tắt injector — xem INSTALL-TROUBLESHOOTING.md §2 |
 | ArgoCD Route 502 | `server.insecure=true` + Route TLS `edge` + `targetPort: http` — xem [INSTALL-ARGOCD-UPSTREAM.md](./environments/dev-ocp/INSTALL-ARGOCD-UPSTREAM.md) |
 | PVC Pending | Kiểm tra NFS CSI pods; worker mount được NFS server |
+| `jenkins-platform-credentials` not found | Seed Vault + vault-token + sync ESO config — xem INSTALL-TROUBLESHOOTING.md §6 |
 | `vault-token` not found | Tạo secret trước ClusterSecretStore |
 | ImagePullBackOff | `harbor-pull-creds` + CI đã push image? |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |

@@ -27,6 +27,7 @@ Cluster domain: **`ocp01.npd.co`** — route pattern: `<tên>.apps.ocp01.npd.co`
 | Bước | File / tài liệu | Giai đoạn |
 |------|-----------------|-----------|
 | 0 | [INSTALL-NFS-CSI.md](./INSTALL-NFS-CSI.md) | NFS CSI + `nfs-csi` SC |
+| — | [INSTALL-TROUBLESHOOTING.md](./INSTALL-TROUBLESHOOTING.md) | **Runbook xử lý lỗi** (Vault, Harbor, CSR, NFS) |
 | 1 | [INSTALL-ARGOCD-UPSTREAM.md](./INSTALL-ARGOCD-UPSTREAM.md) | ArgoCD + SCC + Route |
 | 2 | `appproject.yaml` | AppProject |
 | 3 | `argocd/applications/platform-app-of-apps.yaml` | Platform |
