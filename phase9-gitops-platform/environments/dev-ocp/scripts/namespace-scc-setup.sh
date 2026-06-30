@@ -56,6 +56,12 @@ uid_in_range() {
 
 patch_workload_uid() {
   local kind="$1" name="$2"
+
+  if [[ "$name" == harbor-* ]]; then
+    echo "  skip $kind/$name (Harbor UID 999/10000 — dùng harbor-scc-setup.sh)"
+    return 0
+  fi
+
   local pod_uid
   pod_uid=$(oc get "$kind" "$name" -n "$NS" -o jsonpath='{.spec.template.spec.securityContext.runAsUser}' 2>/dev/null || true)
 
@@ -126,5 +132,6 @@ echo "  ./phase9-gitops-platform/environments/dev-ocp/scripts/discover-pod-scc.s
 echo ""
 echo "Namespaces Phase 9 thường cần:"
 echo "  ./namespace-scc-setup.sh argocd"
-echo "  ./namespace-scc-setup.sh platform    # sau sync Jenkins/Harbor"
+echo "  ./harbor-scc-setup.sh              # Harbor — trước hoặc sau namespace-scc-setup platform"
+echo "  ./namespace-scc-setup.sh platform  # Jenkins (bỏ qua harbor-*)"
 echo "  ./namespace-scc-setup.sh vault"

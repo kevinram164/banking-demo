@@ -1,0 +1,53 @@
+# Harbor — UID/GID cố định trong image (999 postgres/redis, 10000 core/jobservice/…)
+# Không patch vào dải openshift.io/sa.scc.uid-range (gây Permission denied entrypoint.sh)
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: harbor-uid-range
+  labels:
+    banking-demo/environment: dev-ocp
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+requiredDropCapabilities:
+  - KILL
+  - MCK
+  - NET_BIND_SERVICE
+  - SYS_CHROOT
+  - SETUID
+  - SETGID
+runAsUser:
+  type: MustRunAsRange
+  uidRangeMin: 999
+  uidRangeMax: 10000
+runAsGroup:
+  type: MustRunAsRange
+  ranges:
+    - min: 999
+      max: 10000
+fsGroup:
+  type: MustRunAsRange
+  ranges:
+    - min: 999
+      max: 10000
+supplementalGroups:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+seccompProfiles:
+  - runtime/default
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  - system:serviceaccount:platform:harbor

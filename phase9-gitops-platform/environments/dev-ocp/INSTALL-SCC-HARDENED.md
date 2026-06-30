@@ -120,6 +120,7 @@ Một số component **không** fit `nonroot` cả namespace — gán **privileg
 | Namespace | Component | SCC |
 |-----------|-----------|-----|
 | `csi-driver-nfs` | node/controller plugin | `privileged` → `csi-nfs-node-sa`, `csi-nfs-controller-sa` |
+| `platform` | Harbor (jobservice, core, …) | `harbor-uid-range` → SA `harbor` (UID **999–10000**) — `harbor-scc-setup.sh` |
 | `linkerd` | control plane | `privileged` → từng SA `linkerd-*` (nếu `nonroot` không đủ) |
 
 Xem [INSTALL-NFS-CSI.md](./INSTALL-NFS-CSI.md) §3.3.

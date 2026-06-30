@@ -26,30 +26,21 @@ spec:
         harborAdminPassword: "ChangeMe-Harbor-Admin"
         internalTLS:
           enabled: false
-        # Lab k3d: tắt Trivy giảm RAM + thời gian khởi động
-        trivy:
-          enabled: false
-        database:
-          type: internal
-          internal:
-            password: "ChangeMe-Harbor-DB"
-            shmSizeLimit: 256Mi
-            resources:
-              requests:
-                cpu: 100m
-                memory: 256Mi
-              limits:
-                memory: 512Mi
-        redis:
-          type: internal
-          internal:
-            resources:
-              requests:
-                cpu: 50m
-                memory: 128Mi
-              limits:
-                memory: 256Mi
+        # OCP: Harbor image dùng UID 999/10000 — SA harbor + SCC harbor-uid-range (harbor-scc-setup.sh)
+        nginx:
+          serviceAccountName: harbor
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+        portal:
+          serviceAccountName: harbor
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
         core:
+          serviceAccountName: harbor
           resources:
             requests:
               cpu: 100m
@@ -64,6 +55,7 @@ spec:
           livenessProbe:
             initialDelaySeconds: 60
         jobservice:
+          serviceAccountName: harbor
           maxJobWorkers: 2
           resources:
             requests:
@@ -72,20 +64,35 @@ spec:
             limits:
               memory: 512Mi
         registry:
+          serviceAccountName: harbor
           resources:
             requests:
               cpu: 50m
               memory: 128Mi
-        portal:
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-        nginx:
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
+        trivy:
+          enabled: false
+        database:
+          type: internal
+          internal:
+            serviceAccountName: harbor
+            password: "ChangeMe-Harbor-DB"
+            shmSizeLimit: 256Mi
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+        redis:
+          type: internal
+          internal:
+            serviceAccountName: harbor
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                memory: 256Mi
         persistence:
           enabled: true
           persistentVolumeClaim:
