@@ -17,9 +17,9 @@ spec:
     helm:
       releaseName: vault
       values: |
-        # Lab OCP: ESO không dùng Agent Injector; image từ Docker Hub (tránh Red Hat registry tag lỗi)
+        # OCP: image Red Hat UBI (-ubi suffix); injector tắt (Phase 9 dùng ESO)
         global:
-          openshift: false
+          openshift: true
         injector:
           enabled: false
         server:
@@ -29,8 +29,10 @@ spec:
             enabled: true
             devRootToken: "root"
           image:
-            repository: hashicorp/vault
-            tag: "1.17.2"
+            repository: registry.connect.redhat.com/hashicorp/vault
+            tag: "1.17.2-ubi"
+          readinessProbe:
+            path: "/v1/sys/health?uninitcode=204"
           ingress:
             enabled: false
         ui:
@@ -40,7 +42,7 @@ spec:
     namespace: vault
   syncPolicy:
     automated:
-      prune: false
+      prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
