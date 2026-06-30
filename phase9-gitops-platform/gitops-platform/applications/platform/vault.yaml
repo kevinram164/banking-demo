@@ -16,6 +16,11 @@ spec:
     targetRevision: 0.28.1
     helm:
       releaseName: vault
+      parameters:
+        - name: injector.enabled
+          value: "false"
+        - name: global.openshift
+          value: "true"
       values: |
         # OCP: image Red Hat UBI (-ubi suffix); injector tắt (Phase 9 dùng ESO)
         global:
