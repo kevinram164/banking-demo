@@ -371,14 +371,41 @@ ArgoCD **đã đọc Git** (desired state có Route) nhưng **cluster chưa có*
 
 ### 9.3 Sửa
 
+**Bước A — Kiểm tra app (chưa sync thì Route không tồn tại)**
+
 ```bash
-# Apply App of Apps routes (nếu chưa có)
-oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/platform-routes-app-of-apps.yaml -n argocd
+oc get application platform-routes-dev-ocp -n argocd \
+  -o jsonpath='sync={.status.sync.status} health={.status.health.status}{"\n"}'
 
-# Sync
-argocd app sync platform-routes-dev-ocp
+oc describe application platform-routes-dev-ocp -n argocd | tail -25
+```
 
-# Kiểm tra
+**Bước B — Sync ArgoCD (bắt buộc sau `oc apply` Application)**
+
+```bash
+# Cần git push dev-ocp trước (ArgoCD đọc GitHub, không đọc bastion)
+argocd app get platform-routes-dev-ocp
+argocd app refresh platform-routes-dev-ocp --hard
+argocd app sync platform-routes-dev-ocp --force
+```
+
+**Bước C — Apply tay (nếu chưa có argocd CLI hoặc sync lỗi)**
+
+```bash
+cd banking-demo
+git pull origin dev-ocp
+
+oc apply -k phase9-gitops-platform/environments/dev-ocp/ocp-values/routes/
+
+# Chỉ 3 route platform (nhanh)
+oc apply -f phase9-gitops-platform/environments/dev-ocp/ocp-values/routes/harbor-route.yaml
+oc apply -f phase9-gitops-platform/environments/dev-ocp/ocp-values/routes/jenkins-route.yaml
+oc apply -f phase9-gitops-platform/environments/dev-ocp/ocp-values/routes/vault-route.yaml
+```
+
+**Bước D — Kiểm tra**
+
+```bash
 oc get route -n platform harbor-platform jenkins-platform
 oc get route -n vault vault-platform
 ```
@@ -401,7 +428,49 @@ oc delete route harbor-banking -n platform --ignore-not-found
 oc delete route vault-banking -n vault --ignore-not-found
 ```
 
-**Lưu ý:** Harbor **project** CI vẫn là `banking-demo` — chỉ **hostname** đổi thành `harbor-platform...`.
+### 9.5 Harbor Route 503 (pod Running nhưng curl 503)
+
+**Triệu chứng:** `curl -skI https://harbor-platform...` → `HTTP/1.0 503`, pod Harbor đều Running.
+
+**Chẩn đoán**
+
+```bash
+# Service + endpoint (phải trỏ nginx :8080)
+oc describe svc harbor -n platform
+oc get endpoints harbor -n platform
+oc get pod -n platform -l component=nginx -o wide
+
+# Từ trong cluster
+oc run curl-harbor -n platform --rm -it --restart=Never --image=curlimages/curl -- \
+  curl -sI http://harbor.platform.svc.cluster.local/
+
+# Trực tiếp nginx pod (thay IP từ oc get pod -o wide)
+oc exec -n platform deploy/harbor-nginx -- curl -sI http://127.0.0.1:8080/
+```
+
+| Kết quả curl nội bộ | Nguyên nhân |
+|---------------------|-------------|
+| `200` / `302` | Route OCP — dùng `targetPort: http` (tên port Service), re-apply route |
+| `503` | Nginx upstream lỗi — `oc logs deploy/harbor-core -n platform` |
+| Connection refused | Service selector / nginx không listen |
+
+**Sửa Route** (`harbor-route.yaml`):
+
+```yaml
+port:
+  targetPort: http   # không dùng 80 — Service đặt tên port là http
+```
+
+```bash
+oc apply -f phase9-gitops-platform/environments/dev-ocp/ocp-values/routes/harbor-route.yaml
+curl -skI https://harbor-platform.apps.ocp01.npd.co | head -5
+```
+
+**externalURL** phải khớp host Route — sync `platform-harbor`:
+
+```bash
+argocd app sync platform-harbor
+```
 
 ---
 
