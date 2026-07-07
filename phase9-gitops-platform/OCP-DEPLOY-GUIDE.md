@@ -56,9 +56,9 @@ Browser / oc
 OpenShift Router (HAProxy) — TLS edge
     │
     ├── argocd-server-argocd.apps.ocp01.npd.co   → ArgoCD (ns argocd)
-    ├── harbor-banking.apps.ocp01.npd.co         → Harbor (ns platform)
+    ├── harbor-platform.apps.ocp01.npd.co         → Harbor (ns platform)
     ├── jenkins-platform.apps.ocp01.npd.co       → Jenkins (ns platform)
-    ├── vault-banking.apps.ocp01.npd.co          → Vault (ns vault)
+    ├── vault-platform.apps.ocp01.npd.co          → Vault (ns vault)
     ├── kong.apps.ocp01.npd.co                   → Kong proxy (ns kong)
     └── npd-banking.co (/ , /api , /ws)          → frontend + Kong (ns banking)
 
@@ -73,7 +73,7 @@ GitHub (dev-ocp) ──webhook──► Jenkins ──Kaniko──► Harbor
 | Namespace | Thành phần | URL | Giai đoạn |
 |-----------|------------|-----|-----------|
 | `argocd` | ArgoCD upstream | `argocd-server-argocd.apps.<domain>` | 1 |
-| `platform` | Jenkins, Harbor | `jenkins-platform...`, `harbor-banking...` | 2 |
+| `platform` | Jenkins, Harbor | `jenkins-platform...`, `harbor-platform...` | 2 |
 | `vault` | Vault | `vault-banking...` | 2 |
 | `external-secrets` | ESO | — | 2 |
 | `observability` | Coroot, OTEL | (tùy chọn — `oc expose` hoặc Route) | 2b |
@@ -298,15 +298,15 @@ oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/plat
 
 | Route | Host | Backend |
 |-------|------|---------|
-| Harbor | `harbor-banking.apps.ocp01.npd.co` | `harbor:80` (ns `platform`) |
+| Harbor | `harbor-platform.apps.ocp01.npd.co` | `harbor:80` (ns `platform`) |
 | Jenkins | `jenkins-platform.apps.ocp01.npd.co` | `jenkins:http` |
-| Vault | `vault-banking.apps.ocp01.npd.co` | `vault:8200` (ns `vault`) |
+| Vault | `vault-platform.apps.ocp01.npd.co` | `vault:8200` (ns `vault`) |
 
 Manifest: [`environments/dev-ocp/ocp-values/routes/`](./environments/dev-ocp/ocp-values/routes/)
 
 ### 5.4 Harbor
 
-1. UI: **https://harbor-banking.apps.ocp01.npd.co** — đổi admin password
+1. UI: **https://harbor-platform.apps.ocp01.npd.co** — đổi admin password
 2. Tạo project **`banking-demo`**
 3. Robot accounts: **`ci-push`** (Jenkins push), **`k8s-pull`** (cluster pull)
 
@@ -314,13 +314,13 @@ Pull secret — tên **`harbor-pull-creds`** (tránh conflict với secret Harbo
 
 ```bash
 oc create secret docker-registry harbor-pull-creds \
-  --docker-server=harbor-banking.apps.ocp01.npd.co \
+  --docker-server=harbor-platform.apps.ocp01.npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='ROBOT_TOKEN' \
   -n banking --dry-run=client -o yaml | oc apply -f -
 
 oc create secret docker-registry harbor-pull-creds \
-  --docker-server=harbor-banking.apps.ocp01.npd.co \
+  --docker-server=harbor-platform.apps.ocp01.npd.co \
   --docker-username='robot$k8s-pull' \
   --docker-password='ROBOT_TOKEN' \
   -n platform --dry-run=client -o yaml | oc apply -f -
@@ -357,7 +357,7 @@ vault kv put secret/rabbitmq/admin \
   password='bankingpass'
 ```
 
-UI lab: **https://vault-banking.apps.ocp01.npd.co**, token **`root`**.
+UI lab: **https://vault-platform.apps.ocp01.npd.co**, token **`root`**.
 
 #### Bước 2 — Sync ESO controller
 
@@ -578,7 +578,7 @@ git push origin dev-ocp
 Jenkins pipeline kỳ vọng:
 
 1. Kaniko build từ Dockerfile Phase 8
-2. Push `harbor-banking.apps.ocp01.npd.co/banking-demo/<service>:<short-sha>`
+2. Push `harbor-platform.apps.ocp01.npd.co/banking-demo/<service>:<short-sha>`
 3. Commit + push `phase9-gitops-platform/gitops/values-images.yaml`
 
 Verify:
@@ -748,7 +748,7 @@ oc get pods -n banking
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |
-| Git push 403 | PAT thiếu **Contents: Read and write** |
+| Route `Missing` / not found | Sync `platform-routes-dev-ocp` — xem INSTALL-TROUBLESHOOTING.md §9 |
 
 ---
 

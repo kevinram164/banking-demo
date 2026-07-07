@@ -5,7 +5,7 @@ gitops:
   valuesImagesPath: phase9-gitops-platform/gitops/values-images.yaml
 
 harbor:
-  host: harbor-banking.apps.ocp01.npd.co
+  host: harbor-platform.apps.ocp01.npd.co
   project: banking-demo
 
 jenkins:
@@ -22,8 +22,8 @@ domains:
   argocd: argocd-server-argocd.apps.ocp01.npd.co
   banking: npd-banking.co
   kong: kong.apps.ocp01.npd.co
-  harbor: harbor-banking.apps.ocp01.npd.co
-  vault: vault-banking.apps.ocp01.npd.co
+  harbor: harbor-platform.apps.ocp01.npd.co
+  vault: vault-platform.apps.ocp01.npd.co
   jenkins: jenkins-platform.apps.ocp01.npd.co
 
 openshift:

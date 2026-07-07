@@ -27,9 +27,9 @@ Browser / oc
     ▼
 OpenShift Router (HAProxy) — TLS edge
     │
-    ├── harbor-banking.apps.ocp01.npd.co     → Harbor (ns platform)
+    ├── harbor-platform.apps.ocp01.npd.co     → Harbor (ns platform)
     ├── jenkins-platform.apps.ocp01.npd.co → Jenkins (ns platform)
-    ├── vault-banking.apps.ocp01.npd.co      → Vault (ns vault)
+    ├── vault-platform.apps.ocp01.npd.co      → Vault (ns vault)
     ├── argocd-server-argocd.apps...       → ArgoCD UI
     ├── kong.apps.ocp01.npd.co               → Kong proxy (ns kong)
     └── npd-banking.co                       → frontend + /api,/ws → Kong (ns banking)
@@ -41,7 +41,7 @@ OpenShift Router (HAProxy) — TLS edge
 Git push dev-ocp
     → Jenkins (Multibranch, branch dev-ocp)
     → Kaniko build in-cluster
-    → push harbor-banking.apps.ocp01.npd.co/banking-demo/<svc>:<sha>
+    → push harbor-platform.apps.ocp01.npd.co/banking-demo/<svc>:<sha>
     → commit phase9-gitops-platform/gitops/values-images.yaml
     → ArgoCD sync banking apps
 ```

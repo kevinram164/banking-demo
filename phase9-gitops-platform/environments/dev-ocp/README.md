@@ -10,9 +10,9 @@ Cấu hình ArgoCD + GitOps cho nhánh **`dev-ocp`** trên cluster **OpenShift**
 |---------|-----|
 | OpenShift Console | https://console-openshift-console.apps.ocp01.npd.co |
 | ArgoCD | https://argocd-server-argocd.apps.ocp01.npd.co |
-| Harbor | https://harbor-banking.apps.ocp01.npd.co |
+| Harbor | https://harbor-platform.apps.ocp01.npd.co |
 | Jenkins | https://jenkins-platform.apps.ocp01.npd.co |
-| Vault | https://vault-banking.apps.ocp01.npd.co |
+| Vault | https://vault-platform.apps.ocp01.npd.co |
 | Banking app | https://npd-banking.co |
 | Kong proxy | https://kong.apps.ocp01.npd.co |
 

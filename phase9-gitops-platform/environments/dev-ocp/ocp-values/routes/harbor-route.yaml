@@ -2,7 +2,7 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: harbor-banking
+  name: harbor-platform
   namespace: platform
   labels:
     app.kubernetes.io/name: harbor
@@ -12,7 +12,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
     haproxy.router.openshift.io/timeout: 600s
 spec:
-  host: harbor-banking.apps.ocp01.npd.co
+  host: harbor-platform.apps.ocp01.npd.co
   to:
     kind: Service
     name: harbor

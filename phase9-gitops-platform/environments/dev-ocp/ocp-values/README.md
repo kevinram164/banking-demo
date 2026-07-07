@@ -26,9 +26,9 @@ Hướng dẫn: [INSTALL-NFS-CSI.md](../INSTALL-NFS-CSI.md)
 
 | File | Host | Service | NS |
 |------|------|---------|-----|
-| `routes/harbor-route.yaml` | `harbor-banking.apps.ocp01.npd.co` | `harbor:80` | `platform` |
+| `routes/harbor-route.yaml` | `harbor-platform.apps.ocp01.npd.co` | `harbor:80` | `platform` |
 | `routes/jenkins-route.yaml` | `jenkins-platform.apps.ocp01.npd.co` | `jenkins:http` | `platform` |
-| `routes/vault-route.yaml` | `vault-banking.apps.ocp01.npd.co` | `vault:8200` | `vault` |
+| `routes/vault-route.yaml` | `vault-platform.apps.ocp01.npd.co` | `vault:8200` | `vault` |
 | `routes/argocd-route.yaml` | `argocd-server-argocd.apps.ocp01.npd.co` | `argocd-server` | `argocd` |
 | `routes/banking-route-*.yaml` | `npd-banking.co` | `frontend`, `kong-proxy-ext` | `banking` |
 | `routes/kong-route.yaml` | `kong.apps.ocp01.npd.co` | `kong-kong-proxy:8000` | `kong` |

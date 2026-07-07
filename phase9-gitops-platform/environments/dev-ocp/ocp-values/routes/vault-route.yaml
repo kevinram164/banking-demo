@@ -2,7 +2,7 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: vault-banking
+  name: vault-platform
   namespace: vault
   labels:
     app.kubernetes.io/name: vault
@@ -11,7 +11,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 spec:
-  host: vault-banking.apps.ocp01.npd.co
+  host: vault-platform.apps.ocp01.npd.co
   to:
     kind: Service
     name: vault

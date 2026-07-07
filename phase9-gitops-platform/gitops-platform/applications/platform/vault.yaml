@@ -1,4 +1,4 @@
-# HashiCorp Vault — dev-ocp: https://vault-banking.apps.ocp01.npd.co (dev mode, lab only)
+# HashiCorp Vault — dev-ocp: https://vault-platform.apps.ocp01.npd.co (dev mode, lab only)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

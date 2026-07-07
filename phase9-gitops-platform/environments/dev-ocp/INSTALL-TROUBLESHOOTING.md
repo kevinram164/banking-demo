@@ -352,6 +352,59 @@ argocd app get platform-vault
 
 ---
 
+## 9. OpenShift Routes — `Missing` / Resource not found
+
+### 9.1 Triệu chứng (ArgoCD)
+
+```text
+Health: Missing
+Resource not found in cluster: route.openshift.io/v1/Route:harbor-platform
+```
+
+Các Route: `harbor-platform`, `vault-platform`, `jenkins-platform` trong app **`platform-routes-dev-ocp`**.
+
+### 9.2 Nguyên nhân
+
+ArgoCD **đã đọc Git** (desired state có Route) nhưng **cluster chưa có** Route đó — chưa sync app routes hoặc sync lỗi.
+
+Đây **không** phải lỗi tên file sai; là **chưa apply** lên cluster.
+
+### 9.3 Sửa
+
+```bash
+# Apply App of Apps routes (nếu chưa có)
+oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/platform-routes-app-of-apps.yaml -n argocd
+
+# Sync
+argocd app sync platform-routes-dev-ocp
+
+# Kiểm tra
+oc get route -n platform harbor-platform jenkins-platform
+oc get route -n vault vault-platform
+```
+
+**Thứ tự:** Harbor/Jenkins/Vault pods **Running** trước → sync `platform-routes-dev-ocp` (wave 3).
+
+### 9.4 Đổi tên `*-banking` → `*-platform` (Harbor/Vault)
+
+| Cũ | Mới |
+|----|-----|
+| `harbor-banking.apps.ocp01.npd.co` | `harbor-platform.apps.ocp01.npd.co` |
+| `vault-banking.apps.ocp01.npd.co` | `vault-platform.apps.ocp01.npd.co` |
+
+Route metadata `name`: `harbor-platform`, `vault-platform` (namespace `platform` / `vault`).
+
+Sau đổi tên Git: sync `platform-routes-dev-ocp` + `platform-harbor` (externalURL) + xóa Route cũ nếu còn:
+
+```bash
+oc delete route harbor-banking -n platform --ignore-not-found
+oc delete route vault-banking -n vault --ignore-not-found
+```
+
+**Lưu ý:** Harbor **project** CI vẫn là `banking-demo` — chỉ **hostname** đổi thành `harbor-platform...`.
+
+---
+
 ## Liên kết
 
 | Tài liệu | Nội dung |

@@ -5,7 +5,7 @@ gitops:
   valuesImagesPath: phase9-gitops-platform/gitops/values-images.yaml
 
 harbor:
-  host: harbor-banking.apps.ocp01.npd.co
+  host: harbor-platform.apps.ocp01.npd.co
   project: banking-demo
 
 jenkins:

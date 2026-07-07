@@ -112,7 +112,7 @@ flowchart TB
 |----------------|---------|----------|
 | 1 | GitHub | Push vào `phase8-application-v3/**` |
 | 2 | Jenkins | Shared library `bankingDemoPipeline` — Kaniko build |
-| 3 | Harbor | `harbor-banking.apps.ocp01.npd.co/banking-demo/<service>:<sha>` |
+| 3 | Harbor | `harbor-platform.apps.ocp01.npd.co/banking-demo/<service>:<sha>` |
 | 4 | Jenkins | Commit `gitops/values-images.yaml` (tag = short SHA) |
 | 5 | ArgoCD | Auto-sync Application banking → rollout Deployment |
 

@@ -1,4 +1,4 @@
-# Harbor — dev-ocp: harbor-banking.apps.ocp01.npd.co
+# Harbor — dev-ocp: harbor-platform.apps.ocp01.npd.co
 # Xem harbor/README.md: TLS, admin password, robot accounts
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -22,7 +22,7 @@ spec:
           type: clusterIP
           tls:
             enabled: false
-        externalURL: https://harbor-banking.apps.ocp01.npd.co
+        externalURL: https://harbor-platform.apps.ocp01.npd.co
         harborAdminPassword: "ChangeMe-Harbor-Admin"
         internalTLS:
           enabled: false
