@@ -32,15 +32,18 @@ class PipelineConfig implements Serializable {
 
     static Map mergeDefaults(Map user) {
         def defaults = [
-            harborHost       : 'harbor.example.com',
-            harborProject    : 'banking-demo',
-            gitBranch        : 'main',
-            gitRepoUrl       : 'https://github.com/kevinram164/banking-demo.git',
-            gitopsValuesFile : 'phase9-gitops-platform/gitops/values-images.yaml',
-            kanikoImage      : 'gcr.io/kaniko-project/executor:v1.23.2-debug',
-            harborCredId     : 'harbor-ci-push',
-            gitopsCredId     : 'github-gitops-push',
-            kanikoSkipTlsVerify: false,  // lab k3d Harbor self-signed → true trong Jenkinsfile
+            harborHost         : 'harbor.example.com',
+            harborProject      : 'banking-demo',
+            gitBranch          : 'main',
+            gitRepoUrl         : 'https://github.com/kevinram164/banking-demo.git',
+            gitopsValuesFile   : 'phase9-gitops-platform/gitops/values-images.yaml',
+            kanikoImage        : 'gcr.io/kaniko-project/executor:v1.23.2-debug',
+            kanikoSkipTlsVerify: false,
+            kanikoUseCache     : false,
+            vaultAddr          : 'http://vault.vault.svc.cluster.local:8200',
+            vaultRole          : 'jenkins-kaniko',
+            vaultHarborPath    : 'platform/harbor',
+            vaultGithubPath    : 'platform/github',
         ]
         return defaults + user
     }

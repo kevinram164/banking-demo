@@ -310,20 +310,21 @@ Manifest: [`environments/dev-ocp/ocp-values/routes/`](./environments/dev-ocp/ocp
 2. Tạo project **`banking-demo`**
 3. Robot accounts: **`ci-push`** (Jenkins push), **`k8s-pull`** (cluster pull)
 
-Pull secret — tên **`harbor-pull-creds`** (tránh conflict với secret Harbor chart):
+**Pull secret** — seed Vault `secret/platform/harbor-pull` (robot `k8s-pull`); ESO tự tạo `harbor-pull-creds` trong ns `banking` + `platform` (xem [vault/README.md](./vault/README.md) mục 5.5). **Không** `oc create secret` thủ công.
 
 ```bash
-oc create secret docker-registry harbor-pull-creds \
-  --docker-server=harbor-platform.apps.ocp01.npd.co \
-  --docker-username='robot$k8s-pull' \
-  --docker-password='ROBOT_TOKEN' \
-  -n banking --dry-run=client -o yaml | oc apply -f -
+# Trong pod vault-0 (sau khi tạo robot k8s-pull trên Harbor UI)
+vault kv put secret/platform/harbor-pull \
+  registry='harbor-platform.apps.ocp01.npd.co' \
+  username='robot$banking-demo+k8s-pull' \
+  password='ROBOT_TOKEN'
+```
 
-oc create secret docker-registry harbor-pull-creds \
-  --docker-server=harbor-platform.apps.ocp01.npd.co \
-  --docker-username='robot$k8s-pull' \
-  --docker-password='ROBOT_TOKEN' \
-  -n platform --dry-run=client -o yaml | oc apply -f -
+Sau sync `platform-external-secrets-config`:
+
+```bash
+oc get externalsecret harbor-pull-creds -n banking
+oc get secret harbor-pull-creds -n banking
 ```
 
 > **OCP vs k3d:** Không cần registry mirror `registries.yaml`. Kaniko dùng `kanikoSkipTlsVerify: true` trong `Jenkinsfile`; kubelet pull qua Route TLS của OpenShift Router.
@@ -355,6 +356,11 @@ vault kv put secret/banking/rabbitmq \
 vault kv put secret/rabbitmq/admin \
   username='banking' \
   password='bankingpass'
+
+vault kv put secret/platform/harbor-pull \
+  registry='harbor-platform.apps.ocp01.npd.co' \
+  username='robot$banking-demo+k8s-pull' \
+  password='HARBOR_K8S_PULL_TOKEN'
 ```
 
 UI lab: **https://vault-platform.apps.ocp01.npd.co**, token **`root`**.
@@ -386,6 +392,7 @@ ArgoCD: `platform-external-secrets-config`
 oc get clustersecretstore vault-backend
 oc get externalsecret -A
 oc get secret banking-db-secret -n banking
+oc get secret harbor-pull-creds -n banking
 ```
 
 Force reconcile nếu cần:
@@ -426,21 +433,36 @@ oc get secret jenkins -n platform \
 | Branch | **`dev-ocp`** |
 | Path | `phase9-gitops-platform/jenkins-shared-library` |
 
-#### Bước 4 — Credential qua Vault
+#### Bước 4 — Secret trong Vault (admin + CI)
 
 Seed Vault (trong pod `vault-0`):
 
 ```bash
+# Robot Harbor — pipeline đọc trực tiếp (không Jenkins credential)
+vault kv put secret/platform/harbor \
+  username='robot$banking-demo+ci-push' \
+  password='HARBOR_ROBOT_TOKEN'
+
+# GitHub PAT — push GitOps
+vault kv put secret/platform/github \
+  username='kevinram164' \
+  pat='github_pat_xxxx'
+
+# Chỉ admin Jenkins (+ webhook tùy chọn)
 vault kv put secret/platform/jenkins \
   admin_username='admin' \
-  admin_password='YOUR_JENKINS_ADMIN_PASSWORD' \
-  harbor_username='robot$banking-demo+ci-push' \
-  harbor_password='HARBOR_ROBOT_TOKEN' \
-  github_username='kevinram164' \
-  github_pat='github_pat_xxxx'
+  admin_password='YOUR_JENKINS_ADMIN_PASSWORD'
 ```
 
-Kiểm tra ESO:
+Bật Vault Kubernetes auth cho agent `jenkins-kaniko` (một lần, trên bastion):
+
+```bash
+export VAULT_TOKEN=root
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/vault-setup-jenkins-k8s-auth.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/vault-setup-jenkins-k8s-auth.sh
+```
+
+Kiểm tra ESO (chỉ admin):
 
 ```bash
 oc get externalsecret jenkins-platform-credentials -n platform
@@ -470,7 +492,7 @@ oc create serviceaccount jenkins-kaniko -n platform --dry-run=client -o yaml | o
 
 GitHub → Webhooks → `https://jenkins-platform.apps.ocp01.npd.co/github-webhook/`
 
-**Checkpoint Giai đoạn 2:** Harbor UI + project `banking-demo`; Vault seeded; Jenkins login + credentials OK.
+**Checkpoint Giai đoạn 2:** Harbor UI + project `banking-demo`; Vault seeded (harbor/github/jenkins); Jenkins login OK; Vault K8s auth cho `jenkins-kaniko`.
 
 ---
 
@@ -591,8 +613,10 @@ git log -1 --oneline -- phase9-gitops-platform/gitops/values-images.yaml
 
 ### 8.2 Checklist CI/CD
 
-- [ ] Vault `secret/platform/jenkins` seeded
-- [ ] Credentials `harbor-ci-push`, `github-gitops-push` (JCasC)
+- [ ] Vault `secret/platform/harbor` + `secret/platform/github` seeded
+- [ ] Vault `secret/platform/harbor-pull` + ESO `harbor-pull-creds` (ns banking)
+- [ ] Vault K8s auth + role `jenkins-kaniko` (`vault-setup-jenkins-k8s-auth.sh`)
+- [ ] Vault `secret/platform/jenkins` (admin) + ESO sync
 - [ ] SA `jenkins-kaniko` tồn tại
 - [ ] Multibranch filter **`dev-ocp`**
 - [ ] Pipeline green end-to-end
@@ -624,7 +648,7 @@ oc get applications -n argocd | grep banking
 oc get pods -n banking
 ```
 
-`ImagePullBackOff` → kiểm tra `harbor-pull-creds`, tag trong `values-images.yaml`, CI đã push image.
+`ImagePullBackOff` → kiểm tra Vault `platform/harbor-pull`, ESO `harbor-pull-creds`, tag trong `values-images.yaml`, CI đã push image.
 
 ### 9.2 Banking Routes
 
@@ -744,7 +768,7 @@ oc get pods -n banking
 | PVC Pending | Kiểm tra NFS CSI pods; worker mount được NFS server |
 | `jenkins-platform-credentials` not found | Seed Vault + vault-token + sync ESO config — xem INSTALL-TROUBLESHOOTING.md §6 |
 | `vault-token` not found | Tạo secret trước ClusterSecretStore |
-| ImagePullBackOff | `harbor-pull-creds` + CI đã push image? |
+| ImagePullBackOff | Vault `platform/harbor-pull` seeded? ESO `harbor-pull-creds` synced? CI đã push image? |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |

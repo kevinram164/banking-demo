@@ -23,11 +23,11 @@ class KanikoBuilder implements Serializable {
         }
         def extraFlags = extras.join(' ')
 
-        steps.withCredentials([steps.usernamePassword(
-            credentialsId: cfg.harborCredId,
-            usernameVariable: 'HARBOR_USER',
-            passwordVariable: 'HARBOR_PASS',
-        )]) {
+        def harbor = VaultClient.harborCredentials(steps, cfg)
+        steps.withEnv([
+            "HARBOR_USER=${harbor.username}",
+            "HARBOR_PASS=${harbor.password}",
+        ]) {
             steps.container('kaniko') {
                 steps.sh """
                 set -e

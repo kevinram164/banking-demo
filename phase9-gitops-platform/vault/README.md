@@ -8,8 +8,10 @@ Thay `kubectl create secret` thủ công (Phase 8 README) bằng sync từ Vault
 secret/banking/db          → banking-db-secret (ns banking)
 secret/banking/rabbitmq    → rabbitmq-connection-secret (ns banking)
 secret/rabbitmq/admin      → rabbitmq-secret (ns rabbit)
-secret/platform/harbor     → harbor-registry dockerconfigjson
-secret/platform/jenkins    → credential Jenkins (webhook / git push)
+secret/platform/harbor      → robot ci-push (pipeline Jenkins)
+secret/platform/harbor-pull → robot k8s-pull → harbor-pull-creds (ESO, ns banking + platform)
+secret/platform/github      → GitHub PAT (pipeline push GitOps)
+secret/platform/jenkins     → Jenkins admin + webhook (ESO → Helm)
 ```
 
 ---
@@ -117,50 +119,80 @@ vault kv put secret/rabbitmq/admin \
   password='banking'
 ```
 
-#### 5.4 `secret/platform/harbor` (docker registry)
+#### 5.4 `secret/platform/harbor` — robot account CI
 
-ESO thường map field `.dockerconfigjson`. Lưu nội dung JSON registry:
+Pipeline Jenkins đọc **trực tiếp** qua Vault Kubernetes auth (không Jenkins credential):
 
 ```bash
 vault kv put secret/platform/harbor \
-  .dockerconfigjson='{"auths":{"harbor-npd.co":{"username":"robot$k8s-pull","password":"ROBOT_TOKEN","auth":"BASE64_USER_PASS"}}}'
+  username='robot$banking-demo+ci-push' \
+  password='HARBOR_ROBOT_TOKEN'
 ```
 
-Lấy JSON từ máy local (ngoài pod), rồi `kv put` **trong pod**:
+#### 5.5 `secret/platform/harbor-pull` — robot k8s-pull (kubelet pull)
+
+ESO sync → K8s secret `harbor-pull-creds` (ns `banking`, `platform`). **Không** `oc create secret` thủ công.
 
 ```bash
-# trên máy local
-kubectl get secret harbor-pull-creds -n platform -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d
+# OCP dev-ocp
+vault kv put secret/platform/harbor-pull \
+  registry='harbor-platform.apps.ocp01.npd.co' \
+  username='robot$banking-demo+k8s-pull' \
+  password='HARBOR_ROBOT_TOKEN'
 
-# trong pod vault-0
-vault kv put secret/platform/harbor .dockerconfigjson='<dán JSON ở trên>'
+# Lab k3d
+vault kv put secret/platform/harbor-pull \
+  registry='harbor-npd.co' \
+  username='robot$banking-demo+k8s-pull' \
+  password='HARBOR_ROBOT_TOKEN'
 ```
 
-#### 5.5 `secret/platform/jenkins` — toàn bộ credential Jenkins
+Kiểm tra sau sync `platform-external-secrets-config`:
 
-JCasC tạo ID `harbor-ci-push`, `github-gitops-push` từ secret này (không nhập tay trên UI).
+```bash
+kubectl get externalsecret harbor-pull-creds -n banking
+kubectl get secret harbor-pull-creds -n banking -o jsonpath='{.type}'; echo
+# kubernetes.io/dockerconfigjson
+```
+
+#### 5.6 `secret/platform/github` — push GitOps
+
+```bash
+vault kv put secret/platform/github \
+  username='kevinram164' \
+  pat='github_pat_xxxx'
+```
+
+Pipeline đọc path này khi commit `values-images.yaml` — không lưu PAT trong Jenkins.
+
+#### 5.7 `secret/platform/jenkins` — admin UI (+ webhook)
+
+Chỉ dùng cho **đăng nhập Jenkins** và webhook (ESO → `jenkins-platform-credentials`):
 
 ```bash
 vault kv put secret/platform/jenkins \
   admin_username='admin' \
   admin_password='YOUR_JENKINS_ADMIN_PASSWORD' \
-  harbor_username='robot$banking-demo+ci-push' \
-  harbor_password='HARBOR_ROBOT_TOKEN' \
-  github_username='kevinram164' \
-  github_pat='github_pat_xxxx' \
   github_webhook_secret='OPTIONAL_WEBHOOK_SECRET'
 ```
 
-| Vault key | Jenkins dùng cho |
-|-----------|------------------|
-| `admin_username` / `admin_password` | Login UI (`jenkins-admin-user` / `jenkins-admin-password` trong K8s secret) |
-| `harbor_username` / `harbor_password` | Credential `harbor-ci-push` (Kaniko) |
-| `github_username` / `github_pat` | Credential `github-gitops-push` (push GitOps) |
+| Vault key | Dùng cho |
+|-----------|----------|
+| `admin_username` / `admin_password` | Login UI (`jenkins-admin-user` / `jenkins-admin-password`) |
 | `github_webhook_secret` | (Tùy chọn) GitHub webhook |
 
-Sau seed → ESO tạo secret `jenkins-platform-credentials` (ns `platform`) → Jenkins wave 2 đọc qua JCasC.
+Harbor robot CI và GitHub PAT **không** nằm trong path này — xem mục 5.4–5.6.
 
-Đổi secret (rotate): `vault kv patch` → force-sync ExternalSecret → restart Jenkins:
+Sau seed admin → ESO tạo secret `jenkins-platform-credentials` (ns `platform`) → Helm `existingSecret`.
+
+**Pipeline CI:** agent pod `jenkins-kaniko` login Vault qua Kubernetes auth — chạy một lần trên bastion:
+
+```bash
+export VAULT_TOKEN=root
+./phase9-gitops-platform/environments/dev-ocp/scripts/vault-setup-jenkins-k8s-auth.sh
+```
+
+Đổi secret (rotate): `vault kv patch` → force-sync ExternalSecret (admin) hoặc pipeline đọc version mới ngay (harbor/github):
 
 ```bash
 kubectl annotate externalsecret jenkins-platform-credentials -n platform force-sync=$(date +%s) --overwrite
@@ -234,8 +266,8 @@ vault kv put secret/rabbitmq/admin \
   password='bankingpass'
 
 # harbor / jenkins: thay giá trị thật trước khi chạy
-# vault kv put secret/platform/harbor .dockerconfigjson='...'
-# vault kv put secret/platform/jenkins github_webhook_secret='...'
+# vault kv put secret/platform/harbor-pull registry='...' username='...' password='...'
+# vault kv put secret/platform/jenkins admin_username='admin' admin_password='...'
 ```
 
 ### 8. Map Vault → Kubernetes (ESO)
@@ -245,6 +277,8 @@ vault kv put secret/rabbitmq/admin \
 | `secret/banking/db` | `banking/db` | `banking-db-secret` | `banking` |
 | `secret/banking/rabbitmq` | `banking/rabbitmq` | `rabbitmq-connection-secret` | `banking` |
 | `secret/rabbitmq/admin` | `rabbitmq/admin` | `rabbitmq-secret` | `rabbit` |
+| `secret/platform/harbor-pull` | `platform/harbor-pull` | `harbor-pull-creds` | `banking`, `platform` |
+| `secret/platform/jenkins` | `platform/jenkins` | `jenkins-platform-credentials` | `platform` |
 
 Sau khi seed Vault, ESO đồng bộ theo `refreshInterval` (mặc định 1h) hoặc khi reconcile:
 

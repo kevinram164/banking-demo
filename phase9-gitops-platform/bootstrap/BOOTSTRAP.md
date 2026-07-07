@@ -100,7 +100,8 @@ kubectl apply -f phase9-gitops-platform/environments/dev-k3d/argocd/app-of-apps.
 | `secret/banking/db` | `banking-db-secret` | `banking` |
 | `secret/banking/rabbitmq` | `rabbitmq-connection-secret` | `banking` |
 | `secret/rabbitmq/admin` | `rabbitmq-secret` | `rabbit` |
-| `secret/platform/harbor` | `harbor-registry` (dockerconfigjson) | `banking`, `platform` |
+| `secret/platform/harbor` | — (pipeline đọc runtime) | — |
+| `secret/platform/harbor-pull` | `harbor-pull-creds` (dockerconfigjson) | `banking`, `platform` |
 | `secret/platform/jenkins` | `jenkins-platform-credentials` | `platform` |
 
 ### External Secrets — thứ tự triển khai (lab)

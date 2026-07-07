@@ -298,20 +298,20 @@ kubectl get pods -n external-secrets
 3. Tạo project **`banking-demo`**
 4. Robot accounts: **`ci-push`** (Jenkins push), **`k8s-pull`** (cluster pull)
 
-Pull secret (dùng ở Giai đoạn 5) — **một tên cho cả cluster**: `harbor-pull-creds` (tránh `harbor-registry` trong ns `platform` vì Harbor Helm chart chiếm tên đó):
+**Pull secret** — seed Vault `secret/platform/harbor-pull`; ESO tạo `harbor-pull-creds` (ns `banking`, `platform`). Không `kubectl create secret` thủ công.
 
 ```bash
-kubectl create secret docker-registry harbor-pull-creds \
-  --docker-server=harbor-npd.co \
-  --docker-username='robot$k8s-pull' \
-  --docker-password='ROBOT_TOKEN' \
-  -n banking --dry-run=client -o yaml | kubectl apply -f -
+vault kv put secret/platform/harbor-pull \
+  registry='harbor-npd.co' \
+  username='robot$banking-demo+k8s-pull' \
+  password='ROBOT_TOKEN'
+```
 
-kubectl create secret docker-registry harbor-pull-creds \
-  --docker-server=harbor-npd.co \
-  --docker-username='robot$k8s-pull' \
-  --docker-password='ROBOT_TOKEN' \
-  -n platform --dry-run=client -o yaml | kubectl apply -f -
+Sau sync `platform-external-secrets-config`:
+
+```bash
+kubectl get externalsecret harbor-pull-creds -n banking
+kubectl get secret harbor-pull-creds -n banking
 ```
 
 **Kubelet pull qua TLS (x509):** Node k3d pull `harbor-npd.co` trực tiếp sẽ gặp cert self-signed từ Nginx WSL2 (khác Kaniko `--skip-tls-verify`). Cấu hình mirror HTTP nội bộ:
@@ -364,6 +364,11 @@ vault kv put secret/banking/rabbitmq \
 vault kv put secret/rabbitmq/admin \
   username='banking' \
   password='bankingpass'
+
+vault kv put secret/platform/harbor-pull \
+  registry='harbor-npd.co' \
+  username='robot$banking-demo+k8s-pull' \
+  password='HARBOR_K8S_PULL_TOKEN'
 ```
 
 UI lab (tùy chọn): **https://vault-npd.co**, token **`root`**.
@@ -498,49 +503,49 @@ kubectl delete pod jenkins-0 -n platform
 
 ---
 
-#### Bước 4 — Credential Jenkins qua Vault (không tạo trên UI)
-
-Toàn bộ credential Jenkins lưu tại **`secret/platform/jenkins`** → ESO → JCasC (ID giữ nguyên: `harbor-ci-push`, `github-gitops-push`).
+#### Bước 4 — Secret Vault (admin + CI, không Jenkins credential)
 
 **4a. Seed Vault** (trong pod `vault-0`, xem [vault/README.md](./vault/README.md)):
 
 ```bash
+vault kv put secret/platform/harbor \
+  username='robot$banking-demo+ci-push' \
+  password='HARBOR_ROBOT_TOKEN'
+
+vault kv put secret/platform/github \
+  username='kevinram164' \
+  pat='github_pat_xxxx'
+
 vault kv put secret/platform/jenkins \
   admin_username='admin' \
-  admin_password='YOUR_JENKINS_ADMIN_PASSWORD' \
-  harbor_username='robot$banking-demo+ci-push' \
-  harbor_password='HARBOR_ROBOT_TOKEN' \
-  github_username='kevinram164' \
-  github_pat='github_pat_xxxx'
+  admin_password='YOUR_JENKINS_ADMIN_PASSWORD'
 ```
 
-**4b. Kiểm tra ESO sync** (sau `platform-external-secrets-config`):
+**4b. Vault Kubernetes auth** (một lần):
+
+```bash
+export VAULT_TOKEN=root
+./phase9-gitops-platform/environments/dev-ocp/scripts/vault-setup-jenkins-k8s-auth.sh
+```
+
+**4c. Kiểm tra ESO sync** (admin only):
 
 ```bash
 kubectl get externalsecret jenkins-platform-credentials -n platform
 kubectl get secret jenkins-platform-credentials -n platform
 ```
 
-**4c. Sync Jenkins** (wave 2 — sau khi secret đã có):
-
-ArgoCD → `platform-jenkins` → Sync. Hoặc:
+**4d. Sync Jenkins** (wave 2 — sau khi secret admin đã có):
 
 ```bash
-kubectl delete pod jenkins-0 -n platform   # reload JCasC + admin password
+kubectl delete pod jenkins-0 -n platform
 ```
 
-**4d. Xác nhận trên Jenkins UI**
+Pipeline **không** dùng Jenkins Credentials — Kaniko/Git push đọc Vault runtime qua `VaultClient.groovy`.
 
-Manage Jenkins → Credentials → (global) phải có `harbor-ci-push`, `github-gitops-push` (do JCasC, không cần Add thủ công).
+**GitHub PAT:** Fine-grained → repo `banking-demo` → **Contents: Read and write**.
 
-**GitHub PAT:** Fine-grained → repo `banking-demo` → **Contents: Read and write**. Kiểm tra:
-
-```bash
-curl -s -H "Authorization: Bearer github_pat_xxx" \
-  https://api.github.com/repos/kevinram164/banking-demo | grep -E '"push"|"admin"'
-```
-
-> **Rotate:** `vault kv patch secret/platform/jenkins github_pat='...'` → annotate ExternalSecret → restart `jenkins-0`.
+> **Rotate harbor/github:** `vault kv patch secret/platform/harbor ...` — pipeline lấy ngay. **Rotate admin:** patch `platform/jenkins` → annotate ExternalSecret → restart `jenkins-0`.
 
 ---
 
@@ -626,7 +631,7 @@ git log -1 --oneline -- phase9-gitops-platform/gitops/values-images.yaml
 | Triệu chứng | Cách sửa |
 |-------------|----------|
 | `library banking-demo not found` | Sync `platform-jenkins`, restart `jenkins-0`, đợi plugin + JCasC load |
-| `credentials harbor-ci-push not found` | Seed Vault `secret/platform/jenkins` → ESO sync → restart `jenkins-0` |
+| Vault login failed trong pipeline | Chạy `vault-setup-jenkins-k8s-auth.sh`; seed `platform/harbor` + `platform/github` |
 | Kaniko push 401 | Robot Harbor sai user/token; user phải là `robot$ci-push` |
 | Kaniko `x509: certificate is not valid` / TLS verify | Harbor lab self-signed → `kanikoSkipTlsVerify: true` trong Jenkinsfile |
 | Git push 403 Permission denied | PAT thiếu **Contents: Read and write** / scope `repo`; Password trong Jenkins phải là PAT (`ghp_` / `github_pat_`) |
@@ -865,7 +870,7 @@ git log -1 --oneline -- phase9-gitops-platform/gitops/values-images.yaml
 ### 6.2 Jenkins credentials & webhook checklist
 
 - [ ] Vault `secret/platform/jenkins` seeded → `jenkins-platform-credentials` Bound
-- [ ] JCasC credentials `harbor-ci-push`, `github-gitops-push` (không cần UI)
+- [ ] Vault `platform/harbor` + `platform/github` + `platform/harbor-pull` + K8s auth role `jenkins-kaniko`
 - [ ] Webhook GitHub → Jenkins trigger trên push `dev-k3d`
 - [ ] Pipeline green end-to-end
 

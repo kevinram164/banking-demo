@@ -12,11 +12,15 @@
 @Library('banking-demo') _
 
 bankingDemoPipeline([
-  harborHost           : 'harbor-banking.apps.ocp01.npd.co',
+  harborHost           : 'harbor-platform.apps.ocp01.npd.co',
   harborProject        : 'banking-demo',
   gitBranch            : 'dev-ocp',
   gitRepoUrl           : 'https://github.com/kevinram164/banking-demo.git',
   gitopsValuesFile     : 'phase9-gitops-platform/gitops/values-images.yaml',
   kanikoSkipTlsVerify  : true,
   kanikoUseCache       : false,
+  vaultAddr            : 'http://vault.vault.svc.cluster.local:8200',
+  vaultRole            : 'jenkins-kaniko',
+  vaultHarborPath      : 'platform/harbor',
+  vaultGithubPath      : 'platform/github',
 ])
