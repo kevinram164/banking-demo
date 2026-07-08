@@ -12,25 +12,49 @@ class VaultClient implements Serializable {
         def vaultAddr = (cfg.vaultAddr ?: 'http://vault.vault.svc.cluster.local:8200').replaceAll('/$', '')
         def role = cfg.vaultRole ?: 'jenkins-kaniko'
 
-        // Single-quoted + concat: tránh Groovy GString parse $(...) / $JWT
+        // form-urlencoded: tránh lỗi escape JSON với JWT dài.
+        // Không dùng curl --fail trong script login — in body khi 4xx.
         def loginScript = '''#!/bin/bash
 set -euo pipefail
 JWT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
-curl -sS --fail --request POST \\
-  --data "{\\"jwt\\": \\"${JWT}\\", \\"role\\": \\"''' + role + '''\\"}" \\
-  "''' + vaultAddr + '''/v1/auth/kubernetes/login"
+HTTP=$(mktemp)
+BODY=$(mktemp)
+trap 'rm -f "$HTTP" "$BODY"' EXIT
+CODE=$(curl -sS -o "$BODY" -w "%{http_code}" --request POST \\
+  --data-urlencode "jwt=${JWT}" \\
+  --data-urlencode "role=''' + role + '''" \\
+  "''' + vaultAddr + '''/v1/auth/kubernetes/login")
+cat "$BODY"
+if [ "$CODE" != "200" ]; then
+  echo "Vault kubernetes login HTTP $CODE (role=''' + role + ''')" >&2
+  exit 22
+fi
 '''
         def loginRaw = steps.sh(script: loginScript, returnStdout: true).trim()
         def login = new JsonSlurperClassic().parseText(loginRaw)
+        if (!login?.auth?.client_token) {
+            steps.error("Vault login thiếu client_token: ${loginRaw}")
+        }
         def clientToken = login.auth.client_token.toString()
 
         def secretScript = '''#!/bin/bash
 set -euo pipefail
-curl -sS --fail -H "X-Vault-Token: ''' + clientToken + '''" \\
-  "''' + vaultAddr + '''/v1/secret/data/''' + secretPath + '''"
+BODY=$(mktemp)
+trap 'rm -f "$BODY"' EXIT
+CODE=$(curl -sS -o "$BODY" -w "%{http_code}" \\
+  -H "X-Vault-Token: ''' + clientToken + '''" \\
+  "''' + vaultAddr + '''/v1/secret/data/''' + secretPath + '''")
+cat "$BODY"
+if [ "$CODE" != "200" ]; then
+  echo "Vault read secret/''' + secretPath + ''' HTTP $CODE" >&2
+  exit 22
+fi
 '''
         def secretRaw = steps.sh(script: secretScript, returnStdout: true).trim()
         def secret = new JsonSlurperClassic().parseText(secretRaw)
+        if (!secret?.data?.data) {
+            steps.error("Vault secret/${secretPath} không có data: ${secretRaw}")
+        }
         return secret.data.data as Map
     }
 

@@ -44,7 +44,8 @@ vault write auth/kubernetes/config \
   kubernetes_host='https://kubernetes.default.svc:443' \
   token_reviewer_jwt='${REVIEWER_JWT}' \
   kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-  disable_iss_validation=true
+  disable_iss_validation=true \
+  disable_local_ca_jwt=true
 
 vault policy write jenkins-kaniko - <<'POLICY'
 path \"secret/data/platform/harbor\" {
@@ -60,6 +61,11 @@ vault write auth/kubernetes/role/${VAULT_ROLE} \
   bound_service_account_namespaces=${PLATFORM_NS} \
   policies=jenkins-kaniko \
   ttl=1h
+
+echo '==> Verify role + secrets exist'
+vault read auth/kubernetes/role/${VAULT_ROLE}
+vault kv get secret/platform/harbor >/dev/null && echo 'OK secret/platform/harbor' || echo 'MISSING secret/platform/harbor — seed trước khi chạy pipeline'
+vault kv get secret/platform/github >/dev/null && echo 'OK secret/platform/github' || echo 'MISSING secret/platform/github — seed trước khi chạy pipeline'
 "
 
 echo "==> Xong. Kiểm tra login từ pod agent:"
