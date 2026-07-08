@@ -43,3 +43,4 @@ volumes:
   - secret
 users:
   - system:serviceaccount:observability:prometheus
+  - system:serviceaccount:observability:coroot-prometheus
