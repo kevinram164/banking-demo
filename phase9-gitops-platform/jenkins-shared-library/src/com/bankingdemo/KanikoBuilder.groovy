@@ -24,16 +24,18 @@ class KanikoBuilder implements Serializable {
         def extraFlags = extras.join(' ')
 
         def harbor = VaultClient.harborCredentials(steps, cfg)
+        // OCP: /kaniko/.docker không writable với UID arbitrary — dùng HOME emptyDir.
         steps.withEnv([
             "HARBOR_USER=${harbor.username}",
             "HARBOR_PASS=${harbor.password}",
+            'DOCKER_CONFIG=/home/jenkins/agent/.docker',
         ]) {
             steps.container('kaniko') {
                 steps.sh """
                 set -e
-                mkdir -p /kaniko/.docker
-                AUTH=\$(echo -n "\${HARBOR_USER}:\${HARBOR_PASS}" | base64 | tr -d '\\n')
-                echo "{\\"auths\\":{\\"${cfg.harborHost}\\":{\\"auth\\":\\"\$AUTH\\"}}}" > /kaniko/.docker/config.json
+                mkdir -p "\${DOCKER_CONFIG}"
+                AUTH=\$(printf '%s:%s' "\${HARBOR_USER}" "\${HARBOR_PASS}" | base64 | tr -d '\\n')
+                printf '%s\\n' "{\\"auths\\":{\\"${cfg.harborHost}\\":{\\"auth\\":\\"\$AUTH\\"}}}" > "\${DOCKER_CONFIG}/config.json"
                 /kaniko/executor \\
                   --context=dir://\$(pwd) \\
                   --dockerfile=${meta.dockerfile} \\
