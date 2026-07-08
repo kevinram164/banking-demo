@@ -1,6 +1,6 @@
 package com.bankingdemo
 
-import groovy.json.JsonSlurper
+import groovy.json.JsonSlurperClassic
 
 /**
  * Đọc secret KV v2 từ Vault qua Kubernetes auth (SA của agent pod).
@@ -11,21 +11,26 @@ class VaultClient implements Serializable {
     static Map readKv2(def steps, Map cfg, String secretPath) {
         def vaultAddr = (cfg.vaultAddr ?: 'http://vault.vault.svc.cluster.local:8200').replaceAll('/$', '')
         def role = cfg.vaultRole ?: 'jenkins-kaniko'
-        def loginRaw = steps.sh(script: """#!/bin/bash
+
+        // Single-quoted + concat: tránh Groovy GString parse $(...) / $JWT
+        def loginScript = '''#!/bin/bash
 set -euo pipefail
-JWT=\\$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+JWT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
 curl -sS --fail --request POST \\
-  --data "{\\"jwt\\": \\"\$JWT\\", \\"role\\": \\"${role}\\"}" \\
-  "${vaultAddr}/v1/auth/kubernetes/login"
-""", returnStdout: true).trim()
-        def login = new JsonSlurper().parseText(loginRaw)
-        def clientToken = login.auth.client_token
-        def secretRaw = steps.sh(script: """#!/bin/bash
+  --data "{\\"jwt\\": \\"${JWT}\\", \\"role\\": \\"''' + role + '''\\"}" \\
+  "''' + vaultAddr + '''/v1/auth/kubernetes/login"
+'''
+        def loginRaw = steps.sh(script: loginScript, returnStdout: true).trim()
+        def login = new JsonSlurperClassic().parseText(loginRaw)
+        def clientToken = login.auth.client_token.toString()
+
+        def secretScript = '''#!/bin/bash
 set -euo pipefail
-curl -sS --fail -H "X-Vault-Token: ${clientToken}" \\
-  "${vaultAddr}/v1/secret/data/${secretPath}"
-""", returnStdout: true).trim()
-        def secret = new JsonSlurper().parseText(secretRaw)
+curl -sS --fail -H "X-Vault-Token: ''' + clientToken + '''" \\
+  "''' + vaultAddr + '''/v1/secret/data/''' + secretPath + '''"
+'''
+        def secretRaw = steps.sh(script: secretScript, returnStdout: true).trim()
+        def secret = new JsonSlurperClassic().parseText(secretRaw)
         return secret.data.data as Map
     }
 
