@@ -18,10 +18,22 @@ prometheus:
     size: 5Gi
     className: nfs-csi
 
-# OCP worker có tracefs/debugfs — có thể bật node-agent sau khi lab ổn định
+# node-agent: DaemonSet trên mọi node (workers + control-plane nếu có tolerations).
+# OCP: chạy coroot-node-agent-scc-setup.sh (privileged SCC) sau khi sync.
 nodeAgent:
-  nodeSelector:
-    coroot-node-agent: enabled
+  tolerations:
+    - key: node-role.kubernetes.io/master
+      operator: Exists
+      effect: NoSchedule
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
   ebpfTracer:
     enabled: false
   ebpfProfiler:

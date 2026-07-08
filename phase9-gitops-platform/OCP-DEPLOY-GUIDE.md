@@ -541,6 +541,21 @@ chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/coroot-scc-setup.sh
 
 Nếu ReplicaSet `prometheus-*` báo `runAsUser: Invalid value: 65534` → chạy script trên.
 
+**Coroot node-agent** (DaemonSet — metrics từng node). UI báo *no agent installed* khi:
+1. Values còn `nodeSelector: coroot-node-agent: enabled` mà worker chưa label — **đã bỏ** trong `observability/values-coroot-ce-k3d.yaml`.
+2. Thiếu SCC **privileged** cho SA node-agent trên OCP.
+
+```bash
+# Sau khi sync observability-coroot-ce (push dev-ocp + ArgoCD Sync)
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/coroot-node-agent-scc-setup.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/coroot-node-agent-scc-setup.sh
+
+oc get ds -n observability | grep node-agent
+oc get pods -n observability -l app.kubernetes.io/name=coroot-node-agent -o wide
+```
+
+Đợi 1–2 phút rồi refresh Coroot → **Nodes** (CPU/Memory/Network sẽ có data). eBPF tracer/profiler vẫn **tắt** trên lab — đủ metrics cơ bản.
+
 **Routes UI** (GitOps — cùng app `platform-routes-dev-ocp`, sync sau observability pods Running):
 
 | UI | URL |
@@ -558,6 +573,8 @@ oc get route -n linkerd-viz linkerd-viz-platform
 **Checkpoint Giai đoạn 2b:** `oc get pods -n observability`; `linkerd check` pass (nếu dùng mesh).
 
 > **coroot-cluster-agent OOMKilled:** Values mặc định `256Mi` quá thấp trên OCP — đã tăng lên `1Gi` trong `observability/values-coroot-ce-k3d.yaml`. Sync `observability-coroot-ce` hoặc `oc rollout restart deploy/coroot-cluster-agent -n observability`.
+>
+> **Coroot Nodes — no agent installed:** Sync values mới (bỏ `nodeSelector`) + `coroot-node-agent-scc-setup.sh`. Nếu DaemonSet `0/6` READY — `oc describe ds -n observability` xem `FailedCreate` / SCC.
 
 ---
 
@@ -790,6 +807,7 @@ oc get pods -n banking
 |-------------|----------|
 | Pod `Forbidden` SCC | `namespace-scc-setup.sh <ns>` — xem INSTALL-SCC-HARDENED.md |
 | Prometheus `runAsUser 65534` invalid | `coroot-scc-setup.sh` (Coroot embedded Prometheus) |
+| Coroot Nodes *no agent installed* | Sync values (bỏ `nodeSelector`) + `coroot-node-agent-scc-setup.sh` |
 | Harbor `Permission denied` entrypoint | `harbor-scc-setup.sh` — **không** patch harbor-* bằng namespace-scc-setup |
 | Harbor DB `initdb Permission denied` | `chmod 777` subdir PVC trên NFS server — xem INSTALL-TROUBLESHOOTING.md §3.3 |
 | `oc logs` tls internal error | Approve CSR Pending: `oc get csr -o name \| xargs oc adm certificate approve` |
