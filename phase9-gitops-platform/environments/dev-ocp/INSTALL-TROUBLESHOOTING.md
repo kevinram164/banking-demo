@@ -361,7 +361,7 @@ Health: Missing
 Resource not found in cluster: route.openshift.io/v1/Route:harbor-platform
 ```
 
-Các Route: `harbor-platform`, `vault-platform`, `jenkins-platform` trong app **`platform-routes-dev-ocp`**.
+Các Route platform: `harbor-platform`, `vault-platform`, `jenkins-platform`, `coroot-platform`, `linkerd-viz-platform` trong app **`platform-routes-dev-ocp`**.
 
 ### 9.2 Nguyên nhân
 

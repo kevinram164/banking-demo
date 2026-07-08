@@ -301,6 +301,8 @@ oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/plat
 | Harbor | `harbor-platform.apps.ocp01.npd.co` | `harbor:80` (ns `platform`) |
 | Jenkins | `jenkins-platform.apps.ocp01.npd.co` | `jenkins:http` |
 | Vault | `vault-platform.apps.ocp01.npd.co` | `vault:8200` (ns `vault`) |
+| Coroot | `coroot-platform.apps.ocp01.npd.co` | `coroot-coroot:8080` (ns `observability`) |
+| Linkerd Viz | `linkerd-viz-platform.apps.ocp01.npd.co` | `web:8084` (ns `linkerd-viz`) |
 
 Manifest: [`environments/dev-ocp/ocp-values/routes/`](./environments/dev-ocp/ocp-values/routes/)
 
@@ -539,13 +541,18 @@ chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/coroot-scc-setup.sh
 
 Nếu ReplicaSet `prometheus-*` báo `runAsUser: Invalid value: 65534` → chạy script trên.
 
-Expose Coroot / Linkerd Viz (nếu cần UI):
+**Routes UI** (GitOps — cùng app `platform-routes-dev-ocp`, sync sau observability pods Running):
+
+| UI | URL |
+|----|-----|
+| Coroot | https://coroot-platform.apps.ocp01.npd.co |
+| Linkerd Viz | https://linkerd-viz-platform.apps.ocp01.npd.co |
 
 ```bash
-oc expose svc coroot-coroot -n observability \
-  --hostname=coroot.apps.ocp01.npd.co
-oc expose svc web -n linkerd-viz \
-  --hostname=linkerd-viz.apps.ocp01.npd.co
+oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/platform-routes-app-of-apps.yaml -n argocd
+# ArgoCD → Sync platform-routes-dev-ocp
+oc get route -n observability coroot-platform
+oc get route -n linkerd-viz linkerd-viz-platform
 ```
 
 **Checkpoint Giai đoạn 2b:** `oc get pods -n observability`; `linkerd check` pass (nếu dùng mesh).

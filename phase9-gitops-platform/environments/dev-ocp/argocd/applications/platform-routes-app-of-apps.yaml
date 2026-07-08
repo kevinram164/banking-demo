@@ -1,4 +1,4 @@
-# OpenShift Routes — Harbor, Jenkins, Vault, ArgoCD (sync sau platform Helm)
+# OpenShift Routes — Harbor, Jenkins, Vault, ArgoCD, Coroot, Linkerd Viz
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

@@ -1,5 +1,5 @@
 # Coroot CE — OpenShift dev-ocp (namespace observability)
-# UI: oc expose svc coroot-coroot -n observability --hostname=coroot.apps.ocp01.npd.co
+# UI: https://coroot-platform.apps.ocp01.npd.co (Route: environments/dev-ocp/ocp-values/routes/coroot-route.yaml)
 # OTLP: coroot-coroot.observability:4317 (gRPC) / :8080 (HTTP)
 
 storage:

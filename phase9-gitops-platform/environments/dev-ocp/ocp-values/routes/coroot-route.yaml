@@ -1,0 +1,24 @@
+# Coroot UI — OpenShift Route (thay oc expose thủ công)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: coroot-platform
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: coroot
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  host: coroot-platform.apps.ocp01.npd.co
+  to:
+    kind: Service
+    name: coroot-coroot
+    weight: 100
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
