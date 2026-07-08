@@ -511,6 +511,12 @@ oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/obse
 
 ArgoCD UI → **`observability-app-of-apps-dev-ocp`** → **Sync**.
 
+> **AppProject:** Chart `linkerd-viz` tạo `ClusterRoleBinding` trong **`kube-system`** (`tap-auth-reader`). AppProject `banking-platform` phải cho phép destination `kube-system` — xem `environments/dev-ocp/appproject.yaml`. Nếu thiếu → `namespace kube-system is not permitted in project 'banking-platform'`.
+
+```bash
+oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n argocd
+```
+
 | Wave | App |
 |------|-----|
 | 0 | coroot-operator, linkerd-crds, linkerd-identity-bootstrap |

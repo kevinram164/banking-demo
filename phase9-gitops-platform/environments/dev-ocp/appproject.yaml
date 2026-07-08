@@ -46,6 +46,9 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: linkerd-viz
       server: https://kubernetes.default.svc
+    # Linkerd Viz chart: ClusterRoleBinding tap-auth-reader trong kube-system
+    - namespace: kube-system
+      server: https://kubernetes.default.svc
     - namespace: argocd
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
