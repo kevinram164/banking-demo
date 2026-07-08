@@ -557,6 +557,8 @@ oc get route -n linkerd-viz linkerd-viz-platform
 
 **Checkpoint Giai đoạn 2b:** `oc get pods -n observability`; `linkerd check` pass (nếu dùng mesh).
 
+> **coroot-cluster-agent OOMKilled:** Values mặc định `256Mi` quá thấp trên OCP — đã tăng lên `1Gi` trong `observability/values-coroot-ce-k3d.yaml`. Sync `observability-coroot-ce` hoặc `oc rollout restart deploy/coroot-cluster-agent -n observability`.
+
 ---
 
 ## 7. Giai đoạn 3 — Infra (Postgres, Redis, RabbitMQ, Kong)
