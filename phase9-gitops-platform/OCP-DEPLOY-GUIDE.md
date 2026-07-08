@@ -574,6 +574,13 @@ oc get route -n linkerd-viz linkerd-viz-platform
 
 > **coroot-cluster-agent OOMKilled:** Values mặc định `256Mi` quá thấp trên OCP — đã tăng lên `1Gi` trong `observability/values-coroot-ce-k3d.yaml`. Sync `observability-coroot-ce` hoặc `oc rollout restart deploy/coroot-cluster-agent -n observability`.
 >
+> **coroot-node-agent OOMKilled:** Limit `512Mi` không đủ (eBPF trên OCP) — values đã tăng `512Mi` request / `2Gi` limit. Patch nhanh trên cluster:
+> ```bash
+> oc set resources ds/coroot-node-agent -n observability \
+>   --requests=cpu=100m,memory=512Mi --limits=memory=2Gi
+> oc rollout restart ds/coroot-node-agent -n observability
+> ```
+>
 > **Coroot Nodes — no agent installed:** Sync values mới (bỏ `nodeSelector`) + `coroot-node-agent-scc-setup.sh`. Nếu DaemonSet `0/6` READY — `oc describe ds -n observability` xem `FailedCreate` / SCC.
 
 ---
@@ -808,6 +815,7 @@ oc get pods -n banking
 | Pod `Forbidden` SCC | `namespace-scc-setup.sh <ns>` — xem INSTALL-SCC-HARDENED.md |
 | Prometheus `runAsUser 65534` invalid | `coroot-scc-setup.sh` (Coroot embedded Prometheus) |
 | Coroot Nodes *no agent installed* | Sync values (bỏ `nodeSelector`) + `coroot-node-agent-scc-setup.sh` |
+| coroot-node-agent OOMKilled | `oc set resources ds/coroot-node-agent -n observability --limits=memory=2Gi --requests=memory=512Mi` |
 | Harbor `Permission denied` entrypoint | `harbor-scc-setup.sh` — **không** patch harbor-* bằng namespace-scc-setup |
 | Harbor DB `initdb Permission denied` | `chmod 777` subdir PVC trên NFS server — xem INSTALL-TROUBLESHOOTING.md §3.3 |
 | `oc logs` tls internal error | Approve CSR Pending: `oc get csr -o name \| xargs oc adm certificate approve` |
