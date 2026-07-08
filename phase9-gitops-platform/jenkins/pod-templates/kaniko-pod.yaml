@@ -1,5 +1,5 @@
 # Pod template — Kaniko executor (Jenkins Kubernetes plugin)
-# Mount Secret harbor-registry vào /kaniko/.docker hoặc tạo config trong pipeline
+# OCP: emptyDir @ /home/jenkins — UID arbitrary của SA phải ghi được workdir jnlp
 apiVersion: v1
 kind: Pod
 metadata:
@@ -7,20 +7,25 @@ metadata:
     jenkins: kaniko
 spec:
   serviceAccountName: jenkins-kaniko
+  securityContext:
+    runAsNonRoot: true
   containers:
+    - name: jnlp
+      env:
+        - name: HOME
+          value: /home/jenkins/agent
+      workingDir: /home/jenkins/agent
+      volumeMounts:
+        - name: home-jenkins
+          mountPath: /home/jenkins
     - name: kaniko
-      image: gcr.io/kaniko-project/executor:v1.23.2
+      image: gcr.io/kaniko-project/executor:v1.23.2-debug
       command:
         - /busybox/cat
       tty: true
       volumeMounts:
-        - name: docker-config
-          mountPath: /kaniko/.docker
-          readOnly: true
+        - name: home-jenkins
+          mountPath: /home/jenkins
   volumes:
-    - name: docker-config
-      secret:
-        secretName: harbor-registry
-        items:
-          - key: .dockerconfigjson
-            path: config.json
+    - name: home-jenkins
+      emptyDir: {}
