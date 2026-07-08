@@ -1,0 +1,45 @@
+# Coroot embedded Prometheus — UID/GID 65534 (nobody) trong image
+# Không fit restricted SCC / dải UID namespace observability
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: coroot-prometheus-65534
+  labels:
+    banking-demo/environment: dev-ocp
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+runAsUser:
+  type: MustRunAs
+  uid: 65534
+runAsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 65534
+      max: 65534
+fsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 65534
+      max: 65534
+supplementalGroups:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+seccompProfiles:
+  - runtime/default
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  - system:serviceaccount:observability:prometheus

@@ -530,6 +530,15 @@ oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd
 oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd-viz
 ```
 
+**Coroot Prometheus** (embedded) chạy UID **65534** — không khớp dải UID namespace `observability`:
+
+```bash
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/coroot-scc-setup.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/coroot-scc-setup.sh
+```
+
+Nếu ReplicaSet `prometheus-*` báo `runAsUser: Invalid value: 65534` → chạy script trên.
+
 Expose Coroot / Linkerd Viz (nếu cần UI):
 
 ```bash
@@ -771,6 +780,7 @@ oc get pods -n banking
 | Triệu chứng | Cách sửa |
 |-------------|----------|
 | Pod `Forbidden` SCC | `namespace-scc-setup.sh <ns>` — xem INSTALL-SCC-HARDENED.md |
+| Prometheus `runAsUser 65534` invalid | `coroot-scc-setup.sh` (Coroot embedded Prometheus) |
 | Harbor `Permission denied` entrypoint | `harbor-scc-setup.sh` — **không** patch harbor-* bằng namespace-scc-setup |
 | Harbor DB `initdb Permission denied` | `chmod 777` subdir PVC trên NFS server — xem INSTALL-TROUBLESHOOTING.md §3.3 |
 | `oc logs` tls internal error | Approve CSR Pending: `oc get csr -o name \| xargs oc adm certificate approve` |
