@@ -1,5 +1,5 @@
 # Pod template — Kaniko executor (Jenkins Kubernetes plugin)
-# OCP: emptyDir @ /home/jenkins — UID arbitrary của SA phải ghi được workdir jnlp
+# OCP: jnlp emptyDir @ /home/jenkins; kaniko runAsUser 0 + SCC jenkins-kaniko-root
 apiVersion: v1
 kind: Pod
 metadata:
@@ -7,8 +7,6 @@ metadata:
     jenkins: kaniko
 spec:
   serviceAccountName: jenkins-kaniko
-  securityContext:
-    runAsNonRoot: true
   containers:
     - name: jnlp
       env:
@@ -23,6 +21,11 @@ spec:
       command:
         - /busybox/cat
       tty: true
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        runAsNonRoot: false
+        allowPrivilegeEscalation: false
       volumeMounts:
         - name: home-jenkins
           mountPath: /home/jenkins

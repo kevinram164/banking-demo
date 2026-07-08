@@ -1,0 +1,40 @@
+# SCC hẹp — chỉ SA jenkins-kaniko được chạy Kaniko với UID 0 (chown rootfs).
+# Không gán anyuid cả namespace platform.
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: jenkins-kaniko-root
+  labels:
+    banking-demo/environment: dev-ocp
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+requiredDropCapabilities:
+  - MKNOD
+runAsUser:
+  type: RunAsAny
+runAsGroup:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+seccompProfiles:
+  - runtime/default
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  - system:serviceaccount:platform:jenkins-kaniko

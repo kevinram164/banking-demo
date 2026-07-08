@@ -475,11 +475,16 @@ Sync Jenkins → restart pod nếu cần:
 oc delete pod jenkins-0 -n platform
 ```
 
-#### Bước 5 — ServiceAccount Kaniko
+#### Bước 5 — ServiceAccount Kaniko + SCC (UID 0)
+
+Kaniko trên OpenShift cần **UID 0** để `chown` layer (`operation not permitted` nếu chỉ dùng restricted SCC).
 
 ```bash
-oc create serviceaccount jenkins-kaniko -n platform --dry-run=client -o yaml | oc apply -f -
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/jenkins-kaniko-scc-setup.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/jenkins-kaniko-scc-setup.sh
 ```
+
+Script tạo SA `jenkins-kaniko` + SCC `jenkins-kaniko-root` (chỉ SA này, không `anyuid` cả namespace).
 
 #### Bước 6 — Multibranch Pipeline
 

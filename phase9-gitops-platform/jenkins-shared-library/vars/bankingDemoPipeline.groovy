@@ -8,9 +8,10 @@ def call(Map config = [:]) {
 
     def cfg = com.bankingdemo.PipelineConfig.mergeDefaults(config)
 
-    // OCP: SA arbitrary UID không ghi được /home/jenkins (owned 1000 trong image jnlp).
-    // emptyDir + HOME=/home/jenkins/agent — remoting tạo workdir được.
-    // yamlMergeStrategy merge: giữ image jnlp mặc định của Kubernetes plugin.
+    // OCP:
+    // - jnlp: emptyDir @ /home/jenkins (UID arbitrary)
+    // - kaniko: runAsUser 0 + SCC jenkins-kaniko-root (cần chown rootfs)
+    //   scripts/jenkins-kaniko-scc-setup.sh
     podTemplate(
         yamlMergeStrategy: merge(),
         yaml: """
@@ -18,8 +19,6 @@ apiVersion: v1
 kind: Pod
 spec:
   serviceAccountName: jenkins-kaniko
-  securityContext:
-    runAsNonRoot: true
   containers:
     - name: jnlp
       env:
@@ -33,6 +32,11 @@ spec:
       image: ${cfg.kanikoImage}
       command: ["/busybox/cat"]
       tty: true
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        runAsNonRoot: false
+        allowPrivilegeEscalation: false
       volumeMounts:
         - name: home-jenkins
           mountPath: /home/jenkins
