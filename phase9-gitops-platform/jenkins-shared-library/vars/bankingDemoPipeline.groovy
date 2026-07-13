@@ -30,8 +30,13 @@ spec:
           mountPath: /home/jenkins
     - name: kaniko
       image: ${cfg.kanikoImage}
-      command: ["/busybox/cat"]
+      command: ["/busybox/busybox"]
+      args: ["sleep", "99d"]
       tty: true
+      env:
+        # Kubernetes plugin exec thường không kế thừa PATH image → "sh not found"
+        - name: PATH
+          value: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/busybox:/kaniko"
       securityContext:
         runAsUser: 0
         runAsGroup: 0

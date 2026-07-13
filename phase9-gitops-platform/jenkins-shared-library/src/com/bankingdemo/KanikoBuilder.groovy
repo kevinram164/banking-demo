@@ -33,7 +33,9 @@ class KanikoBuilder implements Serializable {
             "HARBOR_PASS=${harbor.password}",
             'DOCKER_CONFIG=/home/jenkins/agent/.docker',
         ]) {
-            steps.container('kaniko') {
+            // Kaniko debug: applet qua /busybox/busybox (không phải mọi tag có /busybox/sh)
+            // Jenkins gọi: /busybox/busybox -c 'script' — busybox hiểu -c
+            steps.container(name: 'kaniko', shell: '/busybox/busybox') {
                 def rc = steps.sh(
                     returnStatus: true,
                     script: """
