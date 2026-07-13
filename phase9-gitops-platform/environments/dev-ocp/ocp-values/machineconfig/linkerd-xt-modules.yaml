@@ -1,0 +1,44 @@
+# Load xt_* modules cho linkerd-init (iptables-nft + multiport/owner/comment/REDIRECT).
+# Không có → Init:CrashLoopBackOff:
+#   Extension multiport revision 0 not supported, missing kernel module?
+#
+# Apply → worker MCP rolling reboot. Lab nhanh: xem scripts/linkerd-load-xt-modules.sh
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  name: load-linkerd-xt-modules-worker
+  labels:
+    machineconfiguration.openshift.io/role: worker
+    banking-demo/environment: dev-ocp
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+        - path: /etc/modules-load.d/linkerd-xt.conf
+          mode: 0644
+          overwrite: true
+          contents:
+            # xt_multiport%0Axt_comment%0Axt_REDIRECT%0Axt_owner
+            source: data:,xt_multiport%0Axt_comment%0Axt_REDIRECT%0Axt_owner
+---
+# Control-plane / master (nếu linkerd pod schedule lên master)
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  name: load-linkerd-xt-modules-master
+  labels:
+    machineconfiguration.openshift.io/role: master
+    banking-demo/environment: dev-ocp
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+        - path: /etc/modules-load.d/linkerd-xt.conf
+          mode: 0644
+          overwrite: true
+          contents:
+            source: data:,xt_multiport%0Axt_comment%0Axt_REDIRECT%0Axt_owner

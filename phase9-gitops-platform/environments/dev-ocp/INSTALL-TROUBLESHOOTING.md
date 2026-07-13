@@ -352,6 +352,7 @@ argocd app get platform-vault
 | `scripts/coroot-node-agent-scc-setup.sh` | privileged SCC cho Coroot node-agent DaemonSet |
 | `scripts/kong-scc-setup.sh` | SCC UID 1000 cho Kong (`kong-uid1000`) |
 | `scripts/linkerd-scc-setup.sh` | privileged cho ns `linkerd` + `linkerd-viz` |
+| `scripts/linkerd-load-xt-modules.sh` | modprobe xt_multiport/… trên node (fix linkerd-init) |
 | `scripts/approve-pending-csrs.sh` | Approve CSR Pending (UPI lab) |
 
 ### Linkerd `Init:CrashLoopBackOff` (`linkerd-init`)
@@ -359,12 +360,13 @@ argocd app get platform-vault
 SCC đã OK (pod tạo được) nhưng init exit 1 → thường **iptables-legacy** trên RHCOS.
 
 ```bash
-oc logs -n linkerd deploy/linkerd-proxy-injector -c linkerd-init --tail=40
-# Kỳ vọng lỗi iptables / xtables nếu chưa nft
-
-# Values: proxyInit.iptablesMode=nft + runAsRoot=true
-argocd app sync observability-linkerd-control-plane --force
+oc logs -n linkerd deploy/linkerd-proxy-injector -c linkerd-init 2>&1 | head -20
 ```
+
+| Log | Fix |
+|-----|-----|
+| `iptables-save … (legacy): Permission denied` | values `proxyInit.iptablesMode=nft` + `runAsRoot=true` + sync |
+| `Extension multiport … missing kernel module` | `./scripts/linkerd-load-xt-modules.sh` rồi `oc apply …/machineconfig/linkerd-xt-modules.yaml` |
 
 
 ---

@@ -559,7 +559,19 @@ argocd app sync observability-linkerd-control-plane
 oc get pods -n linkerd
 ```
 
-Nếu log còn `Extension multiport … missing kernel module` → cần MachineConfig load `xt_multiport` / `xt_owner` trên worker (xem INSTALL-TROUBLESHOOTING), hoặc chuyển sang **Linkerd CNI** (`cniEnabled: true`).
+Nếu log còn `Extension multiport … missing kernel module` → load `xt_*` trên node:
+
+```bash
+# Lab nhanh (không reboot) — modprobe trên mọi node rồi restart pods
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/linkerd-load-xt-modules.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/linkerd-load-xt-modules.sh
+
+# Persist (MCP rolling reboot worker + master)
+oc apply -f phase9-gitops-platform/environments/dev-ocp/ocp-values/machineconfig/linkerd-xt-modules.yaml
+oc get mcp -w
+```
+
+Hoặc chuyển sang **Linkerd CNI** (`cniEnabled: true`) — vẫn có thể cần cùng `xt_*` modules trên host.
 
 **Coroot Prometheus** (embedded) chạy UID **65534** — không khớp dải UID namespace `observability`:
 
@@ -853,6 +865,7 @@ oc get pods -n banking
 | Linkerd `2102` / `NET_ADMIN` Forbidden | `linkerd-scc-setup.sh` (privileged ns linkerd + linkerd-viz) |
 | Linkerd Viz `metrics-api` UID `2103` Forbidden | Cùng script — hoặc `oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd-viz` |
 | `linkerd-init` CrashLoopBackOff | `proxyInit.iptablesMode=nft` + `runAsRoot=true` — sync control-plane |
+| `linkerd-init` missing `xt_multiport` | `linkerd-load-xt-modules.sh` (+ MachineConfig persist) |
 | Prometheus `runAsUser 65534` invalid | `coroot-scc-setup.sh` (Coroot embedded Prometheus) |
 | Coroot Nodes *no agent installed* | Sync values (bỏ `nodeSelector`) + `coroot-node-agent-scc-setup.sh` |
 | coroot-node-agent OOMKilled | `oc set resources ds/coroot-node-agent -n observability --limits=memory=2Gi --requests=memory=512Mi` |
