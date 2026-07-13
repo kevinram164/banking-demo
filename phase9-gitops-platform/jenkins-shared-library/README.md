@@ -60,6 +60,42 @@ Không tạo credential `harbor-ci-push` / `github-gitops-push` trên Jenkins. C
 
 Pod agent: `serviceAccountName: jenkins-kaniko`, image Kaniko `*-debug`.
 
+### Stages trên Jenkins UI
+
+```text
+Checkout
+Build api-producer          ← chỉ khi service nằm trong targets
+Build auth-service
+Build account-service
+…
+Build frontend
+Update GitOps
+```
+
+Mỗi image một stage — fail ở service nào hiện đúng stage đó (không gộp chung `Build & Push`).
+
+### Kaniko push OK nhưng stage FAILURE / exit -1
+
+Log có `Pushed …@sha256:…` rồi:
+
+```text
+wrapper script does not seem to be touching the log file
+(JENKINS-48300…)
+ERROR: script returned exit code -1
+```
+
+→ **Image đã lên Harbor**; Jenkins durable-task mất heartbeat (workspace NFS / agent lag).
+
+Đã xử lý trong repo: heartbeat trong `KanikoBuilder` + `controller.javaOpts` `HEARTBEAT_CHECK_INTERVAL=300`. Sync `platform-jenkins`, rebuild.
+
+Hotfix tạm (chưa sync): **Manage Jenkins → Script Console**:
+
+```groovy
+System.setProperty('org.jenkinsci.plugins.durabletask.BourneShellScript.HEARTBEAT_CHECK_INTERVAL', '300')
+```
+
+Verify image: Harbor UI project `banking-demo` / tag vừa push. Nếu GitOps chưa bump — chạy lại pipeline hoặc `BUILD_TARGET=<svc>`.
+
 ## Jenkinsfile mẫu (dev-ocp)
 
 ```groovy

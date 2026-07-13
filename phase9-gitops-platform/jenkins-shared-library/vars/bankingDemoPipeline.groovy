@@ -57,9 +57,9 @@ spec:
                 return
             }
 
-            stage('Build & Push') {
-                targets.each { svc ->
-                    echo "Building ${svc}..."
+            // Mỗi image = một stage (dễ thấy stage nào fail trên Jenkins UI)
+            targets.each { svc ->
+                stage("Build ${svc}") {
                     com.bankingdemo.KanikoBuilder.buildAndPush(this, cfg, svc)
                 }
             }

@@ -911,6 +911,7 @@ oc get pods -n banking
 | ImagePullBackOff | Vault `platform/harbor-pull` seeded? ESO `harbor-pull-creds` synced? CI đã push image? |
 | ImagePull `x509: unknown authority` Harbor | `harbor-registry-trust-setup.sh` — trust router CA (hoặc `INSECURE=1`) |
 | Banking `No module named uvicorn` | Kaniko miss pip `/usr/local` — Dockerfile dùng venv `/app/venv` + rebuild `BUILD_TARGET=all` |
+| Kaniko push OK nhưng Jenkins exit `-1` / JENKINS-48300 | Heartbeat NFS — sync `platform-jenkins` (`javaOpts` HEARTBEAT) + shared lib; image đã có trên Harbor |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |
