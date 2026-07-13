@@ -525,12 +525,17 @@ oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n argoc
 | 1 | otel-collector, linkerd-control-plane |
 | 2 | coroot-ce, linkerd-viz |
 
-Linkerd trên OCP có thể cần SCC `privileged` cho namespace `linkerd`:
+Linkerd trên OCP cần SCC **`privileged`** (UID 2102/2103/65534 + `NET_ADMIN`/`NET_RAW`):
 
 ```bash
-oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd
-oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd-viz
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/linkerd-scc-setup.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/linkerd-scc-setup.sh
+# tương đương:
+# oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd
+# oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd-viz
 ```
+
+Nếu RS `linkerd-destination-*` báo `Forbidden` / `runAsUser 2102` / `NET_ADMIN` → chạy script trên.
 
 **Coroot Prometheus** (embedded) chạy UID **65534** — không khớp dải UID namespace `observability`:
 
@@ -619,6 +624,13 @@ Thứ tự sync wave:
 | 0 | Postgres, Redis | PVC Bound + pod Running |
 | 1 | RabbitMQ | Sau postgres/redis |
 | 2 | Kong | PreSync hook chờ PG Ready + tạo DB `kong` |
+
+**Kong** image cố định UID **1000** — `restricted-v2` sẽ Forbidden. Chạy trước/sau sync `infra-kong`:
+
+```bash
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/kong-scc-setup.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/kong-scc-setup.sh
+```
 
 Theo dõi:
 
@@ -813,6 +825,8 @@ oc get pods -n banking
 | Triệu chứng | Cách sửa |
 |-------------|----------|
 | Pod `Forbidden` SCC | `namespace-scc-setup.sh <ns>` — xem INSTALL-SCC-HARDENED.md |
+| Kong `runAsUser 1000` Forbidden | `kong-scc-setup.sh` (SCC `kong-uid1000`) |
+| Linkerd `2102` / `NET_ADMIN` Forbidden | `linkerd-scc-setup.sh` (privileged ns linkerd + linkerd-viz) |
 | Prometheus `runAsUser 65534` invalid | `coroot-scc-setup.sh` (Coroot embedded Prometheus) |
 | Coroot Nodes *no agent installed* | Sync values (bỏ `nodeSelector`) + `coroot-node-agent-scc-setup.sh` |
 | coroot-node-agent OOMKilled | `oc set resources ds/coroot-node-agent -n observability --limits=memory=2Gi --requests=memory=512Mi` |

@@ -121,7 +121,8 @@ Một số component **không** fit `nonroot` cả namespace — gán **privileg
 |-----------|-----------|-----|
 | `csi-driver-nfs` | node/controller plugin | `privileged` → `csi-nfs-node-sa`, `csi-nfs-controller-sa` |
 | `platform` | Harbor (jobservice, core, …) | `harbor-uid-range` → SA `harbor` (UID **999–10000**) — `harbor-scc-setup.sh` |
-| `linkerd` | control plane | `privileged` → từng SA `linkerd-*` (nếu `nonroot` không đủ) |
+| `kong` | Kong HA (UID 1000) | `kong-uid1000` → SA `kong-kong` — `kong-scc-setup.sh` |
+| `linkerd` / `linkerd-viz` | control plane + viz | `privileged` → group SA — `linkerd-scc-setup.sh` |
 
 Xem [INSTALL-NFS-CSI.md](./INSTALL-NFS-CSI.md) §3.3.
 

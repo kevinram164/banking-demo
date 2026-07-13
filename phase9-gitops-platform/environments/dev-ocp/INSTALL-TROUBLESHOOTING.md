@@ -350,6 +350,8 @@ argocd app get platform-vault
 | `ocp-values/nfs-csi/scc.sh` | privileged cho CSI node/controller |
 | `scripts/coroot-scc-setup.sh` | SCC UID 65534 cho Coroot embedded Prometheus |
 | `scripts/coroot-node-agent-scc-setup.sh` | privileged SCC cho Coroot node-agent DaemonSet |
+| `scripts/kong-scc-setup.sh` | SCC UID 1000 cho Kong (`kong-uid1000`) |
+| `scripts/linkerd-scc-setup.sh` | privileged cho ns `linkerd` + `linkerd-viz` |
 | `scripts/approve-pending-csrs.sh` | Approve CSR Pending (UPI lab) |
 
 ---

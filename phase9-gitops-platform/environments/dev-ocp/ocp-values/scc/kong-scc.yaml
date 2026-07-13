@@ -1,0 +1,44 @@
+# Kong chart — image/init chạy UID 1000 (không khớp dải openshift.io/sa.scc.uid-range)
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: kong-uid1000
+  labels:
+    banking-demo/environment: dev-ocp
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+runAsUser:
+  type: MustRunAs
+  uid: 1000
+runAsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+      max: 1000
+fsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+      max: 1000
+supplementalGroups:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+seccompProfiles:
+  - runtime/default
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  - system:serviceaccount:kong:kong-kong
