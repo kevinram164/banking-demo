@@ -827,6 +827,7 @@ oc get pods -n banking
 | Pod `Forbidden` SCC | `namespace-scc-setup.sh <ns>` — xem INSTALL-SCC-HARDENED.md |
 | Kong `runAsUser 1000` Forbidden | `kong-scc-setup.sh` (SCC `kong-uid1000`) |
 | Linkerd `2102` / `NET_ADMIN` Forbidden | `linkerd-scc-setup.sh` (privileged ns linkerd + linkerd-viz) |
+| Linkerd Viz `metrics-api` UID `2103` Forbidden | Cùng script — hoặc `oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd-viz` |
 | Prometheus `runAsUser 65534` invalid | `coroot-scc-setup.sh` (Coroot embedded Prometheus) |
 | Coroot Nodes *no agent installed* | Sync values (bỏ `nodeSelector`) + `coroot-node-agent-scc-setup.sh` |
 | coroot-node-agent OOMKilled | `oc set resources ds/coroot-node-agent -n observability --limits=memory=2Gi --requests=memory=512Mi` |
