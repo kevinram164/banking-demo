@@ -19,7 +19,9 @@ RUN python -m venv /app/venv \
     && /app/venv/bin/pip install --upgrade pip \
     && /app/venv/bin/pip install --no-cache-dir -r common/requirements.txt \
     && /app/venv/bin/python -c "import uvicorn; print(uvicorn.__file__)" \
+    && test -x /app/venv/bin/uvicorn \
     && chmod -R a+rX /app/venv
 
 EXPOSE 8001
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+# Absolute path — CRI-O/OCP không luôn áp dụng ENV PATH khi resolve CMD
+CMD ["/app/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]

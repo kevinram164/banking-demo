@@ -1,19 +1,28 @@
 #!/usr/bin/env bash
-# Linkerd control-plane / viz trên OCP: UID cố định (2102/2103/65534) + NET_ADMIN/NET_RAW
+# Linkerd trên OCP: UID cố định (2102/2103/65534) + NET_ADMIN/NET_RAW
 # → cần privileged SCC (không fit restricted / nonroot).
 #
-# Triệu chứng thường gặp:
-#   - linkerd-destination: UID 2102 / NET_ADMIN Forbidden
-#   - metrics-api / tap / web (linkerd-viz): UID 2103 Forbidden
+# Áp dụng cho:
+#   - linkerd / linkerd-viz (control-plane + Viz)
+#   - banking (workload có sidecar: linkerd-init UID 0 + proxy UID 2102)
+#
+# Triệu chứng:
+#   - linkerd-destination / metrics-api: UID 2102/2103 Forbidden
+#   - banking ReplicaSet: initContainers runAsUser 0 + NET_ADMIN Forbidden
 #
 #   ./environments/dev-ocp/scripts/linkerd-scc-setup.sh
+#   ./environments/dev-ocp/scripts/linkerd-scc-setup.sh banking   # chỉ ns banking
 set -euo pipefail
 
-NAMESPACES=("linkerd" "linkerd-viz")
+if [[ $# -gt 0 ]]; then
+  NAMESPACES=("$@")
+else
+  NAMESPACES=("linkerd" "linkerd-viz" "banking")
+fi
 
 for NS in "${NAMESPACES[@]}"; do
   if ! oc get ns "${NS}" &>/dev/null; then
-    echo "SKIP: namespace ${NS} chưa tồn tại — sync linkerd-crds / linkerd-viz trước"
+    echo "SKIP: namespace ${NS} chưa tồn tại"
     continue
   fi
 
@@ -37,8 +46,8 @@ echo ""
 echo "OK — kiểm tra:"
 echo "  oc get pods -n linkerd"
 echo "  oc get pods -n linkerd-viz"
-echo "  oc get pods -n linkerd-viz | grep metrics-api"
+echo "  oc get pods -n banking"
 echo "  linkerd check || true"
 echo ""
-echo "Nếu banking pods (sidecar) vẫn Forbidden UID 2102:"
-echo "  oc adm policy add-scc-to-group privileged system:serviceaccounts:banking"
+echo "LƯU Ý: đừng chạy namespace-scc-setup.sh banking sau bước này"
+echo "  (script đó gỡ privileged + gán nonroot → mesh sidecar lại Forbidden)."

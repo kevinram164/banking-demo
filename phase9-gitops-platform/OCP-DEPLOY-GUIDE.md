@@ -366,7 +366,7 @@ export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='root'
 
 vault kv put secret/banking/db \
-  DATABASE_URL='postgresql://banking:bankingpass@postgres-ha-postgresql.postgres.svc.cluster.local:5432/banking' \
+  DATABASE_URL='postgresql://banking:bankingpass@postgres-ha-postgresql-primary.postgres.svc.cluster.local:5432/banking' \
   REDIS_URL='redis://redis-ha-redis-master.redis.svc.cluster.local:6379/0'
 
 vault kv put secret/banking/rabbitmq \
@@ -542,7 +542,8 @@ oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n argoc
 | 1 | otel-collector, linkerd-control-plane |
 | 2 | coroot-ce, linkerd-viz |
 
-Linkerd trên OCP cần SCC **`privileged`** (UID 2102/2103/65534 + `NET_ADMIN`/`NET_RAW`):
+Linkerd trên OCP cần SCC **`privileged`** (UID 2102/2103/65534 + `NET_ADMIN`/`NET_RAW`).
+Ns **`banking`** cũng cần (sidecar: `linkerd-init` UID 0 + proxy 2102 — `linkerd.io/inject: enabled`):
 
 ```bash
 chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/linkerd-scc-setup.sh
@@ -550,9 +551,11 @@ chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/linkerd-scc-setup.s
 # tương đương:
 # oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd
 # oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd-viz
+# oc adm policy add-scc-to-group privileged system:serviceaccounts:banking
 ```
 
-Nếu RS `linkerd-destination-*` báo `Forbidden` / `runAsUser 2102` / `NET_ADMIN` → chạy script trên.
+Nếu RS banking / `linkerd-destination-*` báo `Forbidden` / `runAsUser 0|2102` / `NET_ADMIN` → chạy script trên.
+**Không** chạy `namespace-scc-setup.sh banking` sau đó (gỡ privileged).
 
 **`linkerd-init` Init:CrashLoopBackOff** (pods đã tạo được, nhưng init exit 1) — thường do **iptables-legacy** trên RHCOS. Values phải có:
 
@@ -893,7 +896,8 @@ oc get pods -n banking
 |-------------|----------|
 | Pod `Forbidden` SCC | `namespace-scc-setup.sh <ns>` — xem INSTALL-SCC-HARDENED.md |
 | Kong `runAsUser 1000` Forbidden | `kong-scc-setup.sh` (SCC `kong-uid1000`) |
-| Linkerd `2102` / `NET_ADMIN` Forbidden | `linkerd-scc-setup.sh` (privileged ns linkerd + linkerd-viz) |
+| Linkerd `2102` / `NET_ADMIN` Forbidden | `linkerd-scc-setup.sh` (privileged ns linkerd + linkerd-viz + **banking**) |
+| Banking RS: init `runAsUser: 0` / `NET_ADMIN` Forbidden | Sidecar Linkerd — `./linkerd-scc-setup.sh banking` rồi `oc delete pods -n banking --all` |
 | Linkerd Viz `metrics-api` UID `2103` Forbidden | Cùng script — hoặc `oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd-viz` |
 | `linkerd-init` CrashLoopBackOff | `proxyInit.iptablesMode=nft` + `runAsRoot=true` — sync control-plane |
 | `linkerd-init` missing `xt_multiport` | `linkerd-load-xt-modules.sh` (+ MachineConfig persist) |
@@ -914,6 +918,10 @@ oc get pods -n banking
 | Kaniko push OK nhưng Jenkins exit `-1` / JENKINS-48300 | Heartbeat NFS — sync `platform-jenkins` (`javaOpts` HEARTBEAT) + shared lib; image đã có trên Harbor |
 | Jenkins pod restart + startup 503 | Thường do **Argo sync STS** (đổi `javaOpts`/values). Log `Failed Loading plugin` = lệch version Pipeline — pin `pipeline-model-*` cùng bản trong `jenkins.yaml` |
 | Init CrashLoop / `stage-view` 404 | Plugin id sai — không tồn tại `stage-view`; dùng `pipeline-stage-view` hoặc bỏ hẳn. Kiểm tra `oc get cm jenkins -n platform -o jsonpath='{.data.plugins\.txt}'` |
+| `uvicorn` not found (CreateContainerError) | Image thiếu venv/PATH — Dockerfile CMD dùng `/app/venv/bin/uvicorn`; rebuild Python (`BUILD_TARGET=all`, snapshot `full`) |
+| `Name or service not known` (Postgres) | Sai host trong Vault `secret/banking/db` — OCP: `postgres-ha-postgresql-primary.postgres.svc.cluster.local` |
+| `secret "banking-db-secret" not found` | ESO chưa tạo Secret — seed Vault `secret/banking/db` + `oc describe externalsecret banking-db-secret -n banking` |
+| Frontend nginx `[emerg] host not found in upstream "kong"` | `nginx.conf` dùng short name sai — phải `kong-kong-proxy.kong.svc.cluster.local:8000`; rebuild frontend |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |

@@ -383,7 +383,7 @@ argocd app get platform-vault
 | `scripts/coroot-scc-setup.sh` | SCC UID 65534 cho Coroot embedded Prometheus |
 | `scripts/coroot-node-agent-scc-setup.sh` | privileged SCC cho Coroot node-agent DaemonSet |
 | `scripts/kong-scc-setup.sh` | SCC UID 1000 cho Kong (`kong-uid1000`) |
-| `scripts/linkerd-scc-setup.sh` | privileged cho ns `linkerd` + `linkerd-viz` |
+| `scripts/linkerd-scc-setup.sh` | privileged cho ns `linkerd` + `linkerd-viz` + **`banking`** (sidecar mesh) |
 | `scripts/linkerd-load-xt-modules.sh` | modprobe xt_multiport/… trên node (fix linkerd-init) |
 | `scripts/approve-pending-csrs.sh` | Approve CSR Pending (UPI lab) |
 

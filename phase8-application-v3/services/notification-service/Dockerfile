@@ -18,7 +18,8 @@ RUN python -m venv /app/venv \
     && /app/venv/bin/pip install --upgrade pip \
     && /app/venv/bin/pip install --no-cache-dir -r common/requirements.txt \
     && /app/venv/bin/python -c "import uvicorn; print(uvicorn.__file__)" \
+    && test -x /app/venv/bin/uvicorn \
     && chmod -R a+rX /app/venv
 
 EXPOSE 8004
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8004"]
+CMD ["/app/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8004"]
