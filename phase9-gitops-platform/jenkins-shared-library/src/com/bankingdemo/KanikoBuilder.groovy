@@ -28,6 +28,7 @@ class KanikoBuilder implements Serializable {
         extras << '--ignore-path=/busybox'
         extras << '--ignore-path=/kaniko'
         extras << '--ignore-path=/home/jenkins'
+        extras << '--cleanup'
         def extraFlags = extras.join(' ')
         def contextDir = meta.context ?: '.'
 

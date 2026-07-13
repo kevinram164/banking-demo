@@ -914,14 +914,15 @@ oc get pods -n banking
 | `vault-token` not found | Tạo secret trước ClusterSecretStore |
 | ImagePullBackOff | Vault `platform/harbor-pull` seeded? ESO `harbor-pull-creds` synced? CI đã push image? |
 | ImagePull `x509: unknown authority` Harbor | `harbor-registry-trust-setup.sh` — trust router CA (hoặc `INSECURE=1`) |
-| Banking `No module named uvicorn` | Kaniko miss pip `/usr/local` — Dockerfile dùng venv `/app/venv` + rebuild `BUILD_TARGET=all` |
+| Banking thiếu `uvicorn` / CreateContainerError | Kaniko miss venv — multi-stage + `venv --copies` + CMD `/app/venv/bin/uvicorn`; rebuild `BUILD_TARGET=all` |
 | Kaniko push OK nhưng Jenkins exit `-1` / JENKINS-48300 | Heartbeat NFS — sync `platform-jenkins` (`javaOpts` HEARTBEAT) + shared lib; image đã có trên Harbor |
 | Jenkins pod restart + startup 503 | Thường do **Argo sync STS** (đổi `javaOpts`/values). Log `Failed Loading plugin` = lệch version Pipeline — pin `pipeline-model-*` cùng bản trong `jenkins.yaml` |
 | Init CrashLoop / `stage-view` 404 | Plugin id sai — không tồn tại `stage-view`; dùng `pipeline-stage-view` hoặc bỏ hẳn. Kiểm tra `oc get cm jenkins -n platform -o jsonpath='{.data.plugins\.txt}'` |
-| `uvicorn` not found (CreateContainerError) | Image thiếu venv/PATH — Dockerfile CMD dùng `/app/venv/bin/uvicorn`; rebuild Python (`BUILD_TARGET=all`, snapshot `full`) |
+| `uvicorn` not found / thiếu `/app/venv/bin/uvicorn` | Kaniko miss symlink venv — multi-stage + `venv --copies`; rebuild `BUILD_TARGET=all` |
 | `Name or service not known` (Postgres) | Sai host trong Vault `secret/banking/db` — OCP: `postgres-ha-postgresql-primary.postgres.svc.cluster.local` |
 | `secret "banking-db-secret" not found` | ESO chưa tạo Secret — seed Vault `secret/banking/db` + `oc describe externalsecret banking-db-secret -n banking` |
-| Frontend nginx `[emerg] host not found in upstream "kong"` | `nginx.conf` dùng short name sai — phải `kong-kong-proxy.kong.svc.cluster.local:8000`; rebuild frontend |
+| Frontend nginx `[emerg] host not found in upstream "kong"` | `nginx.conf` FQDN `kong-kong-proxy.kong.svc.cluster.local` (không short name `kong`) |
+| Frontend nginx `host not found in resolver "kube-dns..."` | OCP không có kube-dns — bỏ `resolver{}`; dùng `proxy_pass` FQDN tĩnh |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |
