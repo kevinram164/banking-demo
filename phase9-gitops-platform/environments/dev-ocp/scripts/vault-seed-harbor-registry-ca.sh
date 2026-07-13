@@ -13,10 +13,17 @@ VAULT_PATH="${VAULT_PATH:-secret/platform/harbor-registry-ca}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "${TMP}"' EXIT
 
+# Lab: nếu chưa export VAULT_TOKEN → lấy từ secret vault-token (ns external-secrets) hoặc default root
 if [[ -z "${VAULT_TOKEN:-}" ]]; then
-  echo "ERROR: set VAULT_TOKEN (lab thường: root)"
-  exit 1
+  if oc get secret vault-token -n external-secrets &>/dev/null; then
+    VAULT_TOKEN="$(oc get secret vault-token -n external-secrets -o jsonpath='{.data.token}' | base64 -d)"
+    echo "==> VAULT_TOKEN từ secret external-secrets/vault-token"
+  else
+    VAULT_TOKEN=root
+    echo "==> VAULT_TOKEN chưa set — dùng lab default: root"
+  fi
 fi
+export VAULT_TOKEN
 
 VAULT_ADDR="${VAULT_ADDR:-http://vault.vault.svc.cluster.local:8200}"
 
@@ -31,6 +38,7 @@ else
 fi
 
 # Seed qua pod vault-0 nếu VAULT_ADDR nội bộ không reach từ bastion
+# (không dùng oc cp — image Vault UBI thường không có tar)
 if command -v vault &>/dev/null && curl -sf -o /dev/null --connect-timeout 2 "${VAULT_ADDR}/v1/sys/health" 2>/dev/null; then
   echo "==> vault kv put ${VAULT_PATH} (local vault CLI → ${VAULT_ADDR})"
   export VAULT_ADDR VAULT_TOKEN
@@ -38,15 +46,15 @@ if command -v vault &>/dev/null && curl -sf -o /dev/null --connect-timeout 2 "${
     "ca.crt=@${CA_FILE}" \
     "registry_host=${HARBOR_HOST}"
 else
-  echo "==> vault CLI/addr không reach — seed qua oc exec vault-0"
-  oc cp "${CA_FILE}" vault/vault-0:/tmp/harbor-registry-ca.crt
-  oc exec -n vault vault-0 -- sh -c "
+  echo "==> vault CLI/addr không reach — seed qua oc exec -i vault-0 (stdin, không oc cp)"
+  oc exec -i -n vault vault-0 -- sh -c "
+    cat > /tmp/harbor-registry-ca.crt
     export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN='${VAULT_TOKEN}'
     vault kv put ${VAULT_PATH} \
       ca.crt=@/tmp/harbor-registry-ca.crt \
       registry_host='${HARBOR_HOST}'
     rm -f /tmp/harbor-registry-ca.crt
-  "
+  " < "${CA_FILE}"
 fi
 
 echo ""
