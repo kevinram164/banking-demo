@@ -22,6 +22,7 @@ class KanikoBuilder implements Serializable {
             extras << '--skip-tls-verify'
         }
         def extraFlags = extras.join(' ')
+        def contextDir = meta.context ?: '.'
 
         def harbor = VaultClient.harborCredentials(steps, cfg)
         // OCP: /kaniko/.docker không writable với UID arbitrary — dùng HOME emptyDir.
@@ -37,7 +38,7 @@ class KanikoBuilder implements Serializable {
                 AUTH=\$(printf '%s:%s' "\${HARBOR_USER}" "\${HARBOR_PASS}" | base64 | tr -d '\\n')
                 printf '%s\\n' "{\\"auths\\":{\\"${cfg.harborHost}\\":{\\"auth\\":\\"\$AUTH\\"}}}" > "\${DOCKER_CONFIG}/config.json"
                 /kaniko/executor \\
-                  --context=dir://\$(pwd) \\
+                  --context=dir://\$(pwd)/${contextDir} \\
                   --dockerfile=${meta.dockerfile} \\
                   --destination=${image} \\
                   --snapshot-mode=full \\

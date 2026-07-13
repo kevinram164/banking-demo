@@ -39,23 +39,24 @@ Không tạo credential `harbor-ci-push` / `github-gitops-push` trên Jenkins. C
 
 ## Services được build
 
-| Service | Dockerfile |
-|---------|------------|
-| api-producer | `phase8-application-v3/producer/Dockerfile` |
-| auth-service | `phase8-application-v3/services/auth-service/Dockerfile` |
-| account-service | `phase8-application-v3/services/account-service/Dockerfile` |
-| transfer-service | `phase8-application-v3/services/transfer-service/Dockerfile` |
-| notification-service | `phase8-application-v3/services/notification-service/Dockerfile` |
+| Service | Dockerfile | Context |
+|---------|------------|---------|
+| api-producer | `phase8-application-v3/producer/Dockerfile` | repo root |
+| auth-service | `phase8-application-v3/services/auth-service/Dockerfile` | repo root |
+| account-service | `phase8-application-v3/services/account-service/Dockerfile` | repo root |
+| transfer-service | `phase8-application-v3/services/transfer-service/Dockerfile` | repo root |
+| notification-service | `phase8-application-v3/services/notification-service/Dockerfile` | repo root |
+| frontend | `frontend/Dockerfile` | `frontend/` |
 
-Chỉ build service có file thay đổi dưới `phase8-application-v3/` khi **BUILD_TARGET = auto**.
+**BUILD_TARGET = auto:** build khi diff chạm thư mục service / `phase8-application-v3/common/` (Python) hoặc `frontend/`.
 
 ### Build with Parameters
 
 | BUILD_TARGET | Hành vi |
 |--------------|---------|
 | `auto` (mặc định) | Chỉ build service có diff trong commit; không diff → skip |
-| `all` | Build mọi service |
-| `api-producer`, `auth-service`, … | Build đúng một service |
+| `all` | Build mọi service (kể cả frontend) |
+| `api-producer`, `auth-service`, `frontend`, … | Build đúng một service |
 
 Pod agent: `serviceAccountName: jenkins-kaniko`, image Kaniko `*-debug`.
 

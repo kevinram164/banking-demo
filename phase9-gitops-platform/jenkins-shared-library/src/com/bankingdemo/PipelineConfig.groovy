@@ -28,6 +28,12 @@ class PipelineConfig implements Serializable {
             context   : '.',
             helmKey   : 'notification-service',
         ],
+        'frontend': [
+            dockerfile: 'Dockerfile',
+            context   : 'frontend',
+            helmKey   : 'frontend',
+            watchPath : 'frontend',
+        ],
     ]
 
     static Map mergeDefaults(Map user) {

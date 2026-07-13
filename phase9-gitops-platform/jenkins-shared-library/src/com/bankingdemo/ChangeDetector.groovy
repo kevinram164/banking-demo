@@ -50,11 +50,22 @@ class ChangeDetector implements Serializable {
             }
             diff.split('\n').each { path ->
                 if (path.startsWith('phase8-application-v3/common/')) {
-                    changed.addAll(all)
+                    // common chỉ ảnh hưởng Python services — không rebuild frontend
+                    PipelineConfig.SERVICES.each { name, meta ->
+                        if (name != 'frontend') {
+                            changed << name
+                        }
+                    }
                 } else {
                     PipelineConfig.SERVICES.each { name, meta ->
-                        def serviceDir = meta.dockerfile.replace('/Dockerfile', '')
-                        if (path.startsWith("${serviceDir}/") || path == meta.dockerfile) {
+                        def watch = meta.watchPath ?: meta.context
+                        if (!watch || watch == '.') {
+                            watch = meta.dockerfile.replace('/Dockerfile', '').replaceAll(/\/Dockerfile$/, '')
+                            if (watch == 'Dockerfile' || !watch) {
+                                watch = name
+                            }
+                        }
+                        if (path.startsWith("${watch}/") || path == meta.dockerfile || path == "${watch}/Dockerfile") {
                             changed << name
                         }
                     }
