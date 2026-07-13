@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations  # Python < 3.10: cho phép str | None trong type hints
+
 """
 Script mô phỏng giao dịch ngẫu nhiên giữa các users.
 Login tất cả users → chọn ngẫu nhiên cặp (sender, receiver) → chuyển khoản.

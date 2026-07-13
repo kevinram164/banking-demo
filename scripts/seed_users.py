@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations  # Python < 3.10: cho phép str | None trong type hints
+
 """
 Script tạo users giả lập để test dịch vụ banking.
 Hỗ trợ cả API v1 (username, password) và v2 (phone, username, password).
