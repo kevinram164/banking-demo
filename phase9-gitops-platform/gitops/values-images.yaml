@@ -47,5 +47,5 @@ frontend:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/frontend
-    tag: e202cbd
+    tag: 5445fad
     pullPolicy: Always
