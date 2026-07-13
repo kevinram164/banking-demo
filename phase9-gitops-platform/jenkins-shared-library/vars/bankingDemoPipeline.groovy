@@ -30,13 +30,18 @@ spec:
           mountPath: /home/jenkins
     - name: kaniko
       image: ${cfg.kanikoImage}
+      # busybox sh -c: tạo symlink /busybox/sh (một số layer chỉ có binary busybox)
+      # rồi sleep giữ container. KHÔNG dùng shell=/busybox/busybox — Jenkins gọi
+      # "busybox <script>" → in Usage rồi thoát (không chạy script).
       command: ["/busybox/busybox"]
-      args: ["sleep", "99d"]
+      args:
+        - "sh"
+        - "-c"
+        - "ln -sf /busybox/busybox /busybox/sh; ln -sf /busybox/busybox /bin/sh 2>/dev/null; exec /busybox/busybox sleep 99d"
       tty: true
       env:
-        # Kubernetes plugin exec thường không kế thừa PATH image → "sh not found"
         - name: PATH
-          value: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/busybox:/kaniko"
+          value: "/busybox:/kaniko:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       securityContext:
         runAsUser: 0
         runAsGroup: 0
