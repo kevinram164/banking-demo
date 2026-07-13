@@ -9,13 +9,14 @@ Hướng dẫn **end-to-end** cho **OpenShift Container Platform (OCP)** đã c�
 - **Expose:** OpenShift **Route** (không Traefik / Nginx)
 - **Storage:** NFS CSI (`nfs-csi`)
 
-Tài liệu liên quan:
+Tài liệu liên quan (nhánh [`dev-ocp`](https://github.com/kevinram164/banking-demo/tree/dev-ocp)):
 
-- [OCP-ARCHITECTURE.md](./OCP-ARCHITECTURE.md) — kiến trúc Route, luồng CI/CD
-- [PHASE9.md](./PHASE9.md) — tổng quan Phase 9
-- [environments/dev-ocp/README.md](./environments/dev-ocp/README.md) — URL và thứ tự apply
-- [environments/dev-ocp/INSTALL-NFS-CSI.md](./environments/dev-ocp/INSTALL-NFS-CSI.md) — NFS storage
-- [environments/dev-ocp/INSTALL-ARGOCD-UPSTREAM.md](./environments/dev-ocp/INSTALL-ARGOCD-UPSTREAM.md) — cài ArgoCD + SCC
+- [OCP-ARCHITECTURE.md](https://github.com/kevinram164/banking-demo/blob/dev-ocp/phase9-gitops-platform/OCP-ARCHITECTURE.md) — kiến trúc Route, luồng CI/CD
+  - Sơ đồ: [phase9-architecture-overview-ocp.png](https://github.com/kevinram164/banking-demo/blob/dev-ocp/articles/viblo-series/assets/phase9-architecture-overview-ocp.png) · [phase9-cicd-flow.png](https://github.com/kevinram164/banking-demo/blob/dev-ocp/articles/viblo-series/assets/phase9-cicd-flow.png) · [phase9-namespace-map.png](https://github.com/kevinram164/banking-demo/blob/dev-ocp/articles/viblo-series/assets/phase9-namespace-map.png)
+- [PHASE9.md](https://github.com/kevinram164/banking-demo/blob/dev-ocp/phase9-gitops-platform/PHASE9.md) — tổng quan Phase 9
+- [environments/dev-ocp/README.md](https://github.com/kevinram164/banking-demo/blob/dev-ocp/phase9-gitops-platform/environments/dev-ocp/README.md) — URL và thứ tự apply
+- [INSTALL-NFS-CSI.md](https://github.com/kevinram164/banking-demo/blob/dev-ocp/phase9-gitops-platform/environments/dev-ocp/INSTALL-NFS-CSI.md) — NFS storage
+- [INSTALL-ARGOCD-UPSTREAM.md](https://github.com/kevinram164/banking-demo/blob/dev-ocp/phase9-gitops-platform/environments/dev-ocp/INSTALL-ARGOCD-UPSTREAM.md) — cài ArgoCD + SCC
 
 ---
 
