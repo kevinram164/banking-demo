@@ -12,6 +12,6 @@ spec:
     {{- include "banking-demo.frontend.selectorLabels" . | nindent 4 }}
   ports:
     - port: {{ .Values.frontend.service.port }}
-      targetPort: {{ .Values.frontend.service.port }}
+      targetPort: {{ .Values.frontend.service.targetPort | default .Values.frontend.service.port }}
       name: {{ .Values.frontend.service.portName }}
 {{- end }}

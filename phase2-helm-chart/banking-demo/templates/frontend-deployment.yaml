@@ -35,7 +35,7 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           ports:
-            - containerPort: {{ .Values.frontend.service.port }}
+            - containerPort: {{ .Values.frontend.service.targetPort | default .Values.frontend.service.port }}
               name: {{ .Values.frontend.service.portName }}
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}

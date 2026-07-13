@@ -368,7 +368,7 @@ export VAULT_TOKEN='root'
 
 vault kv put secret/banking/db \
   DATABASE_URL='postgresql://banking:bankingpass@postgres-ha-postgresql-primary.postgres.svc.cluster.local:5432/banking' \
-  REDIS_URL='redis://redis-ha-redis-master.redis.svc.cluster.local:6379/0'
+  REDIS_URL='redis://:Mbfs%402025@redis-ha.redis.svc.cluster.local:6379/0'
 
 vault kv put secret/banking/rabbitmq \
   RABBITMQ_URL='amqp://banking:bankingpass@rabbitmq.rabbit.svc.cluster.local:5672/'
@@ -922,9 +922,10 @@ oc get pods -n banking
 | `uvicorn` not found / thiếu `/app/venv/bin/uvicorn` | Kaniko miss symlink venv — multi-stage + `venv --copies`; rebuild `BUILD_TARGET=all` |
 | Kaniko `symlink lib .../venv/lib64: file exists` | State multi-stage còn lại + `lib64→lib` — `rm -f venv/lib64` trong Dockerfile + `rm -rf /kaniko/0` giữa builds |
 | `Name or service not known` (Postgres) | Sai host trong Vault `secret/banking/db` — OCP: `postgres-ha-postgresql-primary.postgres.svc.cluster.local` |
+| `Name or service not known` (Redis) | Sai host `REDIS_URL` — `oc get svc -n redis`; thường `redis-ha` hoặc `redis-ha-master` (không phải `redis-ha-redis-master`); auth: `redis://:Mbfs%402025@...` |
 | `secret "banking-db-secret" not found` | ESO chưa tạo Secret — seed Vault `secret/banking/db` + `oc describe externalsecret banking-db-secret -n banking` |
 | Frontend nginx `[emerg] host not found in upstream "kong"` | `nginx.conf` FQDN `kong-kong-proxy.kong.svc.cluster.local` (không short name `kong`) |
-| Frontend nginx `host not found in resolver "kube-dns..."` | OCP không có kube-dns — bỏ `resolver{}`; dùng `proxy_pass` FQDN tĩnh |
+| Frontend nginx `Permission denied` `/var/cache/nginx` | OCP UID arbitrary — Dockerfile chmod g+rwX + listen **8080**; Helm `service.targetPort: 8080` |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |

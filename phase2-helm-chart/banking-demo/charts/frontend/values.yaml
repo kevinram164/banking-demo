@@ -10,11 +10,13 @@ frontend:
   replicas: 1
   service:
     port: 80
+    # Container listen 8080 (non-root OCP); Service :80 → pod :8080
+    targetPort: 8080
     portName: http
   readinessProbe:
     enabled: true
     path: /
-    port: 80
+    port: 8080
     initialDelaySeconds: 5
     periodSeconds: 10
     timeoutSeconds: 1
@@ -31,3 +33,5 @@ frontend:
         type: RuntimeDefault
     container:
       allowPrivilegeEscalation: false
+      # OCP arbitrary UID; image đã chmod g+rwX group 0
+      runAsNonRoot: true
