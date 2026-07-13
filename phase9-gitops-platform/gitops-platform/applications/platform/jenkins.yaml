@@ -49,6 +49,7 @@ spec:
             - configuration-as-code
             - pipeline-groovy-lib
             - durable-task
+            - stage-view
           overwritePlugins: true
           # false: đừng ghi đè plugin từ image mỗi lần start (dễ lệch với PVC)
           overwritePluginsFromImage: false
