@@ -559,7 +559,18 @@ argocd app sync observability-linkerd-control-plane
 oc get pods -n linkerd
 ```
 
-Nếu log còn `Extension multiport … missing kernel module` → load `xt_*` trên node:
+Nếu log còn `Extension multiport … missing kernel module` → load `xt_*` trên node.
+
+**`xt_*` là gì?** Kernel modules **xtables** (iptables extensions). `linkerd-init` dùng `iptables-nft` nhưng vẫn cần match/target kiểu cũ trong network namespace của pod:
+
+| Module | Việc Linkerd dùng |
+|--------|-------------------|
+| `xt_multiport` | Bỏ qua nhiều port (`4190,4191,…`) một rule |
+| `xt_owner` | Không redirect traffic của UID proxy (`2102`) |
+| `xt_comment` | Comment trên rule (debug) |
+| `xt_REDIRECT` | Redirect TCP vào port proxy (`4140`/`4143`) |
+
+Trên RHCOS các module đôi khi **không tự load** → rule fail dù đã `iptablesMode=nft`. `modprobe` (lab) hoặc MachineConfig (persist sau reboot).
 
 ```bash
 # Lab nhanh (không reboot) — modprobe trên mọi node rồi restart pods

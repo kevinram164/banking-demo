@@ -368,6 +368,8 @@ oc logs -n linkerd deploy/linkerd-proxy-injector -c linkerd-init 2>&1 | head -20
 | `iptables-save … (legacy): Permission denied` | values `proxyInit.iptablesMode=nft` + `runAsRoot=true` + sync |
 | `Extension multiport … missing kernel module` | `./scripts/linkerd-load-xt-modules.sh` rồi `oc apply …/machineconfig/linkerd-xt-modules.yaml` |
 
+**`xt_*` modules:** extension iptables trong kernel (`xt_multiport`, `xt_owner`, `xt_comment`, `xt_REDIRECT`). Linkerd cần chúng để redirect traffic vào sidecar; RHCOS đôi khi không autoload → `modprobe` / MachineConfig. Chi tiết: [OCP-DEPLOY-GUIDE.md](../../OCP-DEPLOY-GUIDE.md) (mục Linkerd / `linkerd-init`).
+
 
 ---
 
