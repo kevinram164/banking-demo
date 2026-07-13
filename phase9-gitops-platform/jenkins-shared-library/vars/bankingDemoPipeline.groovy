@@ -30,18 +30,18 @@ spec:
           mountPath: /home/jenkins
     - name: kaniko
       image: ${cfg.kanikoImage}
-      # busybox sh -c: tạo symlink /busybox/sh (một số layer chỉ có binary busybox)
-      # rồi sleep giữ container. KHÔNG dùng shell=/busybox/busybox — Jenkins gọi
-      # "busybox <script>" → in Usage rồi thoát (không chạy script).
+      # Kaniko unpack layer vào rootfs → xóa /busybox/sh sau build (frontend nginx).
+      # Copy busybox vào emptyDir /home/jenkins (ignore-path) — shell sống qua nhiều stage.
+      # KHÔNG dùng shell=/busybox/busybox — Jenkins gọi "busybox <script>" → Usage.
       command: ["/busybox/busybox"]
       args:
         - "sh"
         - "-c"
-        - "ln -sf /busybox/busybox /busybox/sh; ln -sf /busybox/busybox /bin/sh 2>/dev/null; exec /busybox/busybox sleep 99d"
+        - "mkdir -p /home/jenkins/agent/bin && cp /busybox/busybox /home/jenkins/agent/bin/sh && cp /busybox/busybox /home/jenkins/agent/bin/busybox && exec /busybox/busybox sleep 99d"
       tty: true
       env:
         - name: PATH
-          value: "/busybox:/kaniko:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          value: "/home/jenkins/agent/bin:/busybox:/kaniko:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       securityContext:
         runAsUser: 0
         runAsGroup: 0

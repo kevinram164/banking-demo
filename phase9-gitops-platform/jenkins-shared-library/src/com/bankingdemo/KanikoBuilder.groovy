@@ -24,6 +24,10 @@ class KanikoBuilder implements Serializable {
         // Python: full (tránh miss pip). Frontend: time (npm quá nhiều file → full rất chậm).
         def snap = meta.snapshotMode ?: 'time'
         extras << "--snapshot-mode=${snap}"
+        // Giữ busybox/kaniko/home khỏi bị layer image đè (build sau cùng pod).
+        extras << '--ignore-path=/busybox'
+        extras << '--ignore-path=/kaniko'
+        extras << '--ignore-path=/home/jenkins'
         def extraFlags = extras.join(' ')
         def contextDir = meta.context ?: '.'
 
@@ -33,8 +37,8 @@ class KanikoBuilder implements Serializable {
             "HARBOR_PASS=${harbor.password}",
             'DOCKER_CONFIG=/home/jenkins/agent/.docker',
         ]) {
-            // Phải là /busybox/sh (applet). /busybox/busybox → Jenkins chạy "busybox script" = Usage rồi fail.
-            steps.container(name: 'kaniko', shell: '/busybox/sh') {
+            // Shell trên emptyDir — sống sau khi Kaniko unpack đè /busybox.
+            steps.container(name: 'kaniko', shell: '/home/jenkins/agent/bin/sh') {
                 def rc = steps.sh(
                     returnStatus: true,
                     script: """

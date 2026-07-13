@@ -86,7 +86,7 @@ ERROR: script returned exit code -1
 
 → **Image đã lên Harbor**; Jenkins durable-task mất heartbeat (workspace NFS / agent lag).
 
-Đã xử lý trong repo: heartbeat trong `KanikoBuilder` + `controller.javaOpts` `HEARTBEAT_CHECK_INTERVAL=300`. Sync `platform-jenkins`, rebuild.
+Đã xử lý trong repo: heartbeat + `javaOpts` HEARTBEAT/USE_BINARY_WRAPPER. Shell Kaniko = `/home/jenkins/agent/bin/sh` (copy busybox) + `--ignore-path` — tránh mất `/busybox/sh` sau build frontend.
 
 Hotfix tạm (chưa sync): **Manage Jenkins → Script Console**:
 
