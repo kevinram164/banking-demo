@@ -329,6 +329,23 @@ oc get externalsecret harbor-pull-creds -n banking
 oc get secret harbor-pull-creds -n banking
 ```
 
+**Trust TLS Harbor (bắt buộc trước khi banking pull image):** Route `edge` dùng cert ingress — kubelet báo `x509: certificate signed by unknown authority` nếu chưa trust CA.
+
+```bash
+# 1) Seed CA vào Vault (từ router-ca)
+export VAULT_TOKEN=root
+./phase9-gitops-platform/environments/dev-ocp/scripts/vault-seed-harbor-registry-ca.sh
+
+# 2) Sync ESO (ArgoCD UI → platform-external-secrets-config) — Secret trong openshift-config
+oc get secret harbor-registry-ca-vault -n openshift-config
+
+# 3) ConfigMap + image.config (CRI-O không đọc Vault trực tiếp)
+./phase9-gitops-platform/environments/dev-ocp/scripts/harbor-registry-trust-setup.sh
+oc get mcp
+```
+
+Chi tiết Vault path: [vault/README.md](./vault/README.md) §5.6b. Lab nhanh không Vault: `INSECURE=1 ./…/harbor-registry-trust-setup.sh`
+
 > **OCP vs k3d:** Không cần registry mirror `registries.yaml`. Kaniko dùng `kanikoSkipTlsVerify: true` trong `Jenkinsfile`; kubelet pull qua Route TLS của OpenShift Router.
 
 ### 5.5 Vault + External Secrets
@@ -760,7 +777,10 @@ oc get applications -n argocd | grep banking
 oc get pods -n banking
 ```
 
-`ImagePullBackOff` → kiểm tra Vault `platform/harbor-pull`, ESO `harbor-pull-creds`, tag trong `values-images.yaml`, CI đã push image.
+`ImagePullBackOff` → kiểm tra:
+1. Vault `platform/harbor-pull` + ESO `harbor-pull-creds`
+2. Tag trong `values-images.yaml`, CI đã push
+3. **`x509: unknown authority`** → `harbor-registry-trust-setup.sh` (trust router CA / insecureRegistries)
 
 ### 9.2 Banking Routes
 
@@ -869,7 +889,7 @@ oc get pods -n banking
 
 **Runbook đầy đủ:** [environments/dev-ocp/INSTALL-TROUBLESHOOTING.md](./environments/dev-ocp/INSTALL-TROUBLESHOOTING.md) (Vault image UBI, Harbor SCC/NFS, CSR kubelet, Jenkins ESO).
 
-| Triệu chứng | Cách sửa |
+| Các lỗi có thể gặp | Cách sửa |
 |-------------|----------|
 | Pod `Forbidden` SCC | `namespace-scc-setup.sh <ns>` — xem INSTALL-SCC-HARDENED.md |
 | Kong `runAsUser 1000` Forbidden | `kong-scc-setup.sh` (SCC `kong-uid1000`) |
@@ -889,6 +909,7 @@ oc get pods -n banking
 | `jenkins-platform-credentials` not found | Seed Vault + vault-token + sync ESO config — xem INSTALL-TROUBLESHOOTING.md §6 |
 | `vault-token` not found | Tạo secret trước ClusterSecretStore |
 | ImagePullBackOff | Vault `platform/harbor-pull` seeded? ESO `harbor-pull-creds` synced? CI đã push image? |
+| ImagePull `x509: unknown authority` Harbor | `harbor-registry-trust-setup.sh` — trust router CA (hoặc `INSECURE=1`) |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |

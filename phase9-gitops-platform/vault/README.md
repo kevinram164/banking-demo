@@ -10,6 +10,7 @@ secret/banking/rabbitmq    → rabbitmq-connection-secret (ns banking)
 secret/rabbitmq/admin      → rabbitmq-secret (ns rabbit)
 secret/platform/harbor      → robot ci-push (pipeline Jenkins)
 secret/platform/harbor-pull → robot k8s-pull → harbor-pull-creds (ESO, ns banking + platform)
+secret/platform/harbor-registry-ca → CA PEM → harbor-registry-ca-vault (ESO, openshift-config) → ConfigMap + image.config (script)
 secret/platform/github      → GitHub PAT (pipeline push GitOps)
 secret/platform/jenkins     → Jenkins admin + webhook (ESO → Helm)
 ```
@@ -165,7 +166,41 @@ vault kv put secret/platform/github \
 
 Pipeline đọc path này khi commit `values-images.yaml` — không lưu PAT trong Jenkins.
 
-#### 5.7 `secret/platform/jenkins` — admin UI (+ webhook)
+#### 5.7 `secret/platform/harbor-registry-ca` — CA trust pull image (OCP)
+
+Kubelet pull `https://harbor-platform.apps…` cần tin CA ký cert Route. Lưu PEM trong Vault → ESO Secret → script tạo **ConfigMap** (Image Config không đọc Vault trực tiếp).
+
+| Field | Mô tả |
+|-------|--------|
+| `ca.crt` | PEM CA (thường = `router-ca` / ingress) |
+| `registry_host` | Hostname registry, vd. `harbor-platform.apps.ocp01.npd.co` |
+
+```bash
+# Seed từ cluster (khuyến nghị lab)
+export VAULT_TOKEN=root
+./phase9-gitops-platform/environments/dev-ocp/scripts/vault-seed-harbor-registry-ca.sh
+
+# Hoặc thủ công trong vault-0
+vault kv put secret/platform/harbor-registry-ca \
+  ca.crt=@/tmp/tls.crt \
+  registry_host='harbor-platform.apps.ocp01.npd.co'
+```
+
+Sau sync `platform-external-secrets-config`:
+
+```bash
+oc get externalsecret harbor-registry-ca -n openshift-config
+oc get secret harbor-registry-ca-vault -n openshift-config
+
+# Materialize ConfigMap + patch image.config (một lần / khi rotate CA)
+./phase9-gitops-platform/environments/dev-ocp/scripts/harbor-registry-trust-setup.sh
+oc get mcp
+```
+
+Manifest: `vault/external-secrets/harbor-registry-ca-external-secret.yaml`  
+AppProject cần destination `openshift-config`.
+
+#### 5.8 `secret/platform/jenkins` — admin UI (+ webhook)
 
 Chỉ dùng cho **đăng nhập Jenkins** và webhook (ESO → `jenkins-platform-credentials`):
 
@@ -278,6 +313,7 @@ vault kv put secret/rabbitmq/admin \
 | `secret/banking/rabbitmq` | `banking/rabbitmq` | `rabbitmq-connection-secret` | `banking` |
 | `secret/rabbitmq/admin` | `rabbitmq/admin` | `rabbitmq-secret` | `rabbit` |
 | `secret/platform/harbor-pull` | `platform/harbor-pull` | `harbor-pull-creds` | `banking`, `platform` |
+| `secret/platform/harbor-registry-ca` | `platform/harbor-registry-ca` | `harbor-registry-ca-vault` (+ ConfigMap qua script) | `openshift-config` |
 | `secret/platform/jenkins` | `platform/jenkins` | `jenkins-platform-credentials` | `platform` |
 
 Sau khi seed Vault, ESO đồng bộ theo `refreshInterval` (mặc định 1h) hoặc khi reconcile:

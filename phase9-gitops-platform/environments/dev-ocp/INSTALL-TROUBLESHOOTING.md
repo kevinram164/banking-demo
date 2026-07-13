@@ -163,6 +163,36 @@ Script dùng `oc delete pvc --wait=false` để tránh treo chờ CSI.
 
 **PVC mới sau này:** tạo StorageClass mới có `mountPermissions: "0777"` (xem [INSTALL-NFS-CSI.md](./INSTALL-NFS-CSI.md) §4.1).
 
+### 3.3b ImagePull `x509: certificate signed by unknown authority`
+
+**Triệu chứng:** Banking pods `ErrImagePull` / `ImagePullBackOff`:
+
+```text
+pinging container registry harbor-platform.apps.ocp01.npd.co: …
+tls: failed to verify certificate: x509: certificate signed by unknown authority
+```
+
+**Nguyên nhân:** Image dùng host Route HTTPS (`harbor-platform.apps…`). Cert do OpenShift Router ký — CRI-O/kubelet **không** tin CA đó (khác pull secret auth).
+
+**Sửa (Vault + ESO + ConfigMap):**
+
+```bash
+export VAULT_TOKEN=root
+./phase9-gitops-platform/environments/dev-ocp/scripts/vault-seed-harbor-registry-ca.sh
+# Sync platform-external-secrets-config trên ArgoCD UI
+./phase9-gitops-platform/environments/dev-ocp/scripts/harbor-registry-trust-setup.sh
+oc get mcp
+oc delete pod -n banking --all --force --grace-period=0
+```
+
+**Lab nhanh** (không Vault — insecure registry hoặc trust router-ca trực tiếp):
+
+```bash
+INSECURE=1 ./phase9-gitops-platform/environments/dev-ocp/scripts/harbor-registry-trust-setup.sh
+# hoặc script không có ESO Secret sẽ fallback router-ca
+./phase9-gitops-platform/environments/dev-ocp/scripts/harbor-registry-trust-setup.sh
+```
+
 ### 3.4 `nfs.csi.k8s.io not found` (FailedMount)
 
 **Triệu chứng:** PVC Bound nhưng pod `FailedMount` trên **một worker** cụ thể.
@@ -343,6 +373,8 @@ argocd app get platform-vault
 | Script | Mục đích |
 |--------|----------|
 | `scripts/harbor-scc-setup.sh` | SA `harbor` + SCC UID 999–10000 + sync Harbor |
+| `scripts/harbor-registry-trust-setup.sh` | Trust CA Route Harbor / insecureRegistries (fix x509 pull) |
+| `scripts/vault-seed-harbor-registry-ca.sh` | Seed Vault `platform/harbor-registry-ca` từ router-ca |
 | `scripts/harbor-reset-database-pvc.sh` | Reset PVC Postgres Harbor (NFS permission / lab) |
 | `scripts/vault-remove-injector.sh` | Xóa vault-agent-injector còn sót |
 | `scripts/namespace-scc-setup.sh` | Patch UID dải namespace + `nonroot` (skip `harbor-*`) |
