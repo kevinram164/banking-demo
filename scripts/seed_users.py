@@ -18,6 +18,7 @@ import json
 import random
 import string
 import sys
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -73,13 +74,17 @@ RESULT_FAIL = "fail"
 
 
 def register_v2(
-    base_url: str, session: requests.Session, verify: bool = True, index: int = 0
+    base_url: str,
+    session: requests.Session,
+    verify: bool = True,
+    index: int = 0,
+    password: str | None = None,
 ) -> tuple[str, dict | None, str | None]:
     """Đăng ký qua API v2. Returns (status, data, error)."""
     url = f"{base_url.rstrip('/')}/api/auth/register"
     phone = random_phone(index)
     username = random_name(index)
-    password = random_password()
+    password = password or random_password()
     payload = {"phone": phone, "username": username, "password": password}
     try:
         r = session.post(url, json=payload, timeout=15, verify=verify)
@@ -106,12 +111,16 @@ def register_v2(
 
 
 def register_v1(
-    base_url: str, session: requests.Session, verify: bool = True, index: int = 0
+    base_url: str,
+    session: requests.Session,
+    verify: bool = True,
+    index: int = 0,
+    password: str | None = None,
 ) -> tuple[str, dict | None, str | None]:
     """Đăng ký qua API v1. Returns (status, data, error)."""
     url = f"{base_url.rstrip('/')}/api/auth/register"
     username = random_username(index=index)
-    password = random_password()
+    password = password or random_password()
     payload = {"username": username, "password": password}
     try:
         r = session.post(url, json=payload, timeout=15, verify=verify)
@@ -205,15 +214,24 @@ def main():
         action="store_true",
         help="Chỉ gửi 1 request để test, in response đầy đủ",
     )
+    parser.add_argument(
+        "--password",
+        "-p",
+        default=None,
+        help="Password cố định cho mọi user (mặc định: random). Dùng cùng giá trị với random_transfers.py",
+    )
     args = parser.parse_args()
 
     base_url = args.base_url.rstrip("/")
     verify = not args.no_verify
+    if args.no_verify:
+        warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
     print("=== Seed Users (Python) ===")
     print(f"Count:    {args.count}")
     print(f"Base URL: {base_url}")
     print(f"Workers:  {args.workers}")
+    print(f"Password: {'(fixed)' if args.password else '(random)'}")
     print()
 
     # Phát hiện API version
@@ -229,7 +247,9 @@ def main():
 
     def do_register(idx: int) -> tuple[str, dict | None, str | None]:
         with requests.Session() as s:
-            return register_fn(base_url, s, verify, args.seed + idx)
+            return register_fn(
+                base_url, s, verify, args.seed + idx, password=args.password
+            )
 
     if args.test:
         print("Chạy 1 request test...")

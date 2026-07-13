@@ -21,6 +21,7 @@ import random
 import sys
 import threading
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
@@ -151,6 +152,8 @@ def main():
 
     base_url = args.base_url.rstrip("/")
     verify = not args.no_verify
+    if args.no_verify:
+        warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
     print("=" * 60)
     print("  RANDOM TRANSFER SIMULATOR")
