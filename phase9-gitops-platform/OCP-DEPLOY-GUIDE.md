@@ -910,6 +910,7 @@ oc get pods -n banking
 | `vault-token` not found | Tạo secret trước ClusterSecretStore |
 | ImagePullBackOff | Vault `platform/harbor-pull` seeded? ESO `harbor-pull-creds` synced? CI đã push image? |
 | ImagePull `x509: unknown authority` Harbor | `harbor-registry-trust-setup.sh` — trust router CA (hoặc `INSECURE=1`) |
+| Banking `No module named uvicorn` | Kaniko miss pip `/usr/local` — Dockerfile dùng venv `/app/venv` + rebuild `BUILD_TARGET=all` |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |

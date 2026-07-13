@@ -40,6 +40,7 @@ class KanikoBuilder implements Serializable {
                   --context=dir://\$(pwd) \\
                   --dockerfile=${meta.dockerfile} \\
                   --destination=${image} \\
+                  --snapshot-mode=full \\
                   ${extraFlags}
                 """
             }
