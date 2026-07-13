@@ -12,6 +12,7 @@ COPY phase8-application-v3/common /app/common
 COPY phase8-application-v3/services/auth-service /app
 
 RUN python -m venv --copies /app/venv \
+    && rm -f /app/venv/lib64 \
     && /app/venv/bin/pip install --upgrade pip \
     && /app/venv/bin/pip install --no-cache-dir -r common/requirements.txt \
     && /app/venv/bin/python -c "import uvicorn; print(uvicorn.__file__)" \

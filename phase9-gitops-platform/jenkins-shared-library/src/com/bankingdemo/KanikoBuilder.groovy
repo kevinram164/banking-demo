@@ -45,14 +45,19 @@ class KanikoBuilder implements Serializable {
                     script: """
                     set -e
                     mkdir -p "\${DOCKER_CONFIG}"
+                    set +x
                     AUTH=\$(printf '%s:%s' "\${HARBOR_USER}" "\${HARBOR_PASS}" | base64 | tr -d '\\n')
                     printf '%s\\n' "{\\"auths\\":{\\"${cfg.harborHost}\\":{\\"auth\\":\\"\$AUTH\\"}}}" > "\${DOCKER_CONFIG}/config.json"
+                    set -x
+                    # Xóa state multi-stage Kaniko còn lại từ build trước (tránh lib64: file exists)
+                    rm -rf /kaniko/0 /kaniko/1 /kaniko/2 /kaniko/stages /kaniko/app 2>/dev/null || true
                     /kaniko/executor \\
                       --context=dir://\$(pwd)/${contextDir} \\
                       --dockerfile=${meta.dockerfile} \\
                       --destination=${image} \\
                       ${extraFlags}
                     echo "KANIKO_PUSH_OK ${image}"
+                    rm -rf /kaniko/0 /kaniko/1 /kaniko/2 /kaniko/stages /kaniko/app 2>/dev/null || true
                     """,
                 )
                 if (rc != 0 && rc != -1) {

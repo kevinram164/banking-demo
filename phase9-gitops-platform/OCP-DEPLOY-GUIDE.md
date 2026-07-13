@@ -919,6 +919,7 @@ oc get pods -n banking
 | Jenkins pod restart + startup 503 | Thường do **Argo sync STS** (đổi `javaOpts`/values). Log `Failed Loading plugin` = lệch version Pipeline — pin `pipeline-model-*` cùng bản trong `jenkins.yaml` |
 | Init CrashLoop / `stage-view` 404 | Plugin id sai — không tồn tại `stage-view`; dùng `pipeline-stage-view` hoặc bỏ hẳn. Kiểm tra `oc get cm jenkins -n platform -o jsonpath='{.data.plugins\.txt}'` |
 | `uvicorn` not found / thiếu `/app/venv/bin/uvicorn` | Kaniko miss symlink venv — multi-stage + `venv --copies`; rebuild `BUILD_TARGET=all` |
+| Kaniko `symlink lib .../venv/lib64: file exists` | State multi-stage còn lại + `lib64→lib` — `rm -f venv/lib64` trong Dockerfile + `rm -rf /kaniko/0` giữa builds |
 | `Name or service not known` (Postgres) | Sai host trong Vault `secret/banking/db` — OCP: `postgres-ha-postgresql-primary.postgres.svc.cluster.local` |
 | `secret "banking-db-secret" not found` | ESO chưa tạo Secret — seed Vault `secret/banking/db` + `oc describe externalsecret banking-db-secret -n banking` |
 | Frontend nginx `[emerg] host not found in upstream "kong"` | `nginx.conf` FQDN `kong-kong-proxy.kong.svc.cluster.local` (không short name `kong`) |
