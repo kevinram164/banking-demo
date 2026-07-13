@@ -70,5 +70,7 @@ metrics:
   service:
     port: 9121
 
-# Connection string cho app:
-# redis://redis-master.redis.svc.cluster.local:6379/0
+# Connection string cho app (sentinel.enabled=true):
+# KHÔNG dùng redis-ha:6379 — Service đó có thể trúng replica → ReadOnlyError.
+# sentinel://:Mbfs%402025@redis-ha.redis.svc.cluster.local:26379/0/mymaster
+# (password URL-encode @ → %40; path = /{db}/{masterSet})
