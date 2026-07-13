@@ -1,4 +1,6 @@
-# ExternalName — Kong proxy (ns kong) cho Route banking /api, /ws
+# ExternalName — chỉ dùng cho traffic trong-cluster (pod → Kong).
+# OpenShift Route KHÔNG dùng được Service ExternalName (không có Endpoints) → 503.
+# Route /api,/ws: xem banking-route-api.yaml / banking-route-ws.yaml (ns kong).
 apiVersion: v1
 kind: Service
 metadata:

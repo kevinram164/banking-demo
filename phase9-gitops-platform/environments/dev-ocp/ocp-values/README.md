@@ -30,9 +30,11 @@ Hướng dẫn: [INSTALL-NFS-CSI.md](../INSTALL-NFS-CSI.md)
 | `routes/jenkins-route.yaml` | `jenkins-platform.apps.ocp01.npd.co` | `jenkins:http` | `platform` |
 | `routes/vault-route.yaml` | `vault-platform.apps.ocp01.npd.co` | `vault:8200` | `vault` |
 | `routes/argocd-route.yaml` | `argocd-server-argocd.apps.ocp01.npd.co` | `argocd-server` | `argocd` |
-| `routes/banking-route-*.yaml` | `npd-banking.co` | `frontend`, `kong-proxy-ext` | `banking` |
+| `routes/banking-route-frontend.yaml` | `npd-banking.co` `/` | `frontend` | `banking` |
+| `routes/banking-route-api.yaml` | `npd-banking.co` `/api` | `kong-kong-proxy:8000` | `kong` |
+| `routes/banking-route-ws.yaml` | `npd-banking.co` `/ws` | `kong-kong-proxy:8000` | `kong` |
 | `routes/kong-route.yaml` | `kong.apps.ocp01.npd.co` | `kong-kong-proxy:8000` | `kong` |
-| `routes/banking-kong-proxy-ext.yaml` | — | ExternalName → Kong | `banking` |
+| `routes/banking-kong-proxy-ext.yaml` | — | ExternalName → Kong (in-cluster only; **không** dùng cho Route) | `banking` |
 
 ArgoCD Application: `platform-routes-app-of-apps.yaml` (sync-wave `3`).
 

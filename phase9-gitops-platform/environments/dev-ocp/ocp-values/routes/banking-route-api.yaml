@@ -1,9 +1,10 @@
-# Banking API — npd-banking.co/api → Kong proxy (ns kong qua kong-proxy-ext)
+# Banking API — npd-banking.co/api → Kong proxy (cùng ns kong)
+# KHÔNG dùng ExternalName (kong-proxy-ext): OpenShift Route cần Endpoints thật → 503.
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: npd-banking-api
-  namespace: banking
+  namespace: kong
   labels:
     app.kubernetes.io/name: banking-demo
     app.kubernetes.io/component: api
@@ -16,7 +17,7 @@ spec:
   path: /api
   to:
     kind: Service
-    name: kong-proxy-ext
+    name: kong-kong-proxy
     weight: 100
   port:
     targetPort: 8000
