@@ -61,7 +61,6 @@ class KanikoBuilder implements Serializable {
 
                     cleanup
                     trap - EXIT
-                    sync
                     echo "KANIKO_PUSH_OK ${image}"
                     exit 0
                     """,
