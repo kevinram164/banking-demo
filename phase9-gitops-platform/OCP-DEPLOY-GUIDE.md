@@ -925,7 +925,7 @@ oc get pods -n banking
 | `Name or service not known` (Redis) | Sai host `REDIS_URL` — `oc get svc -n redis`; thường `redis-ha` hoặc `redis-ha-master` (không phải `redis-ha-redis-master`); auth: `redis://:Mbfs%402025@...` |
 | `secret "banking-db-secret" not found` | ESO chưa tạo Secret — seed Vault `secret/banking/db` + `oc describe externalsecret banking-db-secret -n banking` |
 | Frontend nginx `[emerg] host not found in upstream "kong"` | `nginx.conf` FQDN `kong-kong-proxy.kong.svc.cluster.local` (không short name `kong`) |
-| Frontend nginx `Permission denied` `/var/cache/nginx` | OCP UID arbitrary — Dockerfile chmod g+rwX + listen **8080**; Helm `service.targetPort: 8080` |
+| Frontend nginx `Permission denied` `/var/cache/nginx` hoặc `nginx.pid` No such file | OCP: `/var/run` tmpfs rỗng — pid/temp dùng `/tmp`; listen **8080**; Helm `targetPort: 8080` |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |
