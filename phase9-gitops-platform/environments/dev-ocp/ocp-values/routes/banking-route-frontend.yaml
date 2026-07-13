@@ -18,7 +18,8 @@ spec:
     name: frontend
     weight: 100
   port:
-    targetPort: 80
+    # Tên port trên Service (port 80 → pod 8080). Số 80 khiến Router thấy Endpoints: <none>
+    targetPort: http
   tls:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
