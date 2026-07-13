@@ -35,22 +35,22 @@ spec:
             userKey: jenkins-admin-user
             passwordKey: jenkins-admin-password
           jenkinsUrl: https://jenkins-platform.apps.ocp01.npd.co/
-          # false: không kéo "latest" lẫn version trên PVC (gây lệch dependency → restart/503)
+          # false: dependency lấy bản tối thiểu tương thích (không kéo :latest lẫn lộn)
           installLatestPlugins: false
+          # Pin version — KHÔNG dùng id "stage-view" (404). UI Stage View = pipeline-stage-view (optional).
           installPlugins:
-            - kubernetes
-            # Pin cùng dòng Pipeline Declarative — tránh extensions mới + model-api cũ
+            - kubernetes:4437.v3a_18554d3f32
             - workflow-aggregator:608.v67378e9d3db_1
             - pipeline-model-api:2.2255.v56a_15e805f12
             - pipeline-model-definition:2.2255.v56a_15e805f12
             - pipeline-model-extensions:2.2255.v56a_15e805f12
-            - workflow-multibranch
-            - git
-            - configuration-as-code
-            - pipeline-groovy-lib
-            - durable-task
+            - workflow-multibranch:821.vc3b_4ea_780798
+            - git:5.10.1
+            - configuration-as-code:2100.vb_fd699d2a_09c
+            - pipeline-groovy-lib:798.v5cc688825312
+            - durable-task:686.v80ff80875b_82
+          additionalPlugins: []
           overwritePlugins: true
-          # false: đừng ghi đè plugin từ image mỗi lần start (dễ lệch với PVC)
           overwritePluginsFromImage: false
           initializeOnce: false
           podSecurityContextOverride:
