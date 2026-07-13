@@ -1,15 +1,15 @@
 import React, { useState } from "react";
 import { api, setSession } from "./api";
 
-export default function Login({ onOk, onGoRegister }) {
-  const [username, setU] = useState("");
+export default function Login({ onOk, onGoRegister, onGoAdmin }) {
+  const [phone, setPhone] = useState("");
   const [password, setP] = useState("");
   const [err, setErr] = useState("");
 
   const submit = async () => {
     setErr("");
     try {
-      const r = await api.login(username, password);
+      const r = await api.login(phone, password);
       setSession(r.session);
       onOk();
     } catch (e) {
@@ -36,9 +36,10 @@ export default function Login({ onOk, onGoRegister }) {
         <div className="space-y-3">
           <input
             className="w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setU(e.target.value)}
+            placeholder="Phone number (digits only)"
+            inputMode="numeric"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
           />
           <input
             className="w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
@@ -70,8 +71,13 @@ export default function Login({ onOk, onGoRegister }) {
           </div>
         )}
 
-        <div className="mt-5 text-xs text-slate-400">
-          © Banking Demo Lab • Postgres + Redis
+        <div className="mt-5 flex items-center justify-between text-xs text-slate-400">
+          <span>© Banking Demo Lab • Postgres + Redis</span>
+          {onGoAdmin && (
+            <button onClick={onGoAdmin} className="text-amber-600 hover:text-amber-700 font-semibold">
+              Admin
+            </button>
+          )}
         </div>
       </div>
     </div>

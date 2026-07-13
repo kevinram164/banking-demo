@@ -3,9 +3,10 @@ import Layout from "./ui/Layout";
 import Card from "./ui/Card";
 import { api, getSession, clearSession } from "./api";
 
-export default function Dashboard({ onLogout }) {
+export default function Dashboard({ onLogout, onGoAdmin }) {
   const [me, setMe] = useState(null);
-  const [toUser, setToUser] = useState("");
+  const [toAccount, setToAccount] = useState("");
+  const [toName, setToName] = useState("");
   const [amount, setAmount] = useState("");
   const [notifs, setNotifs] = useState([]);
   const [wsStatus, setWsStatus] = useState("disconnected");
@@ -57,8 +58,8 @@ export default function Dashboard({ onLogout }) {
     setErr(""); setMsg("");
     
     // Input validation
-    if (!toUser || !toUser.trim()) {
-      setErr("Please enter recipient username");
+    if (!toAccount || !toAccount.trim()) {
+      setErr("Please enter recipient account number");
       return;
     }
     
@@ -74,12 +75,24 @@ export default function Dashboard({ onLogout }) {
     }
     
     try {
-      const r = await api.transfer(toUser.trim(), amountNum);
-      setMsg(`Transfer success: ${r.amount} to ${r.to}`);
-      setToUser(""); setAmount("");
+      const r = await api.transfer(toAccount.trim(), amountNum);
+      setMsg(`Transfer success: ${r.amount} to ${r.to} (${r.to_account_number})`);
+      setToAccount(""); setToName(""); setAmount("");
       await load();
     } catch (e) {
       setErr(e.message);
+    }
+  };
+
+  const lookup = async (acct) => {
+    const v = (acct || "").trim();
+    setToName("");
+    if (!v) return;
+    try {
+      const r = await api.lookupAccount(v);
+      setToName(r.username || "");
+    } catch {
+      setToName("");
     }
   };
 
@@ -96,7 +109,7 @@ export default function Dashboard({ onLogout }) {
       : "bg-slate-50 text-slate-600 border-slate-200";
 
   return (
-    <Layout user={me?.username} env="LAB" onLogout={logout}>
+    <Layout user={me?.username} env="LAB" onLogout={logout} onGoAdmin={onGoAdmin} activePage="dashboard">
       <div className="space-y-6">
         <div className="grid gap-6 md:grid-cols-3">
           <Card
@@ -113,6 +126,16 @@ export default function Dashboard({ onLogout }) {
                 <div className="text-xs text-slate-500">User</div>
                 <div className="text-sm font-semibold text-slate-900">{me?.username || "-"}</div>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <div className="text-xs text-slate-500">Phone</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{me?.phone || "-"}</div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <div className="text-xs text-slate-500">Account number</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{me?.account_number || "-"}</div>
+                </div>
+              </div>
               <div className="rounded-2xl bg-blue-50 p-4">
                 <div className="text-xs text-blue-700">Available balance</div>
                 <div className="mt-1 text-2xl font-bold text-blue-900">
@@ -126,10 +149,15 @@ export default function Dashboard({ onLogout }) {
             <div className="space-y-3">
               <input
                 className="w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Recipient username (e.g. hieuny)"
-                value={toUser}
-                onChange={(e) => setToUser(e.target.value)}
+                placeholder="Recipient account number (e.g. 123456789012)"
+                inputMode="numeric"
+                value={toAccount}
+                onChange={(e) => setToAccount(e.target.value)}
+                onBlur={(e) => lookup(e.target.value)}
               />
+              <div className={`rounded-xl border px-4 py-3 text-sm ${toName ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-slate-50 text-slate-700"}`}>
+                Receiver: <span className="font-semibold">{toName || "—"}</span>
+              </div>
               <input
                 className="w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Amount (e.g. 1000)"
