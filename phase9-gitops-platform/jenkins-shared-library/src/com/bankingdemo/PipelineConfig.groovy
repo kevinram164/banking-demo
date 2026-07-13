@@ -4,35 +4,42 @@ class PipelineConfig implements Serializable {
 
     static final Map SERVICES = [
         'api-producer': [
-            dockerfile: 'phase8-application-v3/producer/Dockerfile',
-            context   : '.',
-            helmKey   : 'api-producer',
+            dockerfile  : 'phase8-application-v3/producer/Dockerfile',
+            context     : '.',
+            helmKey     : 'api-producer',
+            snapshotMode: 'full',   // pip/venv — tránh miss layer
         ],
         'auth-service': [
-            dockerfile: 'phase8-application-v3/services/auth-service/Dockerfile',
-            context   : '.',
-            helmKey   : 'auth-service',
+            dockerfile  : 'phase8-application-v3/services/auth-service/Dockerfile',
+            context     : '.',
+            helmKey     : 'auth-service',
+            snapshotMode: 'full',
         ],
         'account-service': [
-            dockerfile: 'phase8-application-v3/services/account-service/Dockerfile',
-            context   : '.',
-            helmKey   : 'account-service',
+            dockerfile  : 'phase8-application-v3/services/account-service/Dockerfile',
+            context     : '.',
+            helmKey     : 'account-service',
+            snapshotMode: 'full',
         ],
         'transfer-service': [
-            dockerfile: 'phase8-application-v3/services/transfer-service/Dockerfile',
-            context   : '.',
-            helmKey   : 'transfer-service',
+            dockerfile  : 'phase8-application-v3/services/transfer-service/Dockerfile',
+            context     : '.',
+            helmKey     : 'transfer-service',
+            snapshotMode: 'full',
         ],
         'notification-service': [
-            dockerfile: 'phase8-application-v3/services/notification-service/Dockerfile',
-            context   : '.',
-            helmKey   : 'notification-service',
+            dockerfile  : 'phase8-application-v3/services/notification-service/Dockerfile',
+            context     : '.',
+            helmKey     : 'notification-service',
+            snapshotMode: 'full',
         ],
         'frontend': [
-            dockerfile: 'Dockerfile',
-            context   : 'frontend',
-            helmKey   : 'frontend',
-            watchPath : 'frontend',
+            dockerfile  : 'Dockerfile',
+            context     : 'frontend',
+            helmKey     : 'frontend',
+            watchPath   : 'frontend',
+            // Không dùng full: npm tạo hàng chục nghìn file → snapshot cực chậm + stage treo
+            snapshotMode: 'time',
         ],
     ]
 

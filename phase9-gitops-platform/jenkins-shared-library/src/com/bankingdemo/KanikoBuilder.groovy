@@ -21,13 +21,13 @@ class KanikoBuilder implements Serializable {
         if (cfg.kanikoSkipTlsVerify) {
             extras << '--skip-tls-verify'
         }
+        // Python: full (tránh miss pip). Frontend: time (npm quá nhiều file → full rất chậm).
+        def snap = meta.snapshotMode ?: 'time'
+        extras << "--snapshot-mode=${snap}"
         def extraFlags = extras.join(' ')
         def contextDir = meta.context ?: '.'
 
         def harbor = VaultClient.harborCredentials(steps, cfg)
-        // OCP: DOCKER_CONFIG dưới emptyDir (writable).
-        // exit -1 sau push = durable-task/NFS (JENKINS-48300) — không fail stage.
-        // Giảm hang: đặt controller javaOpts HEARTBEAT_CHECK_INTERVAL (jenkins.yaml).
         steps.withEnv([
             "HARBOR_USER=${harbor.username}",
             "HARBOR_PASS=${harbor.password}",
@@ -45,7 +45,6 @@ class KanikoBuilder implements Serializable {
                       --context=dir://\$(pwd)/${contextDir} \\
                       --dockerfile=${meta.dockerfile} \\
                       --destination=${image} \\
-                      --snapshot-mode=full \\
                       ${extraFlags}
                     echo "KANIKO_PUSH_OK ${image}"
                     """,
