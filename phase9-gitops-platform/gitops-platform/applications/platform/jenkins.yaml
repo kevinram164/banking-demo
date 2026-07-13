@@ -35,16 +35,23 @@ spec:
             userKey: jenkins-admin-user
             passwordKey: jenkins-admin-password
           jenkinsUrl: https://jenkins-platform.apps.ocp01.npd.co/
+          # false: không kéo "latest" lẫn version trên PVC (gây lệch dependency → restart/503)
           installLatestPlugins: false
           installPlugins:
             - kubernetes
-            - workflow-aggregator
+            # Pin cùng dòng Pipeline Declarative — tránh extensions mới + model-api cũ
+            - workflow-aggregator:608.v67378e9d3db_1
+            - pipeline-model-api:2.2255.v56a_15e805f12
+            - pipeline-model-definition:2.2255.v56a_15e805f12
+            - pipeline-model-extensions:2.2255.v56a_15e805f12
             - workflow-multibranch
             - git
             - configuration-as-code
             - pipeline-groovy-lib
+            - durable-task
           overwritePlugins: true
-          overwritePluginsFromImage: true
+          # false: đừng ghi đè plugin từ image mỗi lần start (dễ lệch với PVC)
+          overwritePluginsFromImage: false
           initializeOnce: false
           podSecurityContextOverride:
             # UID do OpenShift cấp theo openshift.io/sa.scc.uid-range (ns platform)
@@ -61,7 +68,7 @@ spec:
               memory: 1Gi
             limits:
               memory: 2Gi
-          # durable-task + agent lâu (frontend npm) → exit -1 / stage treo sau push OK
+          # Đổi javaOpts → Argo sync STS → pod restart (đúng hành vi). Không phải crash Kaniko.
           javaOpts: >-
             -Dorg.jenkinsci.plugins.durabletask.BourneShellScript.HEARTBEAT_CHECK_INTERVAL=86400
             -Dorg.jenkinsci.plugins.durabletask.BourneShellScript.USE_BINARY_WRAPPER=true

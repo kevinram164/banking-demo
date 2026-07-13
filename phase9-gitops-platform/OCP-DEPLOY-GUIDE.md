@@ -912,6 +912,7 @@ oc get pods -n banking
 | ImagePull `x509: unknown authority` Harbor | `harbor-registry-trust-setup.sh` — trust router CA (hoặc `INSECURE=1`) |
 | Banking `No module named uvicorn` | Kaniko miss pip `/usr/local` — Dockerfile dùng venv `/app/venv` + rebuild `BUILD_TARGET=all` |
 | Kaniko push OK nhưng Jenkins exit `-1` / JENKINS-48300 | Heartbeat NFS — sync `platform-jenkins` (`javaOpts` HEARTBEAT) + shared lib; image đã có trên Harbor |
+| Jenkins pod restart + startup 503 | Thường do **Argo sync STS** (đổi `javaOpts`/values). Log `Failed Loading plugin` = lệch version Pipeline — pin `pipeline-model-*` cùng bản trong `jenkins.yaml` |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |
