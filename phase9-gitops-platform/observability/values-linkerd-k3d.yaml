@@ -1,9 +1,15 @@
-# Linkerd control-plane — k3d lab (cniEnabled=false, init container proxy)
+# Linkerd control-plane — OpenShift (RHCOS/nftables) + k3d lab
 # Identity: manifest wave 0 (linkerd-identity-bootstrap) + externalCA:true trong Application
 
 cniEnabled: false
 controllerReplicas: 1
 enablePodAntiAffinity: false
+
+# OCP/RHCOS: iptables-legacy không có → linkerd-init CrashLoopBackOff.
+# nft + runAsRoot cần privileged SCC (linkerd-scc-setup.sh).
+proxyInit:
+  iptablesMode: nft
+  runAsRoot: true
 
 # Viz cần policy controller (AuthorizationPolicy, Server CRs)
 policyController:

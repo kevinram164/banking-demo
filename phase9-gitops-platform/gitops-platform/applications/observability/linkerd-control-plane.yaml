@@ -25,6 +25,10 @@ spec:
             externalCA: true
             issuer:
               scheme: kubernetes.io/tls
+          # OCP: RHCOS dùng nftables — không để default iptables-legacy
+          proxyInit:
+            iptablesMode: nft
+            runAsRoot: true
     - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: dev-ocp
       ref: values

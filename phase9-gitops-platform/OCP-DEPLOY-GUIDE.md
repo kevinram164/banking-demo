@@ -537,6 +537,30 @@ chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/linkerd-scc-setup.s
 
 Nếu RS `linkerd-destination-*` báo `Forbidden` / `runAsUser 2102` / `NET_ADMIN` → chạy script trên.
 
+**`linkerd-init` Init:CrashLoopBackOff** (pods đã tạo được, nhưng init exit 1) — thường do **iptables-legacy** trên RHCOS. Values phải có:
+
+```yaml
+proxyInit:
+  iptablesMode: nft
+  runAsRoot: true
+```
+
+```bash
+# Chẩn đoán
+oc logs -n linkerd deploy/linkerd-proxy-injector -c linkerd-init --tail=40
+
+# Sync sau khi push values (hoặc hotfix Helm param)
+argocd app sync observability-linkerd-control-plane
+# hotfix tạm (chưa push Git):
+# argocd app set observability-linkerd-control-plane \
+#   -p proxyInit.iptablesMode=nft -p proxyInit.runAsRoot=true
+# argocd app sync observability-linkerd-control-plane --force
+
+oc get pods -n linkerd
+```
+
+Nếu log còn `Extension multiport … missing kernel module` → cần MachineConfig load `xt_multiport` / `xt_owner` trên worker (xem INSTALL-TROUBLESHOOTING), hoặc chuyển sang **Linkerd CNI** (`cniEnabled: true`).
+
 **Coroot Prometheus** (embedded) chạy UID **65534** — không khớp dải UID namespace `observability`:
 
 ```bash
@@ -828,6 +852,7 @@ oc get pods -n banking
 | Kong `runAsUser 1000` Forbidden | `kong-scc-setup.sh` (SCC `kong-uid1000`) |
 | Linkerd `2102` / `NET_ADMIN` Forbidden | `linkerd-scc-setup.sh` (privileged ns linkerd + linkerd-viz) |
 | Linkerd Viz `metrics-api` UID `2103` Forbidden | Cùng script — hoặc `oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd-viz` |
+| `linkerd-init` CrashLoopBackOff | `proxyInit.iptablesMode=nft` + `runAsRoot=true` — sync control-plane |
 | Prometheus `runAsUser 65534` invalid | `coroot-scc-setup.sh` (Coroot embedded Prometheus) |
 | Coroot Nodes *no agent installed* | Sync values (bỏ `nodeSelector`) + `coroot-node-agent-scc-setup.sh` |
 | coroot-node-agent OOMKilled | `oc set resources ds/coroot-node-agent -n observability --limits=memory=2Gi --requests=memory=512Mi` |

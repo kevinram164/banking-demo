@@ -354,6 +354,19 @@ argocd app get platform-vault
 | `scripts/linkerd-scc-setup.sh` | privileged cho ns `linkerd` + `linkerd-viz` |
 | `scripts/approve-pending-csrs.sh` | Approve CSR Pending (UPI lab) |
 
+### Linkerd `Init:CrashLoopBackOff` (`linkerd-init`)
+
+SCC đã OK (pod tạo được) nhưng init exit 1 → thường **iptables-legacy** trên RHCOS.
+
+```bash
+oc logs -n linkerd deploy/linkerd-proxy-injector -c linkerd-init --tail=40
+# Kỳ vọng lỗi iptables / xtables nếu chưa nft
+
+# Values: proxyInit.iptablesMode=nft + runAsRoot=true
+argocd app sync observability-linkerd-control-plane --force
+```
+
+
 ---
 
 ## 9. OpenShift Routes — `Missing` / Resource not found
