@@ -1,5 +1,6 @@
-# OpenTelemetry Collector — nhận OTLP từ banking app
-# Forward dual: Coroot + Instana agent (OTLP trên hostIP:4317)
+# OpenTelemetry Collector — dual Coroot + Instana
+# Instana (traces-only apps): cần spanmetrics + k8sattributes + service.instance.id
+# Ref: IBM OpenTelemetry service mappings / infrastructure correlation
 # Chart: open-telemetry/opentelemetry-collector
 
 fullnameOverride: opentelemetry-collector
@@ -9,15 +10,16 @@ replicaCount: 1
 image:
   repository: otel/opentelemetry-collector-contrib
 
+# RBAC + k8sattributes processor (pod uid / namespace / deployment)
+presets:
+  kubernetesAttributes:
+    enabled: true
+
 extraEnvs:
   - name: MY_POD_IP
     valueFrom:
       fieldRef:
         fieldPath: status.podIP
-  - name: HOST_IP
-    valueFrom:
-      fieldRef:
-        fieldPath: status.hostIP
 
 config:
   extensions:
@@ -30,6 +32,9 @@ config:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
+  connectors:
+    # Sinh metrics từ spans → Instana tạo OpenTelemetry entity / APM
+    spanmetrics: {}
   processors:
     batch:
       timeout: 5s
@@ -38,19 +43,22 @@ config:
       check_interval: 5s
       limit_percentage: 80
       spike_limit_percentage: 25
+    # preset kubernetesAttributes injects k8sattributes; resource thêm mapping Instana
     resource:
       attributes:
         - key: cluster.name
           value: ocp01
           action: upsert
+        # Instana correlate OTEL entity ↔ pod (insert = không đè SDK)
+        - key: service.instance.id
+          from_attribute: k8s.pod.uid
+          action: insert
   exporters:
-    # Coroot: dùng HTTP — gRPC gzip của collector không tương thích Coroot OTLP
     otlphttp/coroot:
       endpoint: http://coroot-coroot.observability.svc.cluster.local:8080
       tls:
         insecure: true
       compression: none
-    # Instana: OTLP HTTP :4318 (ổn định hơn gRPC với một số bản agent)
     otlphttp/instana:
       endpoint: http://instana-agent.instana-agent.svc.cluster.local:4318
       tls:
@@ -61,15 +69,19 @@ config:
     pipelines:
       traces:
         receivers: [otlp]
-        processors: [memory_limiter, resource, batch]
-        exporters: [otlphttp/coroot, otlphttp/instana]
+        processors: [memory_limiter, k8sattributes, resource, batch]
+        exporters: [otlphttp/coroot, otlphttp/instana, spanmetrics]
       metrics:
         receivers: [otlp]
-        processors: [memory_limiter, resource, batch]
+        processors: [memory_limiter, k8sattributes, resource, batch]
         exporters: [otlphttp/coroot, otlphttp/instana]
+      # Metrics sinh từ spans → bắt buộc cho Instana APM (traces-only apps)
+      metrics/spanmetrics:
+        receivers: [spanmetrics]
+        exporters: [otlphttp/instana]
       logs:
         receivers: [otlp]
-        processors: [memory_limiter, resource, batch]
+        processors: [memory_limiter, k8sattributes, resource, batch]
         exporters: [otlphttp/coroot, otlphttp/instana]
 
 resources:
