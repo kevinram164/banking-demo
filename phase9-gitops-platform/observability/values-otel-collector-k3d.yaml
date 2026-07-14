@@ -50,9 +50,9 @@ config:
       tls:
         insecure: true
       compression: none
-    # Instana agent DaemonSet: OTLP gRPC (InstanaAgent.spec.opentelemetry.grpc)
+    # Instana agent ClusterIP (tránh pod→hostPort bị SDN/OCP chặn)
     otlp/instana:
-      endpoint: ${env:HOST_IP}:4317
+      endpoint: instana-agent.instana-agent.svc.cluster.local:4317
       tls:
         insecure: true
       compression: none
