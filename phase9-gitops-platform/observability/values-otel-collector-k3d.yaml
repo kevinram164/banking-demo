@@ -44,34 +44,33 @@ config:
           value: ocp01
           action: upsert
   exporters:
+    # Coroot: dùng HTTP — gRPC gzip của collector không tương thích Coroot OTLP
     otlphttp/coroot:
       endpoint: http://coroot-coroot.observability.svc.cluster.local:8080
       tls:
         insecure: true
-    otlp/coroot:
-      endpoint: coroot-coroot.observability.svc.cluster.local:4317
-      tls:
-        insecure: true
+      compression: none
     # Instana agent DaemonSet: OTLP gRPC (InstanaAgent.spec.opentelemetry.grpc)
     otlp/instana:
       endpoint: ${env:HOST_IP}:4317
       tls:
         insecure: true
+      compression: none
   service:
     extensions: [health_check]
     pipelines:
       traces:
         receivers: [otlp]
         processors: [memory_limiter, resource, batch]
-        exporters: [otlp/coroot, otlphttp/coroot, otlp/instana]
+        exporters: [otlphttp/coroot, otlp/instana]
       metrics:
         receivers: [otlp]
         processors: [memory_limiter, resource, batch]
-        exporters: [otlp/coroot, otlphttp/coroot, otlp/instana]
+        exporters: [otlphttp/coroot, otlp/instana]
       logs:
         receivers: [otlp]
         processors: [memory_limiter, resource, batch]
-        exporters: [otlp/coroot, otlphttp/coroot, otlp/instana]
+        exporters: [otlphttp/coroot, otlp/instana]
 
 resources:
   requests:
