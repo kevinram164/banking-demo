@@ -1,9 +1,9 @@
-# Banking WebSocket — npd-banking.co/ws → Kong (ns kong)
+# Banking WebSocket — npd-banking.co/ws → Kong (cùng ns app)
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: npd-banking-ws
-  namespace: kong
+  namespace: npd-banking
   labels:
     app.kubernetes.io/name: banking-demo
     app.kubernetes.io/component: websocket
@@ -16,10 +16,10 @@ spec:
   path: /ws
   to:
     kind: Service
-    name: kong-kong-proxy
+    name: kong-proxy-ext
     weight: 100
   port:
-    targetPort: 8000
+    targetPort: http
   tls:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect

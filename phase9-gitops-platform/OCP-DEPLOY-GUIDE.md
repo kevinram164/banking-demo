@@ -61,7 +61,7 @@ OpenShift Router (HAProxy) — TLS edge
     ├── jenkins-platform.apps.ocp01.npd.co       → Jenkins (ns platform)
     ├── vault-platform.apps.ocp01.npd.co          → Vault (ns vault)
     ├── kong.apps.ocp01.npd.co                   → Kong proxy (ns kong)
-    └── npd-banking.co (/ → frontend ns npd-banking; /api,/ws → Kong ns kong)
+    └── npd-banking.co (/ , /api , /ws)          → Routes ns npd-banking → frontend + kong-proxy-ext → Kong
 
 GitHub (dev-ocp) ──webhook──► Jenkins ──Kaniko──► Harbor
          ▲                           │
@@ -792,9 +792,9 @@ Routes banking đã nằm trong `platform-routes-dev-ocp` (sync ở Giai đoạn
 
 | Route | Path | Backend |
 |-------|------|---------|
-| `npd-banking.co` | `/` | `frontend` |
-| `npd-banking.co` | `/api` | `kong-kong-proxy` (ns `kong`) |
-| `npd-banking.co` | `/ws` | `kong-kong-proxy` (ns `kong`) |
+| `npd-banking.co` | `/` | `frontend` (ns `npd-banking`) |
+| `npd-banking.co` | `/api` | `kong-proxy-ext` → pods Kong (ns `npd-banking`) |
+| `npd-banking.co` | `/ws` | `kong-proxy-ext` → pods Kong (ns `npd-banking`) |
 
 **DNS:** `npd-banking.co` trỏ A/CNAME tới OpenShift Router IP, hoặc thêm vào hosts file máy client.
 
@@ -928,8 +928,8 @@ oc get pods -n npd-banking
 | Frontend nginx `[emerg] host not found in upstream "kong"` | `nginx.conf` FQDN `kong-kong-proxy.kong.svc.cluster.local` (không short name `kong`) |
 | Frontend nginx `Permission denied` `/var/cache/nginx` hoặc `nginx.pid` No such file | OCP: `/var/run` tmpfs rỗng — pid/temp dùng `/tmp`; listen **8080**; Helm `targetPort: 8080` |
 | Route `npd-banking.co` 503, pod Ready nhưng `Endpoints: <none>` | Route dùng `targetPort: http` (tên Service port), không dùng số `80` khi container listen 8080 |
-| Route `/api` 503, `endpoints "kong-proxy-ext" not found` | ExternalName không có Endpoints — dùng Service `kong-proxy-route` + Endpoints → ClusterIP `kong-kong-proxy` |
-| Route `/` **Rejected** / `HostAlreadyClaimed` | Cùng host `npd-banking.co` phải **một namespace** — gom `/`, `/api`, `/ws` vào `npd-banking`; xóa Route cũ ở `kong` |
+| Route `/api` 503, ExternalName không Endpoints | Service `kong-proxy-ext` + Endpoints = IP pod `kong-kong-proxy` (không type ExternalName) |
+| Route `/` **Rejected** / `HostAlreadyClaimed` | Để `/api` `/ws` ở ns khác với `/` — thiết kế gốc: cả 3 Route cùng ns app |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |

@@ -31,14 +31,15 @@ Hướng dẫn: [INSTALL-NFS-CSI.md](../INSTALL-NFS-CSI.md)
 | `routes/vault-route.yaml` | `vault-platform.apps.ocp01.npd.co` | `vault:8200` | `vault` |
 | `routes/argocd-route.yaml` | `argocd-server-argocd.apps.ocp01.npd.co` | `argocd-server` | `argocd` |
 | `routes/banking-route-frontend.yaml` | `npd-banking.co` `/` | `frontend` | `npd-banking` |
-| `routes/banking-route-api.yaml` | `npd-banking.co` `/api` | `kong-kong-proxy:8000` | `kong` |
-| `routes/banking-route-ws.yaml` | `npd-banking.co` `/ws` | `kong-kong-proxy:8000` | `kong` |
+| `routes/banking-route-api.yaml` | `npd-banking.co` `/api` | `kong-proxy-ext` | `npd-banking` |
+| `routes/banking-route-ws.yaml` | `npd-banking.co` `/ws` | `kong-proxy-ext` | `npd-banking` |
 | `routes/kong-route.yaml` | `kong.apps.ocp01.npd.co` | `kong-kong-proxy:8000` | `kong` |
-| `routes/banking-kong-proxy-ext.yaml` | — | ExternalName → Kong (in-cluster only) | `npd-banking` |
+| `routes/banking-kong-proxy-ext.yaml` | — | Service `kong-proxy-ext` (cho Route /api,/ws) | `npd-banking` |
+| `routes/banking-route-endpoints-sync.yaml` | — | PostSync: Endpoints = IP pod Kong + xóa Route lệch ở `kong` | `npd-banking` |
 
-> **Mô hình:** `/` ở ns app (`npd-banking`); `/api` `/ws` ở ns `kong` → Service `kong-kong-proxy` (như trước khi đổi ns).
+> **Thiết kế gốc:** cả 3 path Route cùng ns app. Kong pod vẫn ns `kong`.
 
-ArgoCD Application: `platform-routes-app-of-apps.yaml` → app **`platform-routes-dev-ocp`** (sync-wave `3`).
+ArgoCD Application: **`platform-routes-dev-ocp`** (path `ocp-values/routes`).
 
 Đổi cluster domain:
 

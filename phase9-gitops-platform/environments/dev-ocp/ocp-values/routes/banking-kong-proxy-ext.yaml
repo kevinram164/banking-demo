@@ -1,4 +1,6 @@
-# ExternalName — traffic trong-cluster (pod → Kong). Không dùng cho OpenShift Route.
+# Thiết kế gốc: Service trong ns app cho Route /api,/ws.
+# OpenShift Route cần Endpoints thật — không dùng type ExternalName (→ 503).
+# Endpoints trỏ IP pod Kong (oc get endpoints kong-kong-proxy -n kong).
 apiVersion: v1
 kind: Service
 metadata:
@@ -11,9 +13,8 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
-  type: ExternalName
-  externalName: kong-kong-proxy.kong.svc.cluster.local
   ports:
     - name: http
       port: 8000
+      targetPort: 8000
       protocol: TCP

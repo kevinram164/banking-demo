@@ -32,7 +32,7 @@ OpenShift Router (HAProxy) — TLS edge
     ├── vault-platform.apps.ocp01.npd.co      → Vault (ns vault)
     ├── argocd-server-argocd.apps...       → ArgoCD UI
     ├── kong.apps.ocp01.npd.co               → Kong proxy (ns kong)
-    └── npd-banking.co                       → frontend + /api,/ws → Kong (ns banking)
+    └── npd-banking.co                       → frontend + /api,/ws (Routes ns app) → Kong (ns kong)
 ```
 
 ## Luồng CI/CD
