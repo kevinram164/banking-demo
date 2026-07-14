@@ -8,6 +8,7 @@ resources:
   - coroot-route.yaml
   - linkerd-viz-route.yaml
   - banking-kong-proxy-ext.yaml
+  - banking-route-sync-hooks.yaml
   - banking-route-frontend.yaml
   - banking-route-api.yaml
   - banking-route-ws.yaml

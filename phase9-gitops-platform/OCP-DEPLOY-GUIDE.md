@@ -793,8 +793,8 @@ Routes banking đã nằm trong `platform-routes-dev-ocp` (sync ở Giai đoạn
 | Route | Path | Backend |
 |-------|------|---------|
 | `npd-banking.co` | `/` | `frontend` |
-| `npd-banking.co` | `/api` | `kong-kong-proxy` (ns `kong`) |
-| `npd-banking.co` | `/ws` | `kong-kong-proxy` (ns `kong`) |
+| `npd-banking.co` | `/api` | `kong-proxy-route` (ns `npd-banking` → Kong ClusterIP) |
+| `npd-banking.co` | `/ws` | `kong-proxy-route` (ns `npd-banking` → Kong ClusterIP) |
 
 **DNS:** `npd-banking.co` trỏ A/CNAME tới OpenShift Router IP, hoặc thêm vào hosts file máy client.
 
@@ -928,7 +928,8 @@ oc get pods -n npd-banking
 | Frontend nginx `[emerg] host not found in upstream "kong"` | `nginx.conf` FQDN `kong-kong-proxy.kong.svc.cluster.local` (không short name `kong`) |
 | Frontend nginx `Permission denied` `/var/cache/nginx` hoặc `nginx.pid` No such file | OCP: `/var/run` tmpfs rỗng — pid/temp dùng `/tmp`; listen **8080**; Helm `targetPort: 8080` |
 | Route `npd-banking.co` 503, pod Ready nhưng `Endpoints: <none>` | Route dùng `targetPort: http` (tên Service port), không dùng số `80` khi container listen 8080 |
-| Route `/api` 503, `endpoints "kong-proxy-ext" not found` | ExternalName không có Endpoints — Route `/api`,`/ws` phải ở **ns kong** → Service `kong-kong-proxy` |
+| Route `/api` 503, `endpoints "kong-proxy-ext" not found` | ExternalName không có Endpoints — dùng Service `kong-proxy-route` + Endpoints → ClusterIP `kong-kong-proxy` |
+| Route `/` **Rejected** / `HostAlreadyClaimed` | Cùng host `npd-banking.co` phải **một namespace** — gom `/`, `/api`, `/ws` vào `npd-banking`; xóa Route cũ ở `kong` |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
 | Kaniko push 401 | Robot Harbor sai user/token |

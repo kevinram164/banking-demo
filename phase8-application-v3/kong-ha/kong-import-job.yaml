@@ -1,5 +1,5 @@
 # Job import config declarative Phase 8 vào Kong DB
-# Chạy SAU KHI Kong đã deploy (ns kong), api-producer + consumers đã chạy (ns banking)
+# Chạy SAU KHI Kong đã deploy (ns kong), api-producer + consumers đã chạy (ns npd-banking)
 #
 # Cách chạy:
 #   kubectl apply -f phase8-application-v3/kong-ha/kong-import-job.yaml
@@ -21,7 +21,7 @@ data:
     services:
       # Phase 8: /api/* → api-producer (RabbitMQ → consumers)
       - name: api-producer
-        url: "http://api-producer.banking.svc.cluster.local:8080"
+        url: "http://api-producer.npd-banking.svc.cluster.local:8080"
         connect_timeout: 10000   # 10s kết nối
         read_timeout: 60000      # 60s đọc response (upstream chờ RabbitMQ)
         write_timeout: 60000     # 60s ghi request
@@ -46,7 +46,7 @@ data:
               hide_client_headers: false  # trả X-RateLimit-* headers
       # /api/notifications → notification-service (GET notifications trực tiếp, tránh 404)
       - name: notification-service-http
-        url: "http://notification-service.banking.svc.cluster.local:8004"
+        url: "http://notification-service.npd-banking.svc.cluster.local:8004"
         routes:
           - name: notification-http-route
             paths: ["/api/notifications"]
@@ -60,7 +60,7 @@ data:
               headers: ["Accept", "Content-Type", "X-Session"]
       # /ws → notification-service (WebSocket, bypass queue)
       - name: notification-service
-        url: "http://notification-service.banking.svc.cluster.local:8004"
+        url: "http://notification-service.npd-banking.svc.cluster.local:8004"
         routes:
           - name: notification-ws-route
             paths: ["/ws"]

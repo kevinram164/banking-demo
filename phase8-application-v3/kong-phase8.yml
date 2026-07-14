@@ -15,7 +15,7 @@ _transform: true
 services:
   # Phase 8: Tất cả /api/* → api-producer (RabbitMQ → consumers)
   - name: api-producer
-    url: http://api-producer.banking.svc.cluster.local:8080
+    url: http://api-producer.npd-banking.svc.cluster.local:8080
     routes:
       - name: api-route
         paths:
@@ -46,7 +46,7 @@ services:
 
   # /ws → notification-service (WebSocket, bypass queue)
   - name: notification-service
-    url: http://notification-service.banking.svc.cluster.local:8004
+    url: http://notification-service.npd-banking.svc.cluster.local:8004
     routes:
       - name: notification-ws-route
         paths:

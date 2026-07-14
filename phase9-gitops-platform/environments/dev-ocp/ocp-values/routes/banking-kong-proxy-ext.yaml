@@ -1,6 +1,23 @@
-# ExternalName — chỉ dùng cho traffic trong-cluster (pod → Kong).
-# OpenShift Route KHÔNG dùng được Service ExternalName (không có Endpoints) → 503.
-# Route /api,/ws: xem banking-route-api.yaml / banking-route-ws.yaml (ns kong).
+# Service không selector — Route /api,/ws dùng. Endpoints do PostSync Job ghi (ClusterIP Kong).
+# ExternalName kong-proxy-ext: chỉ DNS trong-cluster, không dùng cho Route.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-proxy-route
+  namespace: npd-banking
+  labels:
+    app.kubernetes.io/name: banking-demo
+    app.kubernetes.io/component: kong-proxy
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+---
 apiVersion: v1
 kind: Service
 metadata:
