@@ -1,6 +1,91 @@
-# Thiết kế gốc: Service trong ns app cho Route /api,/ws.
-# OpenShift Route cần Endpoints thật — không dùng type ExternalName (→ 503).
-# Endpoints trỏ IP pod Kong (oc get endpoints kong-kong-proxy -n kong).
+# Thiết kế gốc: Route /api,/ws trong ns app → Service kong-proxy-ext.
+# Bridge TCP trong ns app → Kong qua DNS (không Endpoints/IP pod).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-proxy-bridge-nginx
+  namespace: npd-banking
+  labels:
+    app.kubernetes.io/name: banking-demo
+    app.kubernetes.io/component: kong-proxy
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+data:
+  nginx.conf: |
+    worker_processes 1;
+    error_log /dev/stderr warn;
+    pid /tmp/nginx.pid;
+    events { worker_connections 1024; }
+    stream {
+      upstream kong {
+        server kong-kong-proxy.kong.svc.cluster.local:8000;
+      }
+      server {
+        listen 8080;
+        proxy_pass kong;
+        proxy_timeout 3600s;
+        proxy_connect_timeout 10s;
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong-proxy-bridge
+  namespace: npd-banking
+  labels:
+    app.kubernetes.io/name: banking-demo
+    app.kubernetes.io/component: kong-proxy
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kong-proxy-bridge
+  template:
+    metadata:
+      labels:
+        app: kong-proxy-bridge
+    spec:
+      containers:
+        - name: proxy
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: cfg
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: cfg
+          configMap:
+            name: kong-proxy-bridge-nginx
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -13,8 +98,10 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
+  selector:
+    app: kong-proxy-bridge
   ports:
     - name: http
       port: 8000
-      targetPort: 8000
+      targetPort: http
       protocol: TCP

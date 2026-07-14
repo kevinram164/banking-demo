@@ -34,10 +34,9 @@ Hướng dẫn: [INSTALL-NFS-CSI.md](../INSTALL-NFS-CSI.md)
 | `routes/banking-route-api.yaml` | `npd-banking.co` `/api` | `kong-proxy-ext` | `npd-banking` |
 | `routes/banking-route-ws.yaml` | `npd-banking.co` `/ws` | `kong-proxy-ext` | `npd-banking` |
 | `routes/kong-route.yaml` | `kong.apps.ocp01.npd.co` | `kong-kong-proxy:8000` | `kong` |
-| `routes/banking-kong-proxy-ext.yaml` | — | Service `kong-proxy-ext` (cho Route /api,/ws) | `npd-banking` |
-| `routes/banking-route-endpoints-sync.yaml` | — | PostSync: Endpoints = IP pod Kong + xóa Route lệch ở `kong` | `npd-banking` |
+| `routes/banking-kong-proxy-ext.yaml` | — | Deployment bridge + Service `kong-proxy-ext` → `kong-kong-proxy.kong.svc` (DNS) | `npd-banking` |
 
-> **Thiết kế gốc:** cả 3 path Route cùng ns app. Kong pod vẫn ns `kong`.
+> **Thiết kế gốc:** 3 Route cùng ns app. Không Endpoints/IP pod (OCP cấm + IP đổi). Bridge TCP trong ns app proxy tới Kong qua DNS.
 
 ArgoCD Application: **`platform-routes-dev-ocp`** (path `ocp-values/routes`).
 

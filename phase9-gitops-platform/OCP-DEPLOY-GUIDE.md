@@ -928,7 +928,7 @@ oc get pods -n npd-banking
 | Frontend nginx `[emerg] host not found in upstream "kong"` | `nginx.conf` FQDN `kong-kong-proxy.kong.svc.cluster.local` (không short name `kong`) |
 | Frontend nginx `Permission denied` `/var/cache/nginx` hoặc `nginx.pid` No such file | OCP: `/var/run` tmpfs rỗng — pid/temp dùng `/tmp`; listen **8080**; Helm `targetPort: 8080` |
 | Route `npd-banking.co` 503, pod Ready nhưng `Endpoints: <none>` | Route dùng `targetPort: http` (tên Service port), không dùng số `80` khi container listen 8080 |
-| Route `/api` 503, ExternalName không Endpoints | Service `kong-proxy-ext` + Endpoints = IP pod `kong-kong-proxy` (không type ExternalName) |
+| Route `/api` 503 / ExternalName / Endpoints forbidden | Dùng Deployment `kong-proxy-bridge` + Service `kong-proxy-ext` (selector) proxy DNS tới Kong — không gắn IP pod vào Endpoints |
 | Route `/` **Rejected** / `HostAlreadyClaimed` | Để `/api` `/ws` ở ns khác với `/` — thiết kế gốc: cả 3 Route cùng ns app |
 | Banking sync quá sớm | Quay lại Giai đoạn 4 |
 | ArgoCD OutOfSync | Sync từng app; kiểm tra branch `dev-ocp` |
