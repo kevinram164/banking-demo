@@ -12,7 +12,8 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
-  replicas: 2
+  # Load test 500 workers qua Route cần nhiều replica (socat fork / conn)
+  replicas: 6
   selector:
     matchLabels:
       app: kong-proxy-bridge
@@ -44,11 +45,11 @@ spec:
             periodSeconds: 10
           resources:
             requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 200m
+              cpu: 100m
               memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
