@@ -50,9 +50,9 @@ config:
       tls:
         insecure: true
       compression: none
-    # Instana agent ClusterIP (tránh pod→hostPort bị SDN/OCP chặn)
-    otlp/instana:
-      endpoint: instana-agent.instana-agent.svc.cluster.local:4317
+    # Instana: OTLP HTTP :4318 (ổn định hơn gRPC với một số bản agent)
+    otlphttp/instana:
+      endpoint: http://instana-agent.instana-agent.svc.cluster.local:4318
       tls:
         insecure: true
       compression: none
@@ -62,15 +62,15 @@ config:
       traces:
         receivers: [otlp]
         processors: [memory_limiter, resource, batch]
-        exporters: [otlphttp/coroot, otlp/instana]
+        exporters: [otlphttp/coroot, otlphttp/instana]
       metrics:
         receivers: [otlp]
         processors: [memory_limiter, resource, batch]
-        exporters: [otlphttp/coroot, otlp/instana]
+        exporters: [otlphttp/coroot, otlphttp/instana]
       logs:
         receivers: [otlp]
         processors: [memory_limiter, resource, batch]
-        exporters: [otlphttp/coroot, otlp/instana]
+        exporters: [otlphttp/coroot, otlphttp/instana]
 
 resources:
   requests:
