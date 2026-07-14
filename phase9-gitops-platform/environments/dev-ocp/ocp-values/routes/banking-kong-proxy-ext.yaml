@@ -1,34 +1,5 @@
-# Thiết kế gốc: Route /api,/ws trong ns app → Service kong-proxy-ext.
-# Bridge TCP trong ns app → Kong qua DNS (không Endpoints/IP pod).
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: kong-proxy-bridge-nginx
-  namespace: npd-banking
-  labels:
-    app.kubernetes.io/name: banking-demo
-    app.kubernetes.io/component: kong-proxy
-    banking-demo/environment: dev-ocp
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
-data:
-  nginx.conf: |
-    worker_processes 1;
-    error_log /dev/stderr warn;
-    pid /tmp/nginx.pid;
-    events { worker_connections 1024; }
-    stream {
-      upstream kong {
-        server kong-kong-proxy.kong.svc.cluster.local:8000;
-      }
-      server {
-        listen 8080;
-        proxy_pass kong;
-        proxy_timeout 3600s;
-        proxy_connect_timeout 10s;
-      }
-    }
----
+# Thiết kế gốc: Route /api,/ws → Service kong-proxy-ext trong ns app.
+# Bridge TCP (socat) → Kong DNS. Tắt Linkerd inject (Kong không mesh → mTLS gây 503).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -49,21 +20,22 @@ spec:
     metadata:
       labels:
         app: kong-proxy-bridge
+      annotations:
+        linkerd.io/inject: disabled
     spec:
       containers:
         - name: proxy
-          image: nginxinc/nginx-unprivileged:1.27-alpine
+          image: alpine/socat:1.8.0.0
+          args:
+            - TCP-LISTEN:8080,fork,reuseaddr
+            - TCP:kong-kong-proxy.kong.svc.cluster.local:8000
           ports:
             - name: http
               containerPort: 8080
-          volumeMounts:
-            - name: cfg
-              mountPath: /etc/nginx/nginx.conf
-              subPath: nginx.conf
           readinessProbe:
             tcpSocket:
               port: 8080
-            initialDelaySeconds: 2
+            initialDelaySeconds: 1
             periodSeconds: 5
           livenessProbe:
             tcpSocket:
@@ -73,7 +45,7 @@ spec:
           resources:
             requests:
               cpu: 10m
-              memory: 32Mi
+              memory: 16Mi
             limits:
               cpu: 200m
               memory: 64Mi
@@ -81,10 +53,6 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
-      volumes:
-        - name: cfg
-          configMap:
-            name: kong-proxy-bridge-nginx
 ---
 apiVersion: v1
 kind: Service
