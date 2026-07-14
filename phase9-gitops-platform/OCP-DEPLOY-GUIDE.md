@@ -793,8 +793,8 @@ Routes banking đã nằm trong `platform-routes-dev-ocp` (sync ở Giai đoạn
 | Route | Path | Backend |
 |-------|------|---------|
 | `npd-banking.co` | `/` | `frontend` |
-| `npd-banking.co` | `/api` | `kong-proxy-route` (ns `npd-banking` → Kong ClusterIP) |
-| `npd-banking.co` | `/ws` | `kong-proxy-route` (ns `npd-banking` → Kong ClusterIP) |
+| `npd-banking.co` | `/api` | `kong-kong-proxy` (ns `kong`) |
+| `npd-banking.co` | `/ws` | `kong-kong-proxy` (ns `kong`) |
 
 **DNS:** `npd-banking.co` trỏ A/CNAME tới OpenShift Router IP, hoặc thêm vào hosts file máy client.
 

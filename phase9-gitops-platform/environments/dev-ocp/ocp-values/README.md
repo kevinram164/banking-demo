@@ -31,16 +31,12 @@ Hướng dẫn: [INSTALL-NFS-CSI.md](../INSTALL-NFS-CSI.md)
 | `routes/vault-route.yaml` | `vault-platform.apps.ocp01.npd.co` | `vault:8200` | `vault` |
 | `routes/argocd-route.yaml` | `argocd-server-argocd.apps.ocp01.npd.co` | `argocd-server` | `argocd` |
 | `routes/banking-route-frontend.yaml` | `npd-banking.co` `/` | `frontend` | `npd-banking` |
-| `routes/banking-route-api.yaml` | `npd-banking.co` `/api` | `kong-proxy-route` → Kong ClusterIP | `npd-banking` |
-| `routes/banking-route-ws.yaml` | `npd-banking.co` `/ws` | `kong-proxy-route` → Kong ClusterIP | `npd-banking` |
+| `routes/banking-route-api.yaml` | `npd-banking.co` `/api` | `kong-kong-proxy:8000` | `kong` |
+| `routes/banking-route-ws.yaml` | `npd-banking.co` `/ws` | `kong-kong-proxy:8000` | `kong` |
 | `routes/kong-route.yaml` | `kong.apps.ocp01.npd.co` | `kong-kong-proxy:8000` | `kong` |
-| `routes/banking-kong-proxy-ext.yaml` | — | `kong-proxy-route` (cho Route) + ExternalName (in-cluster) | `npd-banking` |
+| `routes/banking-kong-proxy-ext.yaml` | — | ExternalName → Kong (in-cluster only) | `npd-banking` |
 
-> **OpenShift:** cùng host `npd-banking.co` thì 3 path `/` `/api` `/ws` phải cùng ns `npd-banking`. Kong pod vẫn ở ns `kong`.
->
-> Sau sync Route `/api`: ghi Endpoints một lần  
-> `CIP=$(oc get svc kong-kong-proxy -n kong -o jsonpath='{.spec.clusterIP}')`  
-> rồi `oc apply` Endpoints `kong-proxy-route` với IP đó (Route không dùng được ExternalName).
+> **Mô hình:** `/` ở ns app (`npd-banking`); `/api` `/ws` ở ns `kong` → Service `kong-kong-proxy` (như trước khi đổi ns).
 
 ArgoCD Application: `platform-routes-app-of-apps.yaml` → app **`platform-routes-dev-ocp`** (sync-wave `3`).
 

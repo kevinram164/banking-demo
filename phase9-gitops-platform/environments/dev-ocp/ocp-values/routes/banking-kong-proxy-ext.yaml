@@ -1,23 +1,4 @@
-# Service không selector — Route /api,/ws dùng. Endpoints do PostSync Job ghi (ClusterIP Kong).
-# ExternalName kong-proxy-ext: chỉ DNS trong-cluster, không dùng cho Route.
-apiVersion: v1
-kind: Service
-metadata:
-  name: kong-proxy-route
-  namespace: npd-banking
-  labels:
-    app.kubernetes.io/name: banking-demo
-    app.kubernetes.io/component: kong-proxy
-    banking-demo/environment: dev-ocp
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
-spec:
-  ports:
-    - name: http
-      port: 8000
-      targetPort: 8000
-      protocol: TCP
----
+# ExternalName — traffic trong-cluster (pod → Kong). Không dùng cho OpenShift Route.
 apiVersion: v1
 kind: Service
 metadata:

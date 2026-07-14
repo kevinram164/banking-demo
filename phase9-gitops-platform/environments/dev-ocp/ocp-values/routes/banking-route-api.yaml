@@ -1,11 +1,10 @@
-# Banking API — npd-banking.co/api
-# Cùng ns với Route / (npd-banking): OpenShift chỉ admit 1 namespace giữ host.
-# Backend: Service kong-proxy-route (+ Endpoints → Kong ClusterIP)
+# Banking API — npd-banking.co/api → Kong (cùng ns với Service kong-kong-proxy)
+# Giống thiết kế ban đầu: Route ở ns kong, không dùng Endpoints mirror.
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: npd-banking-api
-  namespace: npd-banking
+  namespace: kong
   labels:
     app.kubernetes.io/name: banking-demo
     app.kubernetes.io/component: api
@@ -18,10 +17,10 @@ spec:
   path: /api
   to:
     kind: Service
-    name: kong-proxy-route
+    name: kong-kong-proxy
     weight: 100
   port:
-    targetPort: http
+    targetPort: 8000
   tls:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
