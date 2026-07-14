@@ -1,5 +1,6 @@
 # Phase 9 — OpenTelemetry + Linkerd (merge vào banking Helm apps trên dev-ocp)
-# OTEL Collector ns observability → Coroot
+# App → OTEL Collector → dual Coroot + Instana agent
+# k8s.namespace.name giúp Instana Application Perspective filter Dest Namespace
 
 global:
   observability:
@@ -15,32 +16,32 @@ api-producer:
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     OTEL_SERVICE_NAME: "api-producer"
-    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
 
 auth-service:
   extraEnv:
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     OTEL_SERVICE_NAME: "auth-service"
-    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
 
 account-service:
   extraEnv:
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     OTEL_SERVICE_NAME: "account-service"
-    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
 
 transfer-service:
   extraEnv:
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     OTEL_SERVICE_NAME: "transfer-service"
-    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
 
 notification-service:
   extraEnv:
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     OTEL_SERVICE_NAME: "notification-service"
-    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"

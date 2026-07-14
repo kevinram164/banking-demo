@@ -1,4 +1,5 @@
-# OpenTelemetry Collector — nhận OTLP từ banking app, forward sang Coroot
+# OpenTelemetry Collector — nhận OTLP từ banking app
+# Forward dual: Coroot + Instana agent (OTLP trên hostIP:4317)
 # Chart: open-telemetry/opentelemetry-collector
 
 fullnameOverride: opentelemetry-collector
@@ -7,6 +8,16 @@ replicaCount: 1
 
 image:
   repository: otel/opentelemetry-collector-contrib
+
+extraEnvs:
+  - name: MY_POD_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.podIP
+  - name: HOST_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.hostIP
 
 config:
   extensions:
@@ -30,7 +41,7 @@ config:
     resource:
       attributes:
         - key: cluster.name
-          value: dev-ocp
+          value: ocp01
           action: upsert
   exporters:
     otlphttp/coroot:
@@ -41,21 +52,26 @@ config:
       endpoint: coroot-coroot.observability.svc.cluster.local:4317
       tls:
         insecure: true
+    # Instana agent DaemonSet: OTLP gRPC (InstanaAgent.spec.opentelemetry.grpc)
+    otlp/instana:
+      endpoint: ${env:HOST_IP}:4317
+      tls:
+        insecure: true
   service:
     extensions: [health_check]
     pipelines:
       traces:
         receivers: [otlp]
         processors: [memory_limiter, resource, batch]
-        exporters: [otlp/coroot, otlphttp/coroot]
+        exporters: [otlp/coroot, otlphttp/coroot, otlp/instana]
       metrics:
         receivers: [otlp]
         processors: [memory_limiter, resource, batch]
-        exporters: [otlp/coroot, otlphttp/coroot]
+        exporters: [otlp/coroot, otlphttp/coroot, otlp/instana]
       logs:
         receivers: [otlp]
         processors: [memory_limiter, resource, batch]
-        exporters: [otlp/coroot, otlphttp/coroot]
+        exporters: [otlp/coroot, otlphttp/coroot, otlp/instana]
 
 resources:
   requests:
