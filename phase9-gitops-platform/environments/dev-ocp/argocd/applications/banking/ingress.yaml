@@ -47,7 +47,7 @@ spec:
           value: "false"
   destination:
     server: https://kubernetes.default.svc
-    namespace: banking
+    namespace: npd-banking
   syncPolicy:
     automated:
       prune: false

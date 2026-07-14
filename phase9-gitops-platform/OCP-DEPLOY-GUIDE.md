@@ -61,14 +61,14 @@ OpenShift Router (HAProxy) — TLS edge
     ├── jenkins-platform.apps.ocp01.npd.co       → Jenkins (ns platform)
     ├── vault-platform.apps.ocp01.npd.co          → Vault (ns vault)
     ├── kong.apps.ocp01.npd.co                   → Kong proxy (ns kong)
-    └── npd-banking.co (/ → frontend ns banking; /api,/ws → Kong ns kong)
+    └── npd-banking.co (/ → frontend ns npd-banking; /api,/ws → Kong ns kong)
 
 GitHub (dev-ocp) ──webhook──► Jenkins ──Kaniko──► Harbor
          ▲                           │
          └── commit values-images.yaml ◄┘
                     │
                     ▼
-              ArgoCD sync ──► ns banking   ← CHỈ sau Giai đoạn 4
+              ArgoCD sync ──► ns npd-banking   ← CHỈ sau Giai đoạn 4
 ```
 
 | Namespace | Thành phần | URL | Giai đoạn |
@@ -326,8 +326,8 @@ vault kv put secret/platform/harbor-pull \
 Sau sync `platform-external-secrets-config`:
 
 ```bash
-oc get externalsecret harbor-pull-creds -n banking
-oc get secret harbor-pull-creds -n banking
+oc get externalsecret harbor-pull-creds -n npd-banking
+oc get secret harbor-pull-creds -n npd-banking
 ```
 
 **Trust TLS Harbor (bắt buộc trước khi banking pull image):** Route `edge` dùng cert ingress — kubelet báo `x509: certificate signed by unknown authority` nếu chưa trust CA.
@@ -400,7 +400,7 @@ oc create secret generic vault-token \
 #### Bước 4 — Namespace + sync ExternalSecret
 
 ```bash
-oc create ns banking --dry-run=client -o yaml | oc apply -f -
+oc create ns npd-banking --dry-run=client -o yaml | oc apply -f -
 oc create ns rabbit --dry-run=client -o yaml | oc apply -f -
 ```
 
@@ -411,15 +411,15 @@ ArgoCD: `platform-external-secrets-config`
 ```bash
 oc get clustersecretstore vault-backend
 oc get externalsecret -A
-oc get secret banking-db-secret -n banking
-oc get secret harbor-pull-creds -n banking
+oc get secret banking-db-secret -n npd-banking
+oc get secret harbor-pull-creds -n npd-banking
 ```
 
 Force reconcile nếu cần:
 
 ```bash
 oc annotate clustersecretstore vault-backend force-sync=$(date +%s) --overwrite
-oc annotate externalsecret banking-db-secret -n banking force-sync=$(date +%s) --overwrite
+oc annotate externalsecret banking-db-secret -n npd-banking force-sync=$(date +%s) --overwrite
 ```
 
 ### 5.6 Jenkins — cấu hình CI
@@ -556,7 +556,7 @@ chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/linkerd-scc-setup.s
 ```
 
 Nếu RS banking / `linkerd-destination-*` báo `Forbidden` / `runAsUser 0|2102` / `NET_ADMIN` → chạy script trên.
-**Không** chạy `namespace-scc-setup.sh banking` sau đó (gỡ privileged).
+**Không** chạy `namespace-scc-setup.sh npd-banking` sau đó (gỡ privileged).
 
 **`linkerd-init` Init:CrashLoopBackOff** (pods đã tạo được, nhưng init exit 1) — thường do **iptables-legacy** trên RHCOS. Values phải có:
 
@@ -747,7 +747,7 @@ git log -1 --oneline -- phase9-gitops-platform/gitops/values-images.yaml
 ### 8.2 Checklist CI/CD
 
 - [ ] Vault `secret/platform/harbor` + `secret/platform/github` seeded
-- [ ] Vault `secret/platform/harbor-pull` + ESO `harbor-pull-creds` (ns banking)
+- [ ] Vault `secret/platform/harbor-pull` + ESO `harbor-pull-creds` (ns npd-banking)
 - [ ] Vault K8s auth + role `jenkins-kaniko` (`vault-setup-jenkins-k8s-auth.sh`)
 - [ ] Vault `secret/platform/jenkins` (admin) + ESO sync
 - [ ] SA `jenkins-kaniko` tồn tại
@@ -778,7 +778,7 @@ Apps:
 
 ```bash
 oc get applications -n argocd | grep banking
-oc get pods -n banking
+oc get pods -n npd-banking
 ```
 
 `ImagePullBackOff` → kiểm tra:
@@ -799,7 +799,7 @@ Routes banking đã nằm trong `platform-routes-dev-ocp` (sync ở Giai đoạn
 **DNS:** `npd-banking.co` trỏ A/CNAME tới OpenShift Router IP, hoặc thêm vào hosts file máy client.
 
 ```bash
-oc get route -n banking
+oc get route -n npd-banking
 oc get route -n kong kong-proxy
 ```
 
@@ -844,13 +844,13 @@ git push dev-ocp  →  Jenkins build  →  Harbor  →  commit values-images.yam
                                                           ↓
                                               ArgoCD auto-sync banking apps
                                                           ↓
-                                              rollout pods ns banking
+                                              rollout pods ns npd-banking
 ```
 
 ```bash
 git push origin dev-ocp
 oc get applications -n argocd -w
-oc get pods -n banking
+oc get pods -n npd-banking
 ```
 
 ---
@@ -898,7 +898,7 @@ oc get pods -n banking
 | Pod `Forbidden` SCC | `namespace-scc-setup.sh <ns>` — xem INSTALL-SCC-HARDENED.md |
 | Kong `runAsUser 1000` Forbidden | `kong-scc-setup.sh` (SCC `kong-uid1000`) |
 | Linkerd `2102` / `NET_ADMIN` Forbidden | `linkerd-scc-setup.sh` (privileged ns linkerd + linkerd-viz + **banking**) |
-| Banking RS: init `runAsUser: 0` / `NET_ADMIN` Forbidden | Sidecar Linkerd — `./linkerd-scc-setup.sh banking` rồi `oc delete pods -n banking --all` |
+| Banking RS: init `runAsUser: 0` / `NET_ADMIN` Forbidden | Sidecar Linkerd — `./linkerd-scc-setup.sh npd-banking` rồi `oc delete pods -n npd-banking --all` |
 | Linkerd Viz `metrics-api` UID `2103` Forbidden | Cùng script — hoặc `oc adm policy add-scc-to-group privileged system:serviceaccounts:linkerd-viz` |
 | `linkerd-init` CrashLoopBackOff | `proxyInit.iptablesMode=nft` + `runAsRoot=true` — sync control-plane |
 | `linkerd-init` missing `xt_multiport` | `linkerd-load-xt-modules.sh` (+ MachineConfig persist) |
@@ -924,7 +924,7 @@ oc get pods -n banking
 | `Name or service not known` (Postgres) | Sai host trong Vault `secret/banking/db` — OCP: `postgres-ha-postgresql-primary.postgres.svc.cluster.local` |
 | `Name or service not known` (Redis) | Sai host `REDIS_URL` — `oc get svc -n redis`; auth: `redis://:Mbfs%402025@...` |
 | `You can't write against a read only replica` / register **504** | Bitnami Sentinel: **không** dùng `redis-ha:6379` (có thể trúng replica). Dùng `sentinel://:Mbfs%402025@redis-ha.redis.svc.cluster.local:26379/0/mymaster` (app hỗ trợ trong `redis_utils.py`) rồi restart consumer pods |
-| `secret "banking-db-secret" not found` | ESO chưa tạo Secret — seed Vault `secret/banking/db` + `oc describe externalsecret banking-db-secret -n banking` |
+| `secret "banking-db-secret" not found` | ESO chưa tạo Secret — seed Vault `secret/banking/db` + `oc describe externalsecret banking-db-secret -n npd-banking` |
 | Frontend nginx `[emerg] host not found in upstream "kong"` | `nginx.conf` FQDN `kong-kong-proxy.kong.svc.cluster.local` (không short name `kong`) |
 | Frontend nginx `Permission denied` `/var/cache/nginx` hoặc `nginx.pid` No such file | OCP: `/var/run` tmpfs rỗng — pid/temp dùng `/tmp`; listen **8080**; Helm `targetPort: 8080` |
 | Route `npd-banking.co` 503, pod Ready nhưng `Endpoints: <none>` | Route dùng `targetPort: http` (tên Service port), không dùng số `80` khi container listen 8080 |
@@ -953,7 +953,7 @@ oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/infr
 oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/banking-app-of-apps.yaml -n argocd
 
 # Logs app
-oc logs -n banking -l app=auth-service --tail=50
+oc logs -n npd-banking -l app=auth-service --tail=50
 ```
 
 ---

@@ -4,20 +4,20 @@
 #
 # Áp dụng cho:
 #   - linkerd / linkerd-viz (control-plane + Viz)
-#   - banking (workload có sidecar: linkerd-init UID 0 + proxy UID 2102)
+#   - npd-banking (workload có sidecar: linkerd-init UID 0 + proxy UID 2102)
 #
 # Triệu chứng:
 #   - linkerd-destination / metrics-api: UID 2102/2103 Forbidden
-#   - banking ReplicaSet: initContainers runAsUser 0 + NET_ADMIN Forbidden
+#   - npd-banking ReplicaSet: initContainers runAsUser 0 + NET_ADMIN Forbidden
 #
 #   ./environments/dev-ocp/scripts/linkerd-scc-setup.sh
-#   ./environments/dev-ocp/scripts/linkerd-scc-setup.sh banking   # chỉ ns banking
+#   ./environments/dev-ocp/scripts/linkerd-scc-setup.sh npd-banking   # chỉ ns npd-banking
 set -euo pipefail
 
 if [[ $# -gt 0 ]]; then
   NAMESPACES=("$@")
 else
-  NAMESPACES=("linkerd" "linkerd-viz" "banking")
+  NAMESPACES=("linkerd" "linkerd-viz" "npd-banking")
 fi
 
 for NS in "${NAMESPACES[@]}"; do
@@ -46,8 +46,8 @@ echo ""
 echo "OK — kiểm tra:"
 echo "  oc get pods -n linkerd"
 echo "  oc get pods -n linkerd-viz"
-echo "  oc get pods -n banking"
+echo "  oc get pods -n npd-banking"
 echo "  linkerd check || true"
 echo ""
-echo "LƯU Ý: đừng chạy namespace-scc-setup.sh banking sau bước này"
+echo "LƯU Ý: đừng chạy namespace-scc-setup.sh npd-banking sau bước này"
 echo "  (script đó gỡ privileged + gán nonroot → mesh sidecar lại Forbidden)."

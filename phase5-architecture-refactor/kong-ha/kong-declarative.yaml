@@ -1,11 +1,11 @@
 # Declarative config Kong - dùng cho kong config db_import
-# Backends dùng FQDN vì Kong ở ns kong, app ở ns banking
+# Backends dùng FQDN vì Kong ở ns kong, app ở ns npd-banking
 _format_version: "3.0"
 _transform: true
 
 services:
   - name: auth-service
-    url: "http://auth-service.banking.svc.cluster.local:8001"
+    url: "http://auth-service.npd-banking.svc.cluster.local:8001"
     routes:
       - name: auth-route
         paths: ["/api/auth"]
@@ -19,7 +19,7 @@ services:
           headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Session"]
 
   - name: account-service
-    url: "http://account-service.banking.svc.cluster.local:8002"
+    url: "http://account-service.npd-banking.svc.cluster.local:8002"
     routes:
       - name: account-route
         paths: ["/api/account"]
@@ -33,7 +33,7 @@ services:
           headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Session", "X-Admin-Secret"]
 
   - name: transfer-service
-    url: "http://transfer-service.banking.svc.cluster.local:8003"
+    url: "http://transfer-service.npd-banking.svc.cluster.local:8003"
     routes:
       - name: transfer-route
         paths: ["/api/transfer"]
@@ -47,7 +47,7 @@ services:
           headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Session"]
 
   - name: notification-service
-    url: "http://notification-service.banking.svc.cluster.local:8004"
+    url: "http://notification-service.npd-banking.svc.cluster.local:8004"
     routes:
       - name: notification-route
         paths: ["/api/notifications"]

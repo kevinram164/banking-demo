@@ -103,7 +103,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kong-proxy
-  namespace: banking
+  namespace: npd-banking
 spec:
   type: ExternalName
   externalName: kong-kong-proxy.kong.svc.cluster.local
@@ -177,6 +177,6 @@ Thêm `kong-manager.co` vào DNS/hosts trỏ IP Ingress. Truy cập http://kong-
 ## Lưu ý
 
 - **pg_host / Secret**: Nếu dùng release Postgres `postgres-ha`, sửa `pg_host` và tên Secret trong Job tương ứng.
-- **Backends FQDN**: File `kong-declarative.yaml` dùng `*.banking.svc.cluster.local` vì Kong ở ns `kong`, app ở ns `banking`.
+- **Backends FQDN**: File `kong-declarative.yaml` dùng `*.npd-banking.svc.cluster.local` vì Kong ở ns `kong`, app ở ns `banking`.
 - **CORS**: Điều chỉnh `origins` trong declarative config nếu domain khác.
 - **decK** (thay db_import): Có thể dùng `deck sync -s kong.yml --kong-addr http://kong-kong-admin.kong:8001` từ image `kong/deck` nếu cần sync thường xuyên.

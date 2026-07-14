@@ -3,7 +3,7 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: npd-banking
-  namespace: banking
+  namespace: npd-banking
   labels:
     app.kubernetes.io/name: banking-demo
     app.kubernetes.io/component: frontend

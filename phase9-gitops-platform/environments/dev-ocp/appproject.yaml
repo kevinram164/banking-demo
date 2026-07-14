@@ -24,7 +24,7 @@ spec:
     - https://open-telemetry.github.io/opentelemetry-helm-charts
     - https://helm.linkerd.io/stable
   destinations:
-    - namespace: banking
+    - namespace: npd-banking
       server: https://kubernetes.default.svc
     - namespace: kong
       server: https://kubernetes.default.svc

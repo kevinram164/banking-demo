@@ -182,7 +182,7 @@ export VAULT_TOKEN=root
 # Sync platform-external-secrets-config trên ArgoCD UI
 ./phase9-gitops-platform/environments/dev-ocp/scripts/harbor-registry-trust-setup.sh
 oc get mcp
-oc delete pod -n banking --all --force --grace-period=0
+oc delete pod -n npd-banking --all --force --grace-period=0
 ```
 
 **Lab nhanh** (không Vault — insecure registry hoặc trust router-ca trực tiếp):

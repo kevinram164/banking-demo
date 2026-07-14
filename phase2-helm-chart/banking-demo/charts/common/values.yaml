@@ -1,6 +1,6 @@
 # Cấu hình dùng chung — global, namespace, secret, ingress (merge qua ArgoCD valueFiles)
 global:
-  namespace: banking
+  namespace: npd-banking
   secretName: banking-db-secret
   corsOrigins: "http://localhost:3000"
   imagePullSecrets:
@@ -68,7 +68,7 @@ ingress:
   className: haproxy
   host: banking-npd.co
   name: banking-ingress
-  # Phase 5: Kong ở ns kong → dùng ExternalName Service trong ns banking
+  # Phase 5: Kong ở ns kong → dùng ExternalName Service trong ns npd-banking
   paths:
     - path: /
       pathType: Prefix
