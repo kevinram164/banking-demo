@@ -38,9 +38,10 @@ nodeAgent:
     enabled: false
   ebpfProfiler:
     enabled: false
+  # Container stdout/stderr → Coroot (banking app log JSON). SCC: coroot-node-agent-scc-setup.sh
   logCollector:
-    collectLogBasedMetrics: false
-    collectLogEntries: false
+    collectLogBasedMetrics: true
+    collectLogEntries: true
 
 clusterAgent:
   resources:
