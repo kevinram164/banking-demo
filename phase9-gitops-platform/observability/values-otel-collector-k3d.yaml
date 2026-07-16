@@ -60,7 +60,11 @@ config:
         insecure: true
       compression: none
     otlphttp/instana:
-      endpoint: http://instana-agent.instana-agent.svc.cluster.local:4318
+      endpoint: instana-agent.instana-agent.svc.cluster.local:4318
+      tls:
+        insecure: true
+    otlp:
+      endpoint: instana-agent.instana-agent.svc.cluster.local:4317
       tls:
         insecure: true
       compression: none
@@ -70,19 +74,19 @@ config:
       traces:
         receivers: [otlp]
         processors: [memory_limiter, k8sattributes, resource, batch]
-        exporters: [otlphttp/coroot, otlphttp/instana, spanmetrics]
+        exporters: [otlphttp/coroot, otlphttp/instana, spanmetrics, otlp]
       metrics:
         receivers: [otlp]
         processors: [memory_limiter, k8sattributes, resource, batch]
-        exporters: [otlphttp/coroot, otlphttp/instana]
+        exporters: [otlphttp/coroot, otlphttp/instana, otlp]
       # Metrics sinh từ spans → bắt buộc cho Instana APM (traces-only apps)
       metrics/spanmetrics:
         receivers: [spanmetrics]
-        exporters: [otlphttp/instana]
+        exporters: [otlphttp/instana, otlp]
       logs:
         receivers: [otlp]
         processors: [memory_limiter, k8sattributes, resource, batch]
-        exporters: [otlphttp/coroot, otlphttp/instana]
+        exporters: [otlphttp/coroot, otlphttp/instana, otlp]
 
 resources:
   requests:
