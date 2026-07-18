@@ -111,6 +111,7 @@ spec:
                               git:
                                 remote: "https://github.com/kevinram164/banking-demo.git"
               # OIDC Keycloak — lab: mọi user SSO = admin
+              # Schema oic-auth ≥4.6xx: serverConfiguration.wellKnown + properties.escapeHatch
               # Chạy jenkins-oidc-keycloak.sh trước khi sync (tạo secret).
               keycloak-oidc: |
                 jenkins:
@@ -118,18 +119,21 @@ spec:
                     oic:
                       clientId: "jenkins"
                       clientSecret: "${JENKINS_OIDC_CLIENT_SECRET}"
-                      wellKnownOpenIDConfigurationUrl: "https://keycloak-platform.apps.ocp01.npd.co/realms/platform/.well-known/openid-configuration"
+                      serverConfiguration:
+                        wellKnown:
+                          wellKnownOpenIDConfigurationUrl: "https://keycloak-platform.apps.ocp01.npd.co/realms/platform/.well-known/openid-configuration"
+                          scopesOverride: "openid profile email"
                       userNameField: "preferred_username"
                       fullNameFieldName: "name"
                       emailFieldName: "email"
                       groupsFieldName: "groups"
-                      scopes: "openid profile email"
                       logoutFromOpenidProvider: true
-                      endSessionUrl: "https://keycloak-platform.apps.ocp01.npd.co/realms/platform/protocol/openid-connect/logout"
-                      escapeHatchEnabled: true
-                      escapeHatchUsername: "admin"
-                      escapeHatchSecret: "${JENKINS_ADMIN_PASSWORD}"
+                      postLogoutRedirectUrl: "https://jenkins-platform.apps.ocp01.npd.co/"
                       disableSslVerification: true
+                      properties:
+                        - escapeHatch:
+                            username: "admin"
+                            secret: "${JENKINS_ADMIN_PASSWORD}"
                   authorizationStrategy:
                     loggedInUsersCanDoAnything:
                       allowAnonymousRead: false
