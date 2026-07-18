@@ -1,0 +1,40 @@
+# Keycloak — shared OIDC IdP (dev-ocp)
+# Host: https://keycloak-platform.apps.ocp01.npd.co
+# Chart: bitnami/keycloak (OCI). Sync wave 1 — sau Vault/ESO, trước Jenkins.
+#
+# Sau khi Ready:
+#   1. Login admin → tạo realm `platform`
+#   2. Tạo OIDC clients: argocd, jenkins, harbor, banking, ocp-console
+#   3. Làm theo phase9-gitops-platform/platform/keycloak/README.md
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-keycloak
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: idp
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: banking-platform
+  sources:
+    - repoURL: oci://registry-1.docker.io/bitnamicharts
+      chart: keycloak
+      targetRevision: 25.2.0
+      helm:
+        releaseName: keycloak
+        valueFiles:
+          - $values/phase9-gitops-platform/environments/dev-ocp/ocp-values/platform/values-keycloak.yaml
+    - repoURL: https://github.com/kevinram164/banking-demo.git
+      targetRevision: dev-ocp
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keycloak
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    automated:
+      prune: false
+      selfHeal: true

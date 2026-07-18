@@ -1,0 +1,24 @@
+# Keycloak UI / OIDC endpoints — OpenShift Route
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: keycloak-platform
+  namespace: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  host: keycloak-platform.apps.ocp01.npd.co
+  to:
+    kind: Service
+    name: keycloak
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

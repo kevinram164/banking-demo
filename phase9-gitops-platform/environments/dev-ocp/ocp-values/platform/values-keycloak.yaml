@@ -1,0 +1,73 @@
+# Bitnami Keycloak — OpenShift (dev-ocp)
+# TLS terminate tại Route (edge); pod HTTP + xforwarded.
+# LAB: admin password plaintext — sau chuyển Vault/ESO.
+
+fullnameOverride: keycloak
+nameOverride: keycloak
+
+global:
+  compatibility:
+    openshift:
+      adaptSecurityContext: force
+
+replicaCount: 1
+
+auth:
+  adminUser: admin
+  adminPassword: "ChangeMe-Keycloak-Admin"
+
+production: true
+proxyHeaders: xforwarded
+httpEnabled: true
+hostnameStrict: true
+
+extraEnvVars:
+  - name: KC_HOSTNAME
+    value: "https://keycloak-platform.apps.ocp01.npd.co"
+  - name: KC_HOSTNAME_STRICT
+    value: "true"
+  - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
+    value: "false"
+
+ingress:
+  enabled: false
+
+service:
+  type: ClusterIP
+  ports:
+    http: 8080
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1536Mi
+
+postgresql:
+  enabled: true
+  auth:
+    username: keycloak
+    password: "ChangeMe-Keycloak-DB"
+    database: keycloak
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+cache:
+  enabled: false
+
+metrics:
+  enabled: false
+
+networkPolicy:
+  enabled: false
