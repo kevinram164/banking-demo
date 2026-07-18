@@ -59,7 +59,7 @@ resources:
 
 postgresql:
   enabled: true
-  # Subchart cần adaptSecurityContext riêng (NFS không cho chown → applyFSGroup denied)
+  # Subchart cần adaptSecurityContext riêng
   global:
     compatibility:
       openshift:
@@ -76,20 +76,13 @@ postgresql:
     enabled: false
   primary:
     podSecurityContext:
-      enabled: true
-      fsGroup: null
-      fsGroupChangePolicy: OnRootMismatch
+      enabled: false
     containerSecurityContext:
-      enabled: true
-      runAsUser: null
-      runAsGroup: null
-      runAsNonRoot: true
-      allowPrivilegeEscalation: false
-      seccompProfile:
-        type: RuntimeDefault
+      enabled: false
+    # Lab: emptyDir — NFS CSI + OpenShift SCC fsGroup → applyFSGroup permission denied
+    # Prod: persistence.enabled=true trên storage hỗ trợ fsGroup, hoặc DB ngoài (postgres ns)
     persistence:
-      enabled: true
-      size: 8Gi
+      enabled: false
     resources:
       requests:
         cpu: 50m
