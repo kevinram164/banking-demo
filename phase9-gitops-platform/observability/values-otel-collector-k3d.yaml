@@ -60,7 +60,8 @@ config:
         insecure: true
       compression: none
     otlphttp/instana:
-      endpoint: instana-agent.instana-agent.svc.cluster.local:4318
+      # otlphttp bắt buộc có scheme http:// (thiếu → unsupported protocol scheme)
+      endpoint: http://instana-agent.instana-agent.svc.cluster.local:4318
       tls:
         insecure: true
     otlp:
