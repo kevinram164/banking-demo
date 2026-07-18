@@ -250,6 +250,26 @@ oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n argoc
 
 **Checkpoint Giai đoạn 1:** ArgoCD UI login OK; repo connected; AppProject `banking-platform` tồn tại.
 
+### 4.4.1 Auto-sync mỗi 5 phút
+
+Application đã có `syncPolicy.automated` sẽ tự sync khi OutOfSync. Chu kỳ **poll Git** do `argocd-cm`:
+
+```bash
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/argocd-autosync-interval.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/argocd-autosync-interval.sh 300s
+# mặc định 300s = 5 phút (ArgoCD upstream mặc định thường là 180s)
+```
+
+Hoặc patch tay:
+
+```bash
+oc patch configmap argocd-cm -n argocd --type merge \
+  -p '{"data":{"timeout.reconciliation":"300s"}}'
+oc rollout restart statefulset/argocd-application-controller -n argocd
+```
+
+Muốn sync ngay khi push Git: cấu hình **GitHub webhook** tới ArgoCD (không chờ 5 phút).
+
 ---
 
 ## 5. Giai đoạn 2 — Platform (Harbor, Vault, ESO, Jenkins)
