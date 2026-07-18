@@ -1,6 +1,7 @@
 # Keycloak — shared OIDC IdP (dev-ocp)
 # Host: https://keycloak-platform.apps.ocp01.npd.co
-# Chart: bitnami/keycloak (OCI). Sync wave 1 — sau Vault/ESO, trước Jenkins.
+# Chart: bitnami/keycloak qua https (KHÔNG dùng OCI Docker Hub — 401 Unauthorized).
+# Sync wave 1 — sau Vault/ESO, trước Jenkins.
 #
 # Sau khi Ready:
 #   1. Login admin → tạo realm `platform`
@@ -19,7 +20,7 @@ metadata:
 spec:
   project: banking-platform
   sources:
-    - repoURL: oci://registry-1.docker.io/bitnamicharts
+    - repoURL: https://charts.bitnami.com/bitnami
       chart: keycloak
       targetRevision: 25.2.0
       helm:

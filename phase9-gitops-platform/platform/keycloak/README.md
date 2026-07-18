@@ -74,8 +74,8 @@ URL: `https://keycloak-platform.apps.ocp01.npd.co`
 
 | File | Vai trò |
 |------|---------|
-| `gitops-platform/applications/platform/keycloak.yaml` | Argo Application |
-| `environments/dev-ocp/ocp-values/platform/values-keycloak.yaml` | Helm values |
+| `gitops-platform/applications/platform/keycloak.yaml` | Argo Application (`https://charts.bitnami.com/bitnami`, không OCI) |
+| `environments/dev-ocp/ocp-values/platform/values-keycloak.yaml` | Helm values (`bitnamilegacy/*`) |
 | `environments/dev-ocp/ocp-values/routes/keycloak-route.yaml` | Route |
 
 ## Bảo mật lab → prod
