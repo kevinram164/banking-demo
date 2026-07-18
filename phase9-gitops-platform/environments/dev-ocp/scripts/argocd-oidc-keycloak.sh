@@ -90,7 +90,8 @@ lines = [
     "  - openid",
     "  - profile",
     "  - email",
-    "  - groups",
+    # Không request scope "groups" — Keycloak không có client scope đó → invalid_scope.
+    # Claim groups vẫn có nhờ mapper Group Membership trên argocd-dedicated.
     (
         f"logoutURL: {issuer}/protocol/openid-connect/logout"
         f"?client_id={client_id}&post_logout_redirect_uri={{{{logoutRedirectURL}}}}"
