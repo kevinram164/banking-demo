@@ -59,6 +59,11 @@ resources:
 
 postgresql:
   enabled: true
+  # Subchart cần adaptSecurityContext riêng (NFS không cho chown → applyFSGroup denied)
+  global:
+    compatibility:
+      openshift:
+        adaptSecurityContext: force
   image:
     registry: docker.io
     repository: bitnamilegacy/postgresql
@@ -67,7 +72,21 @@ postgresql:
     username: keycloak
     password: "ChangeMe-Keycloak-DB"
     database: keycloak
+  volumePermissions:
+    enabled: false
   primary:
+    podSecurityContext:
+      enabled: true
+      fsGroup: null
+      fsGroupChangePolicy: OnRootMismatch
+    containerSecurityContext:
+      enabled: true
+      runAsUser: null
+      runAsGroup: null
+      runAsNonRoot: true
+      allowPrivilegeEscalation: false
+      seccompProfile:
+        type: RuntimeDefault
     persistence:
       enabled: true
       size: 8Gi
