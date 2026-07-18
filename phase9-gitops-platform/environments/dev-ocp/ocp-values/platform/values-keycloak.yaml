@@ -22,7 +22,7 @@ replicaCount: 1
 
 auth:
   adminUser: admin
-  adminPassword: "ChangeMe-Keycloak-Admin"
+  adminPassword: "Tech@1604"
 
 production: true
 proxyHeaders: xforwarded
@@ -65,7 +65,7 @@ postgresql:
     tag: 17.6.0-debian-12-r0
   auth:
     username: keycloak
-    password: "ChangeMe-Keycloak-DB"
+    password: "Tech1604"
     database: keycloak
   primary:
     persistence:
