@@ -8,6 +8,10 @@ standardFlowEnabled: true
 rootUrl: https://jenkins-platform.apps.ocp01.npd.co
 redirectUris:
   - https://jenkins-platform.apps.ocp01.npd.co/securityRealm/finishLogin
+# Bắt buộc khi logoutFromOpenidProvider=true (thiếu → Keycloak "Invalid redirect uri")
+postLogoutRedirectUris:
+  - https://jenkins-platform.apps.ocp01.npd.co/*
+  - https://jenkins-platform.apps.ocp01.npd.co/
 webOrigins:
   - https://jenkins-platform.apps.ocp01.npd.co
 # Credentials → copy secret → JENKINS_OIDC_CLIENT_SECRET

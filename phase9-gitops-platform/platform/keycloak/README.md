@@ -81,10 +81,10 @@ chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/argocd-oidc-keycloa
 
 Giống `argocd`: Client authentication **On**, Standard flow, mapper `groups`.
 
-| Client | Redirect URI |
-|--------|----------------|
-| `jenkins` | `https://jenkins-platform.apps.ocp01.npd.co/securityRealm/finishLogin` |
-| `harbor` | `https://harbor-platform.apps.ocp01.npd.co/c/oidc/callback` |
+| Client | Redirect URI | Post logout redirect |
+|--------|----------------|----------------------|
+| `jenkins` | `https://jenkins-platform.apps.ocp01.npd.co/securityRealm/finishLogin` | `https://jenkins-platform.apps.ocp01.npd.co/*` |
+| `harbor` | `https://harbor-platform.apps.ocp01.npd.co/c/oidc/callback` | (Harbor tự xử lý) |
 
 Chi tiết: `clients/jenkins-client.yaml`, `clients/harbor-client.yaml`.
 
