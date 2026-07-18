@@ -49,8 +49,8 @@ spec:
             - configuration-as-code:2100.vb_fd699d2a_09c
             - pipeline-groovy-lib:798.v5cc688825312
             - durable-task:686.v80ff80875b_82
-            # Keycloak / OIDC (Phase 3)
-            - oic-auth:4.520.v40f2973b_de46
+            # Keycloak / OIDC (Phase 3) — pin bản tồn tại trên updates.jenkins.io (4.520... = 404)
+            - oic-auth:4.690.v5821cf665e43
           additionalPlugins: []
           overwritePlugins: true
           overwritePluginsFromImage: false
