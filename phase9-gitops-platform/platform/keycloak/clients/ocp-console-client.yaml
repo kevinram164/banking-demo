@@ -1,0 +1,17 @@
+# Keycloak client — OpenShift Console / API (OAuth cluster IdP)
+# IdP name trên OAuth CR phải khớp đuôi redirect: .../oauth2callback/keycloak
+clientId: ocp-console
+name: OpenShift Console
+enabled: true
+protocol: openid-connect
+publicClient: false
+standardFlowEnabled: true
+rootUrl: https://console-openshift-console.apps.ocp01.npd.co
+redirectUris:
+  - https://oauth-openshift.apps.ocp01.npd.co/oauth2callback/keycloak
+webOrigins:
+  - https://console-openshift-console.apps.ocp01.npd.co
+  - https://oauth-openshift.apps.ocp01.npd.co
+# Credentials → OCP_OIDC_CLIENT_SECRET → secret openshift-config/keycloak-oidc-client
+# Claims mặc định Keycloak (preferred_username, name, email) đủ cho OCP
+# Optional: Group Membership → claim groups (map cluster roles sau)

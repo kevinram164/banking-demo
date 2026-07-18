@@ -34,7 +34,7 @@ Banking hiện tại: bcrypt + Redis `X-Session` — **không** drop-in. Phase 5
 | 1 | Deploy Keycloak + Route + AppProject | GitOps sẵn |
 | 2 | ArgoCD OIDC (lab: mọi SSO = admin) | Script sẵn |
 | 3 | Harbor + Jenkins OIDC (lab: SSO = admin) | Script + Jenkins JCasC sẵn |
-| 4 | OpenShift OAuth IdP | Chưa |
+| 4 | OpenShift OAuth IdP | Script `ocp-oidc-keycloak.sh` |
 | 5 | Banking OIDC | Chưa |
 
 ## Quyền lab (admin cho mọi user SSO)
@@ -106,6 +106,21 @@ export HARBOR_OIDC_CLIENT_SECRET='...'
 
 User Harbor admin SSO phải ∈ **`platform-admin`**.
 
+## Phase 4 — OpenShift Console / API
+
+```bash
+# Keycloak client: ocp-console — xem clients/ocp-console-client.yaml
+export OCP_OIDC_CLIENT_SECRET='...'
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/ocp-oidc-keycloak.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/ocp-oidc-keycloak.sh
+
+# User SSO mới chưa có quyền cluster — lab:
+oc adm policy add-cluster-role-to-user cluster-admin kiet.tran
+```
+
+Redirect **bắt buộc** khớp tên IdP (`keycloak`):
+`https://oauth-openshift.apps.ocp01.npd.co/oauth2callback/keycloak`
+
 ## Deploy Phase 1
 
 ```bash
@@ -134,7 +149,7 @@ URL: `https://keycloak-platform.apps.ocp01.npd.co`
 | argocd | `https://argocd-server-argocd.apps.ocp01.npd.co/auth/callback` |
 | jenkins | `https://jenkins-platform.apps.ocp01.npd.co/securityRealm/finishLogin` |
 | harbor | `https://harbor-platform.apps.ocp01.npd.co/c/oidc/callback` |
-| ocp-console | theo OpenShift OAuth client redirect |
+| ocp-console | `https://oauth-openshift.apps.ocp01.npd.co/oauth2callback/keycloak` |
 | banking | `https://npd-banking.co/oauth/callback` (sau khi FE hỗ trợ) |
 
 3. Groups/roles: `platform-admin`, `developers`, `banking-users` — map vào từng hệ thống.
@@ -150,6 +165,7 @@ URL: `https://keycloak-platform.apps.ocp01.npd.co`
 | `environments/dev-ocp/scripts/argocd-rbac-oidc-admin-all.sh` | ArgoCD mọi SSO = admin |
 | `environments/dev-ocp/scripts/jenkins-oidc-keycloak.sh` | Secret Jenkins OIDC |
 | `environments/dev-ocp/scripts/harbor-oidc-keycloak.sh` | Harbor OIDC |
+| `environments/dev-ocp/scripts/ocp-oidc-keycloak.sh` | OpenShift OAuth IdP |
 | `platform/keycloak/clients/*.yaml` | Checklist client |
 
 ## Bảo mật lab → prod
