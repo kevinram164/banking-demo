@@ -65,7 +65,7 @@ postgresql:
     tag: 17.6.0-debian-12-r0
   auth:
     username: keycloak
-    password: "Tech1604"
+    password: "ChangeMe-Keycloak-DB"
     database: keycloak
   primary:
     persistence:
