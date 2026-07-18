@@ -49,6 +49,8 @@ spec:
             - configuration-as-code:2100.vb_fd699d2a_09c
             - pipeline-groovy-lib:798.v5cc688825312
             - durable-task:686.v80ff80875b_82
+            # Keycloak / OIDC (Phase 3)
+            - oic-auth:4.520.v40f2973b_de46
           additionalPlugins: []
           overwritePlugins: true
           overwritePluginsFromImage: false
@@ -68,6 +70,21 @@ spec:
               memory: 1Gi
             limits:
               memory: 2Gi
+          # Secret OIDC: scripts/jenkins-oidc-keycloak.sh
+          # Admin escape hatch: cùng secret jenkins-platform-credentials (Vault/ESO)
+          containerEnv:
+            - name: JENKINS_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jenkins-oidc-keycloak
+                  key: client-secret
+                  optional: true
+            - name: JENKINS_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: jenkins-platform-credentials
+                  key: jenkins-admin-password
+                  optional: true
           # Đổi javaOpts → Argo sync STS → pod restart (đúng hành vi). Không phải crash Kaniko.
           javaOpts: >-
             -Dorg.jenkinsci.plugins.durabletask.BourneShellScript.HEARTBEAT_CHECK_INTERVAL=86400
@@ -93,6 +110,29 @@ spec:
                             scm:
                               git:
                                 remote: "https://github.com/kevinram164/banking-demo.git"
+              # OIDC Keycloak — lab: mọi user SSO = admin
+              # Chạy jenkins-oidc-keycloak.sh trước khi sync (tạo secret).
+              keycloak-oidc: |
+                jenkins:
+                  securityRealm:
+                    oic:
+                      clientId: "jenkins"
+                      clientSecret: "${JENKINS_OIDC_CLIENT_SECRET}"
+                      wellKnownOpenIDConfigurationUrl: "https://keycloak-platform.apps.ocp01.npd.co/realms/platform/.well-known/openid-configuration"
+                      userNameField: "preferred_username"
+                      fullNameFieldName: "name"
+                      emailFieldName: "email"
+                      groupsFieldName: "groups"
+                      scopes: "openid profile email"
+                      logoutFromOpenidProvider: true
+                      endSessionUrl: "https://keycloak-platform.apps.ocp01.npd.co/realms/platform/protocol/openid-connect/logout"
+                      escapeHatchEnabled: true
+                      escapeHatchUsername: "admin"
+                      escapeHatchSecret: "${JENKINS_ADMIN_PASSWORD}"
+                      disableSslVerification: true
+                  authorizationStrategy:
+                    loggedInUsersCanDoAnything:
+                      allowAnonymousRead: false
           ingress:
             enabled: false
         agent:

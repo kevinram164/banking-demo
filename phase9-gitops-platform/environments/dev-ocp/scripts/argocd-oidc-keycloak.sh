@@ -114,11 +114,12 @@ oc patch configmap argocd-cm -n "$NS" --type merge -p "$OIDC_PATCH"
 
 RBAC_PATCH=$(python3 - <<'PY'
 import json
+# Lab: mọi user OIDC = admin (không phụ thuộc claim groups có vào token hay không)
 policy = "g, platform-admins, role:admin\ng, argocd-admins, role:admin\n"
 print(json.dumps({
     "data": {
         "policy.csv": policy,
-        "policy.default": "role:readonly",
+        "policy.default": "role:admin",
         "scopes": "[groups, email]",
     }
 }))

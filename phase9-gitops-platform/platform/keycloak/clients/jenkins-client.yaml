@@ -1,0 +1,14 @@
+# Keycloak client — Jenkins
+clientId: jenkins
+name: Jenkins
+enabled: true
+protocol: openid-connect
+publicClient: false
+standardFlowEnabled: true
+rootUrl: https://jenkins-platform.apps.ocp01.npd.co
+redirectUris:
+  - https://jenkins-platform.apps.ocp01.npd.co/securityRealm/finishLogin
+webOrigins:
+  - https://jenkins-platform.apps.ocp01.npd.co
+# Credentials → copy secret → JENKINS_OIDC_CLIENT_SECRET
+# Dedicated mapper: Group Membership → claim groups

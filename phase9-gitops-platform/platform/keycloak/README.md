@@ -32,10 +32,29 @@ Banking hiện tại: bcrypt + Redis `X-Session` — **không** drop-in. Phase 5
 | # | Việc | Trạng thái repo |
 |---|------|-----------------|
 | 1 | Deploy Keycloak + Route + AppProject | GitOps sẵn |
-| 2 | ArgoCD OIDC | Script + checklist sẵn |
-| 3 | Harbor + Jenkins OIDC | Chưa |
-| 4 | OpenShift OAuth IdP | Chưa (cluster CR) |
-| 5 | Banking OIDC | Chưa (code + Kong) |
+| 2 | ArgoCD OIDC (lab: mọi SSO = admin) | Script sẵn |
+| 3 | Harbor + Jenkins OIDC (lab: SSO = admin) | Script + Jenkins JCasC sẵn |
+| 4 | OpenShift OAuth IdP | Chưa |
+| 5 | Banking OIDC | Chưa |
+
+## Quyền lab (admin cho mọi user SSO)
+
+Mọi user tạo trong realm **`platform`** nên vào group **`platform-admins`**.
+
+| Hệ thống | Cơ chế admin |
+|----------|----------------|
+| ArgoCD | `policy.default: role:admin` |
+| Jenkins | `loggedInUsersCanDoAnything` |
+| Harbor | `oidc_admin_group: platform-admins` |
+
+### Sửa ArgoCD chỉ view (ngay)
+
+```bash
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/argocd-rbac-oidc-admin-all.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/argocd-rbac-oidc-admin-all.sh
+```
+
+Logout → LOG IN VIA KEYCLOAK lại.
 
 ## Phase 2 — ArgoCD OIDC
 
@@ -43,21 +62,49 @@ Banking hiện tại: bcrypt + Redis `X-Session` — **không** drop-in. Phase 5
 
 1. Realm **`platform`**
 2. Client **`argocd`** — xem `clients/argocd-client.yaml`
-3. Mapper **Group Membership** → claim `groups`
-4. Group **`platform-admins`** + user test
+3. Mapper **Group Membership** → claim `groups` (Configure a new mapper)
+4. Group **`platform-admins`** + user (vd. `kiet.tran`)
 5. Copy **Client secret**
 
 ### B. Apply lên ArgoCD
 
 ```bash
 export ARGOCD_OIDC_CLIENT_SECRET='<client-secret-từ-keycloak>'
+export OIDC_TLS_INSECURE=true   # lab Route OCP
 chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/argocd-oidc-keycloak.sh
 ./phase9-gitops-platform/environments/dev-ocp/scripts/argocd-oidc-keycloak.sh
 ```
 
-Mở `https://argocd-server-argocd.apps.ocp01.npd.co` → **LOG IN VIA KEYCLOAK**.
+## Phase 3 — Harbor + Jenkins
 
-RBAC: group `platform-admins` → `role:admin`; mặc định `role:readonly`. Local `admin` vẫn login được.
+### Keycloak clients
+
+Giống `argocd`: Client authentication **On**, Standard flow, mapper `groups`.
+
+| Client | Redirect URI |
+|--------|----------------|
+| `jenkins` | `https://jenkins-platform.apps.ocp01.npd.co/securityRealm/finishLogin` |
+| `harbor` | `https://harbor-platform.apps.ocp01.npd.co/c/oidc/callback` |
+
+Chi tiết: `clients/jenkins-client.yaml`, `clients/harbor-client.yaml`.
+
+### Jenkins
+
+```bash
+export JENKINS_OIDC_CLIENT_SECRET='...'
+./phase9-gitops-platform/environments/dev-ocp/scripts/jenkins-oidc-keycloak.sh
+# push/sync platform-jenkins (đã có oic-auth + JCasC)
+argocd app sync platform-jenkins
+```
+
+### Harbor
+
+```bash
+export HARBOR_OIDC_CLIENT_SECRET='...'
+./phase9-gitops-platform/environments/dev-ocp/scripts/harbor-oidc-keycloak.sh
+```
+
+User Harbor admin SSO phải ∈ **`platform-admins`**.
 
 ## Deploy Phase 1
 
@@ -96,11 +143,14 @@ URL: `https://keycloak-platform.apps.ocp01.npd.co`
 
 | File | Vai trò |
 |------|---------|
-| `gitops-platform/applications/platform/keycloak.yaml` | Argo Application (`https://charts.bitnami.com/bitnami`, không OCI) |
-| `environments/dev-ocp/ocp-values/platform/values-keycloak.yaml` | Helm values (`bitnamilegacy/*`) |
+| `gitops-platform/applications/platform/keycloak.yaml` | Argo Application |
+| `environments/dev-ocp/ocp-values/platform/values-keycloak.yaml` | Helm values |
 | `environments/dev-ocp/ocp-values/routes/keycloak-route.yaml` | Route |
-| `environments/dev-ocp/scripts/argocd-oidc-keycloak.sh` | Phase 2: patch ArgoCD OIDC |
-| `platform/keycloak/clients/argocd-client.yaml` | Checklist client ArgoCD |
+| `environments/dev-ocp/scripts/argocd-oidc-keycloak.sh` | ArgoCD OIDC |
+| `environments/dev-ocp/scripts/argocd-rbac-oidc-admin-all.sh` | ArgoCD mọi SSO = admin |
+| `environments/dev-ocp/scripts/jenkins-oidc-keycloak.sh` | Secret Jenkins OIDC |
+| `environments/dev-ocp/scripts/harbor-oidc-keycloak.sh` | Harbor OIDC |
+| `platform/keycloak/clients/*.yaml` | Checklist client |
 
 ## Bảo mật lab → prod
 

@@ -1,0 +1,15 @@
+# Keycloak client — Harbor
+clientId: harbor
+name: Harbor
+enabled: true
+protocol: openid-connect
+publicClient: false
+standardFlowEnabled: true
+rootUrl: https://harbor-platform.apps.ocp01.npd.co
+redirectUris:
+  - https://harbor-platform.apps.ocp01.npd.co/c/oidc/callback
+webOrigins:
+  - https://harbor-platform.apps.ocp01.npd.co
+# Credentials → copy secret → HARBOR_OIDC_CLIENT_SECRET
+# Dedicated mapper: Group Membership → claim groups
+# User ∈ group platform-admins (= Harbor system admin)
