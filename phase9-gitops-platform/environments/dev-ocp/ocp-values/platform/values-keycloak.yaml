@@ -36,6 +36,10 @@ extraEnvVars:
     value: "true"
   - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
     value: "false"
+  # bitnamilegacy Keycloak 26.x bug: Incomplete line .../conf/[1,14]
+  # https://github.com/bitnami/charts/issues/36298
+  - name: KC_CACHE_CONFIG_FILE
+    value: cache-ispn.xml
 
 ingress:
   enabled: false
@@ -75,6 +79,7 @@ postgresql:
         cpu: 500m
         memory: 512Mi
 
+# Lab 1 replica — local cache; KC_CACHE_CONFIG_FILE bắt buộc với bitnamilegacy
 cache:
   enabled: false
 
