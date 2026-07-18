@@ -53,6 +53,16 @@ config:
         - key: service.instance.id
           from_attribute: k8s.pod.uid
           action: insert
+    # RabbitMQ consumers emit INTERNAL *.process spans — Instana thường bỏ qua khi tạo Service.
+    # Đổi → CONSUMER (+ messaging.system) để auth/transfer/account/notification hiện trên APM.
+    transform/consumer-spans:
+      error_mode: ignore
+      trace_statements:
+        - context: span
+          statements:
+            - set(kind, 5) where IsMatch(name, ".*\\.process")
+            - set(attributes["messaging.system"], "rabbitmq") where IsMatch(name, ".*\\.process")
+            - set(attributes["messaging.operation"], "process") where IsMatch(name, ".*\\.process")
   exporters:
     otlphttp/coroot:
       endpoint: http://coroot-coroot.observability.svc.cluster.local:8080
@@ -74,7 +84,7 @@ config:
     pipelines:
       traces:
         receivers: [otlp]
-        processors: [memory_limiter, k8sattributes, resource, batch]
+        processors: [memory_limiter, k8sattributes, resource, transform/consumer-spans, batch]
         exporters: [otlphttp/coroot, otlphttp/instana, spanmetrics, otlp]
       metrics:
         receivers: [otlp]

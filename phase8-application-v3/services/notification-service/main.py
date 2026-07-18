@@ -6,7 +6,7 @@ Notification Service — Phase 8 Consumer + WebSocket
 import os
 import asyncio
 import json
-from contextlib import asynccontextmanager, nullcontext
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -18,7 +18,7 @@ from common.models import Notification
 from common.redis_utils import get_user_id_from_session, set_presence, create_redis_client
 from common.rabbitmq_utils import store_response
 from common.logging_utils import get_json_logger, log_event, log_error_event, should_log_request_flow
-from common.observability import instrument_fastapi, get_tracer
+from common.observability import instrument_fastapi, get_tracer, consumer_span
 
 Base.metadata.create_all(bind=engine)
 
@@ -56,8 +56,7 @@ async def process_message(message):
             payload = body.get("payload", {})
             headers = body.get("headers", {})
             tracer = get_tracer("notification-service")
-            span_ctx = tracer.start_as_current_span("notification.process", attributes={"messaging.operation": "process", "action": action, "correlation_id": str(correlation_id or "")}) if tracer else nullcontext()
-            with span_ctx:
+            with consumer_span(tracer, "notification.process", {"action": action, "correlation_id": str(correlation_id or "")}):
                 if should_log_request_flow():
                     log_event(logger, "rmq_message_received", queue="notification.requests", correlation_id=correlation_id, action=action)
                 if action == "health":

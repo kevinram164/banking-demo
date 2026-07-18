@@ -56,6 +56,18 @@ def get_tracer(service_name: str):
         return None
 
 
+def consumer_span(tracer, name: str, attributes: dict | None = None):
+    """Start a messaging CONSUMER span (Instana maps these to services; INTERNAL often ignored)."""
+    if not tracer:
+        from contextlib import nullcontext
+        return nullcontext()
+    from opentelemetry.trace import SpanKind
+    attrs = {"messaging.system": "rabbitmq", "messaging.operation": "process"}
+    if attributes:
+        attrs.update(attributes)
+    return tracer.start_as_current_span(name, kind=SpanKind.CONSUMER, attributes=attrs)
+
+
 def setup_metrics(service_name: str) -> None:
     global _metrics_registry, _request_count, _request_latency
     _metrics_registry = CollectorRegistry()

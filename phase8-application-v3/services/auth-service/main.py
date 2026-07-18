@@ -7,7 +7,7 @@ import os
 import asyncio
 import json
 import secrets
-from contextlib import asynccontextmanager, nullcontext
+from contextlib import asynccontextmanager
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -22,7 +22,7 @@ from common.auth import hash_password, verify_password
 from common.redis_utils import create_session, create_redis_client, get_user_for_login, set_user_for_login_cache
 from common.rabbitmq_utils import store_response
 from common.logging_utils import get_json_logger, log_event, log_error_event, should_log_request_flow
-from common.observability import instrument_fastapi, get_tracer
+from common.observability import instrument_fastapi, get_tracer, consumer_span
 
 Base.metadata.create_all(bind=engine)
 
@@ -127,8 +127,7 @@ async def process_message(message: IncomingMessage):
             action = body.get("action", "")
             payload = body.get("payload", {})
             tracer = get_tracer("auth-service")
-            span_ctx = tracer.start_as_current_span("auth.process", attributes={"messaging.operation": "process", "action": action, "correlation_id": str(correlation_id or "")}) if tracer else nullcontext()
-            with span_ctx:
+            with consumer_span(tracer, "auth.process", {"action": action, "correlation_id": str(correlation_id or "")}):
                 if should_log_request_flow():
                     log_event(logger, "rmq_message_received", queue="auth.requests", correlation_id=correlation_id, action=action)
                 if action == "health":

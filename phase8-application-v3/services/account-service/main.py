@@ -6,7 +6,7 @@ FastAPI + instrument_fastapi để xuất traces sang Jaeger (health check tạo
 import os
 import asyncio
 import json
-from contextlib import asynccontextmanager, nullcontext
+from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from redis.asyncio import Redis
@@ -18,7 +18,7 @@ from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, create_redis_client
 from common.rabbitmq_utils import store_response
 from common.logging_utils import get_json_logger, log_event, log_error_event, should_log_request_flow
-from common.observability import instrument_fastapi, get_tracer
+from common.observability import instrument_fastapi, get_tracer, consumer_span
 
 Base.metadata.create_all(bind=engine)
 
@@ -169,8 +169,7 @@ async def process_message(message: IncomingMessage):
             payload = body.get("payload", {})
             headers = body.get("headers", {})
             tracer = get_tracer("account-service")
-            span_ctx = tracer.start_as_current_span("account.process", attributes={"messaging.operation": "process", "action": action, "correlation_id": str(correlation_id or "")}) if tracer else nullcontext()
-            with span_ctx:
+            with consumer_span(tracer, "account.process", {"action": action, "correlation_id": str(correlation_id or "")}):
                 if should_log_request_flow():
                     log_event(logger, "rmq_message_received", queue="account.requests", correlation_id=correlation_id, action=action, path=path)
                 if action == "health":
