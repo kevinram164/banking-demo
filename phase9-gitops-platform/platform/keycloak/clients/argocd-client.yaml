@@ -1,0 +1,26 @@
+# Phase 2 — Keycloak client checklist (ArgoCD)
+# Import thủ công trong Keycloak Admin → Realm platform → Clients → Create
+# (Hoặc dùng UI theo README; file này là tham chiếu redirect/scopes.)
+
+clientId: argocd
+name: ArgoCD
+enabled: true
+protocol: openid-connect
+publicClient: false
+standardFlowEnabled: true
+directAccessGrantsEnabled: false
+serviceAccountsEnabled: false
+rootUrl: https://argocd-server-argocd.apps.ocp01.npd.co
+baseUrl: /
+redirectUris:
+  - https://argocd-server-argocd.apps.ocp01.npd.co/auth/callback
+webOrigins:
+  - https://argocd-server-argocd.apps.ocp01.npd.co
+# Sau khi tạo client:
+# - Credentials → copy Secret → ARGOCD_OIDC_CLIENT_SECRET
+# - Client scopes → Dedicated → Add mapper:
+#     Mapper type: Group Membership
+#     Name: groups
+#     Token Claim Name: groups
+#     Full group path: OFF (claim = platform-admins)
+# - Groups → tạo platform-admins → Members → add user

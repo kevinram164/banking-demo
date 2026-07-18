@@ -1,0 +1,20 @@
+# Tham chiếu oidc.config (script argocd-oidc-keycloak.sh apply thật)
+# Secret: argocd-secret key oidc.keycloak.clientSecret
+#
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: argocd-cm
+#   namespace: argocd
+# data:
+#   url: https://argocd-server-argocd.apps.ocp01.npd.co
+#   oidc.config: |
+#     name: Keycloak
+#     issuer: https://keycloak-platform.apps.ocp01.npd.co/realms/platform
+#     clientID: argocd
+#     clientSecret: $oidc.keycloak.clientSecret
+#     requestedScopes:
+#       - openid
+#       - profile
+#       - email
+#       - groups

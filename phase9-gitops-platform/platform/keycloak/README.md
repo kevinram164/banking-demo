@@ -32,10 +32,32 @@ Banking hiện tại: bcrypt + Redis `X-Session` — **không** drop-in. Phase 5
 | # | Việc | Trạng thái repo |
 |---|------|-----------------|
 | 1 | Deploy Keycloak + Route + AppProject | GitOps sẵn |
-| 2 | ArgoCD OIDC | Chưa |
+| 2 | ArgoCD OIDC | Script + checklist sẵn |
 | 3 | Harbor + Jenkins OIDC | Chưa |
 | 4 | OpenShift OAuth IdP | Chưa (cluster CR) |
 | 5 | Banking OIDC | Chưa (code + Kong) |
+
+## Phase 2 — ArgoCD OIDC
+
+### A. Keycloak (UI)
+
+1. Realm **`platform`**
+2. Client **`argocd`** — xem `clients/argocd-client.yaml`
+3. Mapper **Group Membership** → claim `groups`
+4. Group **`platform-admins`** + user test
+5. Copy **Client secret**
+
+### B. Apply lên ArgoCD
+
+```bash
+export ARGOCD_OIDC_CLIENT_SECRET='<client-secret-từ-keycloak>'
+chmod +x phase9-gitops-platform/environments/dev-ocp/scripts/argocd-oidc-keycloak.sh
+./phase9-gitops-platform/environments/dev-ocp/scripts/argocd-oidc-keycloak.sh
+```
+
+Mở `https://argocd-server-argocd.apps.ocp01.npd.co` → **LOG IN VIA KEYCLOAK**.
+
+RBAC: group `platform-admins` → `role:admin`; mặc định `role:readonly`. Local `admin` vẫn login được.
 
 ## Deploy Phase 1
 
@@ -77,6 +99,8 @@ URL: `https://keycloak-platform.apps.ocp01.npd.co`
 | `gitops-platform/applications/platform/keycloak.yaml` | Argo Application (`https://charts.bitnami.com/bitnami`, không OCI) |
 | `environments/dev-ocp/ocp-values/platform/values-keycloak.yaml` | Helm values (`bitnamilegacy/*`) |
 | `environments/dev-ocp/ocp-values/routes/keycloak-route.yaml` | Route |
+| `environments/dev-ocp/scripts/argocd-oidc-keycloak.sh` | Phase 2: patch ArgoCD OIDC |
+| `platform/keycloak/clients/argocd-client.yaml` | Checklist client ArgoCD |
 
 ## Bảo mật lab → prod
 

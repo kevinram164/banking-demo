@@ -270,6 +270,21 @@ oc rollout restart statefulset/argocd-application-controller -n argocd
 
 Muốn sync ngay khi push Git: cấu hình **GitHub webhook** tới ArgoCD (không chờ 5 phút).
 
+### 4.4.2 OIDC Keycloak (Phase 2)
+
+Keycloak lên trước (`platform-keycloak`). Rồi:
+
+1. Keycloak UI → realm `platform` → client `argocd` (redirect `/auth/callback`) + mapper `groups`
+2. Group `platform-admins` + user test
+3. Chạy script:
+
+```bash
+export ARGOCD_OIDC_CLIENT_SECRET='<secret-từ-keycloak>'
+./phase9-gitops-platform/environments/dev-ocp/scripts/argocd-oidc-keycloak.sh
+```
+
+Chi tiết: [platform/keycloak/README.md](./platform/keycloak/README.md)
+
 ---
 
 ## 5. Giai đoạn 2 — Platform (Harbor, Vault, ESO, Jenkins)
