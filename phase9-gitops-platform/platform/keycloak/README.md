@@ -39,13 +39,13 @@ Banking hiện tại: bcrypt + Redis `X-Session` — **không** drop-in. Phase 5
 
 ## Quyền lab (admin cho mọi user SSO)
 
-Mọi user tạo trong realm **`platform`** nên vào group **`platform-admins`**.
+Mọi user tạo trong realm **`platform`** nên vào group **`platform-admin`**.
 
 | Hệ thống | Cơ chế admin |
 |----------|----------------|
 | ArgoCD | `policy.default: role:admin` |
 | Jenkins | `loggedInUsersCanDoAnything` |
-| Harbor | `oidc_admin_group: platform-admins` |
+| Harbor | `oidc_admin_group: platform-admin` |
 
 ### Sửa ArgoCD chỉ view (ngay)
 
@@ -63,7 +63,7 @@ Logout → LOG IN VIA KEYCLOAK lại.
 1. Realm **`platform`**
 2. Client **`argocd`** — xem `clients/argocd-client.yaml`
 3. Mapper **Group Membership** → claim `groups` (Configure a new mapper)
-4. Group **`platform-admins`** + user (vd. `kiet.tran`)
+4. Group **`platform-admin`** + user (vd. `kiet.tran`)
 5. Copy **Client secret**
 
 ### B. Apply lên ArgoCD
@@ -104,7 +104,7 @@ export HARBOR_OIDC_CLIENT_SECRET='...'
 ./phase9-gitops-platform/environments/dev-ocp/scripts/harbor-oidc-keycloak.sh
 ```
 
-User Harbor admin SSO phải ∈ **`platform-admins`**.
+User Harbor admin SSO phải ∈ **`platform-admin`**.
 
 ## Deploy Phase 1
 
@@ -137,7 +137,7 @@ URL: `https://keycloak-platform.apps.ocp01.npd.co`
 | ocp-console | theo OpenShift OAuth client redirect |
 | banking | `https://npd-banking.co/oauth/callback` (sau khi FE hỗ trợ) |
 
-3. Groups/roles: `platform-admins`, `developers`, `banking-users` — map vào từng hệ thống.
+3. Groups/roles: `platform-admin`, `developers`, `banking-users` — map vào từng hệ thống.
 
 ## Files
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Harbor OIDC → Keycloak (lab: mọi user trong group platform-admins = Harbor system admin)
+# Harbor OIDC → Keycloak (lab: group platform-admin = Harbor system admin)
 #
 # Keycloak trước:
 #   Client ID: harbor (confidential)
 #   Redirect: https://harbor-platform.apps.ocp01.npd.co/c/oidc/callback
 #   Web origin: https://harbor-platform.apps.ocp01.npd.co
-#   Mapper Group Membership → claim groups (trên harbor-dedicated)
-#   User ∈ group platform-admins
+#   Mapper Group Membership → Token Claim Name: groups (KHÔNG để trống / không dùng tên mapper)
+#   User ∈ group platform-admin
 #
 # Usage:
 #   export HARBOR_OIDC_CLIENT_SECRET='...'
@@ -18,7 +18,7 @@ DEPLOY="${HARBOR_CORE_DEPLOY:-harbor-core}"
 ISSUER="${KEYCLOAK_ISSUER:-https://keycloak-platform.apps.ocp01.npd.co/realms/platform}"
 CLIENT_ID="${OIDC_CLIENT_ID:-harbor}"
 SECRET="${HARBOR_OIDC_CLIENT_SECRET:-}"
-ADMIN_GROUP="${OIDC_ADMIN_GROUP:-platform-admins}"
+ADMIN_GROUP="${OIDC_ADMIN_GROUP:-platform-admin}"
 
 if [[ -z "$SECRET" ]]; then
   echo "ERROR: set HARBOR_OIDC_CLIENT_SECRET" >&2
@@ -71,4 +71,5 @@ oc rollout status "deploy/${DEPLOY}" -n "$NS" --timeout=300s
 echo
 echo "OK — mở https://harbor-platform.apps.ocp01.npd.co → LOGIN WITH OIDC"
 echo "User Keycloak phải thuộc group '${ADMIN_GROUP}' để là Harbor admin."
+echo "Mapper Token Claim Name phải là 'groups' (Harbor oidc_groups_claim)."
 echo "Local admin Harbor vẫn dùng được khi cần (db auth có thể bị ghi đè — giữ escape qua admin nếu UI cho phép)."
