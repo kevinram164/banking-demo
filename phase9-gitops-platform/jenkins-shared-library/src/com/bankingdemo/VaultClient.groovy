@@ -1,10 +1,9 @@
 package com.bankingdemo
 
-import groovy.json.JsonSlurperClassic
-
 /**
  * Đọc secret KV v2 từ Vault qua Kubernetes auth (SA của agent pod).
  * Không dùng Jenkins Credential Store.
+ * Parse JSON bằng steps.readJSON (pipeline step) — tránh Script Approval JsonSlurperClassic.
  */
 class VaultClient implements Serializable {
 
@@ -31,7 +30,7 @@ if [ "$CODE" != "200" ]; then
 fi
 '''
         def loginRaw = steps.sh(script: loginScript, returnStdout: true).trim()
-        def login = new JsonSlurperClassic().parseText(loginRaw)
+        def login = steps.readJSON(text: loginRaw)
         if (!login?.auth?.client_token) {
             steps.error("Vault login thiếu client_token: ${loginRaw}")
         }
@@ -51,7 +50,7 @@ if [ "$CODE" != "200" ]; then
 fi
 '''
         def secretRaw = steps.sh(script: secretScript, returnStdout: true).trim()
-        def secret = new JsonSlurperClassic().parseText(secretRaw)
+        def secret = steps.readJSON(text: secretRaw)
         if (!secret?.data?.data) {
             steps.error("Vault secret/${secretPath} không có data: ${secretRaw}")
         }
