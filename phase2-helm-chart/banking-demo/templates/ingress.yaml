@@ -32,7 +32,9 @@ spec:
         {{- end }}
 {{- end }}
 ---
-{{- if and .Values.kongExternalService .Values.kongExternalService.enabled }}
+{{/* Chỉ tạo ExternalName khi bật Ingress. OCP dùng Route + kong-proxy-bridge (ClusterIP selector)
+     — không dùng ExternalName (router không có endpoints → 503). */}}
+{{- if and .Values.ingress.enabled .Values.kongExternalService .Values.kongExternalService.enabled }}
 apiVersion: v1
 kind: Service
 metadata:

@@ -45,6 +45,9 @@ spec:
           value: "false"
         - name: ingress.enabled
           value: "true"
+        # OCP: Route + kong-proxy-bridge; không tạo ExternalName (gây 503)
+        - name: kongExternalService.enabled
+          value: "false"
   destination:
     server: https://kubernetes.default.svc
     namespace: banking
