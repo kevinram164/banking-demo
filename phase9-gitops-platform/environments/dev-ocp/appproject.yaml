@@ -73,6 +73,9 @@ spec:
       kind: ClusterRoleBinding
     - group: apiregistration.k8s.io
       kind: APIService
+    # SCC postgres-uid1001 (infra-postgres, manifests/postgres-prereq)
+    - group: security.openshift.io
+      kind: SecurityContextConstraints
     - group: coroot.com
       kind: "*"
     - group: policy.linkerd.io

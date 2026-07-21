@@ -1,0 +1,52 @@
+# SCC cho Bitnami PostgreSQL — chart cố định UID/fsGroup 1001 + seccomp runtime/default
+# (anyuid không đủ vì cấm seccomp annotation; restricted-v2 chặn UID ngoài dải namespace)
+# Chỉ gán SA postgres-ha-postgresql — không anyuid cả namespace.
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: postgres-uid1001
+  labels:
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+requiredDropCapabilities:
+  - MKNOD
+runAsUser:
+  type: MustRunAs
+  uid: 1001
+runAsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1001
+      max: 1001
+fsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1001
+      max: 1001
+supplementalGroups:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+seccompProfiles:
+  - runtime/default
+  - localhost/*
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+  - csi
+users:
+  - system:serviceaccount:postgres:postgres-ha-postgresql

@@ -32,6 +32,10 @@ spec:
     - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: dev-ocp
       ref: values
+    # SCC postgres-uid1001 — Bitnami chạy UID 1001 + seccomp (sync-wave -1, trước chart)
+    - repoURL: https://github.com/kevinram164/banking-demo.git
+      targetRevision: dev-ocp
+      path: phase9-gitops-platform/gitops-platform/manifests/postgres-prereq
   destination:
     server: https://kubernetes.default.svc
     namespace: postgres
