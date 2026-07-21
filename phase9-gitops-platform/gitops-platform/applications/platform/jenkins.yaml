@@ -51,6 +51,8 @@ spec:
             - durable-task:686.v80ff80875b_82
             # Keycloak / OIDC (Phase 3) — pin bản tồn tại trên updates.jenkins.io (4.520... = 404)
             - oic-auth:4.690.v5821cf665e43
+            # readJSON / writeJSON (VaultClient shared library)
+            - pipeline-utility-steps:2.19.0
           additionalPlugins: []
           overwritePlugins: true
           overwritePluginsFromImage: false

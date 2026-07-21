@@ -23,6 +23,8 @@ spec:
           value: "true"
       values: |
         # OCP: image Red Hat UBI (-ubi suffix); injector tắt (Phase 9 dùng ESO)
+        # Standalone + file storage (PVC nfs-csi) — data sống qua restart.
+        # Sau MỖI lần pod restart: vault operator unseal (3/5 key từ operator init).
         global:
           openshift: true
         injector:
@@ -31,13 +33,30 @@ spec:
           ha:
             enabled: false
           dev:
+            enabled: false
+          standalone:
             enabled: true
-            devRootToken: "root"
+            config: |
+              ui = true
+              listener "tcp" {
+                address     = "[::]:8200"
+                cluster_address = "[::]:8201"
+                tls_disable = 1
+              }
+              storage "file" {
+                path = "/vault/data"
+              }
+          dataStorage:
+            enabled: true
+            size: 2Gi
+            storageClass: nfs-csi
+            accessMode: ReadWriteOnce
           image:
             repository: registry.connect.redhat.com/hashicorp/vault
             tag: "1.17.2-ubi"
+          # 204 = uninitialized, 429 = standby, 501 = not init, 503 = sealed — pod vẫn Ready để exec init/unseal
           readinessProbe:
-            path: "/v1/sys/health?uninitcode=204"
+            path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
           ingress:
             enabled: false
         ui:

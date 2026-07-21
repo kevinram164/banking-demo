@@ -3,7 +3,7 @@ package com.bankingdemo
 /**
  * Đọc secret KV v2 từ Vault qua Kubernetes auth (SA của agent pod).
  * Không dùng Jenkins Credential Store.
- * Parse JSON bằng steps.readJSON (pipeline step) — tránh Script Approval JsonSlurperClassic.
+ * Parse JSON bằng steps.readJSON — cần plugin pipeline-utility-steps.
  */
 class VaultClient implements Serializable {
 
