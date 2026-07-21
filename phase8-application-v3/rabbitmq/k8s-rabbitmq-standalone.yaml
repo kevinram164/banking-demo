@@ -37,6 +37,11 @@ spec:
       labels:
         app: rabbitmq
     spec:
+      # OCP restricted-v2 gán fsGroup → kubelet chmod đệ quy volume mỗi lần mount,
+      # mở quyền group trên .erlang.cookie → RabbitMQ từ chối boot ("owner only").
+      # OnRootMismatch: bỏ qua chmod khi group thư mục gốc đã khớp fsGroup.
+      securityContext:
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: rabbitmq
           image: rabbitmq:3.12-management
