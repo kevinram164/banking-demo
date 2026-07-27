@@ -54,6 +54,26 @@ path \"secret/data/platform/harbor\" {
 path \"secret/data/platform/github\" {
   capabilities = [\"read\"]
 }
+# CineHome CI (movie-web) — Kaniko push/pull Harbor project movie-web
+path \"secret/data/cinehome/harbor\" {
+  capabilities = [\"read\"]
+}
+path \"secret/data/cinehome/harbor-pull\" {
+  capabilities = [\"read\"]
+}
+path \"secret/metadata/cinehome/*\" {
+  capabilities = [\"read\", \"list\"]
+}
+# AIOps CI — Kaniko push Harbor project aiops
+path \"secret/data/aiops/harbor\" {
+  capabilities = [\"read\"]
+}
+path \"secret/metadata/aiops/harbor\" {
+  capabilities = [\"read\"]
+}
+path \"secret/metadata/aiops/*\" {
+  capabilities = [\"read\", \"list\"]
+}
 POLICY
 
 vault write auth/kubernetes/role/${VAULT_ROLE} \

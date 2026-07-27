@@ -100,18 +100,42 @@ spec:
           JCasC:
             defaultConfig: true
             configScripts:
-              banking-shared-library: |
+              platform-shared-library: |
                 unclassified:
                   globalLibraries:
                     libraries:
-                      - name: "banking-demo"
-                        defaultVersion: "dev-ocp"
+                      - name: "platform"
+                        defaultVersion: "main"
                         retriever:
                           modernSCM:
-                            libraryPath: "phase9-gitops-platform/jenkins-shared-library"
+                            libraryPath: ""
                             scm:
                               git:
-                                remote: "https://github.com/kevinram164/banking-demo.git"
+                                remote: "https://github.com/kevinram164/jenkins-shared-library.git"
+                      - name: "banking-demo"
+                        defaultVersion: "main"
+                        retriever:
+                          modernSCM:
+                            libraryPath: ""
+                            scm:
+                              git:
+                                remote: "https://github.com/kevinram164/jenkins-shared-library.git"
+                      - name: "cinehome"
+                        defaultVersion: "main"
+                        retriever:
+                          modernSCM:
+                            libraryPath: ""
+                            scm:
+                              git:
+                                remote: "https://github.com/kevinram164/jenkins-shared-library.git"
+                      - name: "aiops"
+                        defaultVersion: "main"
+                        retriever:
+                          modernSCM:
+                            libraryPath: ""
+                            scm:
+                              git:
+                                remote: "https://github.com/kevinram164/jenkins-shared-library.git"
               # OIDC Keycloak — lab: mọi user SSO = admin
               # Schema oic-auth ≥4.6xx: serverConfiguration.wellKnown + properties.escapeHatch
               # Chạy jenkins-oidc-keycloak.sh trước khi sync (tạo secret).
