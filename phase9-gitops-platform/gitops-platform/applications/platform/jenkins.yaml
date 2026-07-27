@@ -100,7 +100,8 @@ spec:
           JCasC:
             defaultConfig: true
             configScripts:
-              platform-shared-library: |
+              # Keep key name stable (Argo prune:false) — only change library content
+              banking-shared-library: |
                 unclassified:
                   globalLibraries:
                     libraries:
