@@ -17,6 +17,8 @@ api-producer:
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     OTEL_SERVICE_NAME: "api-producer"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
+    OTEL_HEARTBEAT: "1"
+    OTEL_HEARTBEAT_SECONDS: "30"
 
 auth-service:
   extraEnv:
@@ -24,6 +26,8 @@ auth-service:
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     OTEL_SERVICE_NAME: "auth-service"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
+    OTEL_HEARTBEAT: "1"
+    OTEL_HEARTBEAT_SECONDS: "30"
 
 account-service:
   extraEnv:
@@ -31,6 +35,8 @@ account-service:
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     OTEL_SERVICE_NAME: "account-service"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
+    OTEL_HEARTBEAT: "1"
+    OTEL_HEARTBEAT_SECONDS: "30"
 
 transfer-service:
   extraEnv:
@@ -38,6 +44,8 @@ transfer-service:
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     OTEL_SERVICE_NAME: "transfer-service"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
+    OTEL_HEARTBEAT: "1"
+    OTEL_HEARTBEAT_SECONDS: "30"
 
 notification-service:
   extraEnv:
@@ -45,3 +53,5 @@ notification-service:
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     OTEL_SERVICE_NAME: "notification-service"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
+    OTEL_HEARTBEAT: "1"
+    OTEL_HEARTBEAT_SECONDS: "30"

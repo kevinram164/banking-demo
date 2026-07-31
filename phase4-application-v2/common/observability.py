@@ -58,7 +58,8 @@ def init_tracing(service_name: str) -> None:
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
         from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 
-        resource = Resource.create({SERVICE_NAME: service_name})
+        name = os.getenv("OTEL_SERVICE_NAME", service_name).strip() or service_name
+        resource = Resource.create({SERVICE_NAME: name})
         provider = TracerProvider(resource=resource)
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(insecure=True)))
         trace.set_tracer_provider(provider)
@@ -66,10 +67,54 @@ def init_tracing(service_name: str) -> None:
         pass  # optional: tracing off if deps missing or collector unreachable
 
 
+_heartbeat_started: set[str] = set()
+
+
+def start_heartbeat(service_name: str) -> None:
+    """Periodic SERVER span so Instana keeps the service visible without traffic."""
+    import threading
+    import time
+
+    if not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip():
+        return
+    if os.getenv("OTEL_HEARTBEAT", "1").strip().lower() in ("0", "false", "no", "off"):
+        return
+    if service_name in _heartbeat_started:
+        return
+    _heartbeat_started.add(service_name)
+    try:
+        interval = max(10, int(os.getenv("OTEL_HEARTBEAT_SECONDS", "30")))
+    except ValueError:
+        interval = 30
+    try:
+        from opentelemetry import trace
+        from opentelemetry.trace import SpanKind, Status, StatusCode
+
+        tracer = trace.get_tracer(service_name, "1.0")
+    except Exception:
+        return
+
+    def _loop() -> None:
+        while True:
+            try:
+                with tracer.start_as_current_span(
+                    "otel.heartbeat",
+                    kind=SpanKind.SERVER,
+                    attributes={"heartbeat": True, "http.route": "/__heartbeat__"},
+                ) as span:
+                    span.set_status(Status(StatusCode.OK))
+            except Exception:
+                pass
+            time.sleep(interval)
+
+    threading.Thread(target=_loop, name=f"otel-hb-{service_name}", daemon=True).start()
+
+
 def instrument_fastapi(app, service_name: str) -> None:
     """Add OpenTelemetry FastAPI auto-instrumentation, Prometheus metrics middleware, and /metrics route."""
     init_tracing(service_name)
     setup_metrics(service_name)
+    start_heartbeat(service_name)
 
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -83,8 +128,7 @@ def instrument_fastapi(app, service_name: str) -> None:
 
     class PrometheusMiddleware(BaseHTTPMiddleware):
         async def dispatch(self, request, call_next):
-            # Không ghi metric cho /health, /metrics — tránh probe k8s kích hoạt KEDA scale
-            if request.url.path in ("/metrics", "/health"):
+            if request.url.path in ("/metrics", "/health", "/__heartbeat__"):
                 return await call_next(request)
             start = time.perf_counter()
             response = await call_next(request)

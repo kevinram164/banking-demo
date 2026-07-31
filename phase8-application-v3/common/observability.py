@@ -2,13 +2,17 @@
 Observability: OpenTelemetry tracing + Prometheus metrics.
 - Tracing: OTLP export to collector (optional via OTEL_EXPORTER_OTLP_ENDPOINT).
 - Metrics: Prometheus /metrics endpoint.
+- Heartbeat: periodic SERVER span so Instana keeps services visible without traffic.
 """
 import os
+import threading
+import time
 from prometheus_client import Counter, Histogram, generate_latest, CollectorRegistry
 
 _metrics_registry: CollectorRegistry | None = None
 _request_count: Counter | None = None
 _request_latency: Histogram | None = None
+_heartbeat_started: set[str] = set()
 
 
 def init_tracing(service_name: str) -> None:
@@ -23,19 +27,18 @@ def init_tracing(service_name: str) -> None:
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
         from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 
-        resource = Resource.create({SERVICE_NAME: service_name})
+        name = os.getenv("OTEL_SERVICE_NAME", service_name).strip() or service_name
+        resource = Resource.create({SERVICE_NAME: name})
         provider = TracerProvider(resource=resource)
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(insecure=True)))
         trace.set_tracer_provider(provider)
 
-        # Redis instrumentation — trace mỗi lệnh Redis (GET, SET, ...) để xem latency
         try:
             from opentelemetry.instrumentation.redis import RedisInstrumentor
             RedisInstrumentor().instrument()
         except Exception:
             pass
 
-        # SQLAlchemy instrumentation — trace mỗi query DB để xem latency
         try:
             from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
             from common import db
@@ -54,6 +57,41 @@ def get_tracer(service_name: str):
         return trace.get_tracer(service_name, "1.0")
     except Exception:
         return None
+
+
+def start_heartbeat(service_name: str) -> None:
+    """Periodic SERVER span so Instana keeps the service visible without traffic."""
+    if not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip():
+        return
+    if os.getenv("OTEL_HEARTBEAT", "1").strip().lower() in ("0", "false", "no", "off"):
+        return
+    if service_name in _heartbeat_started:
+        return
+    _heartbeat_started.add(service_name)
+    try:
+        interval = max(10, int(os.getenv("OTEL_HEARTBEAT_SECONDS", "30")))
+    except ValueError:
+        interval = 30
+    tracer = get_tracer(service_name)
+    if not tracer:
+        return
+
+    def _loop() -> None:
+        from opentelemetry.trace import SpanKind, Status, StatusCode
+
+        while True:
+            try:
+                with tracer.start_as_current_span(
+                    "otel.heartbeat",
+                    kind=SpanKind.SERVER,
+                    attributes={"heartbeat": True, "http.route": "/__heartbeat__"},
+                ) as span:
+                    span.set_status(Status(StatusCode.OK))
+            except Exception:
+                pass
+            time.sleep(interval)
+
+    threading.Thread(target=_loop, name=f"otel-hb-{service_name}", daemon=True).start()
 
 
 def consumer_span(tracer, name: str, attributes: dict | None = None):
@@ -94,6 +132,7 @@ def get_metrics_content() -> bytes:
 def instrument_fastapi(app, service_name: str) -> None:
     init_tracing(service_name)
     setup_metrics(service_name)
+    start_heartbeat(service_name)
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         FastAPIInstrumentor.instrument_app(app)
@@ -102,11 +141,10 @@ def instrument_fastapi(app, service_name: str) -> None:
 
     from fastapi import Response
     from starlette.middleware.base import BaseHTTPMiddleware
-    import time
 
     class PrometheusMiddleware(BaseHTTPMiddleware):
         async def dispatch(self, request, call_next):
-            if request.url.path in ("/metrics", "/health"):
+            if request.url.path in ("/metrics", "/health", "/__heartbeat__"):
                 return await call_next(request)
             start = time.perf_counter()
             response = await call_next(request)
