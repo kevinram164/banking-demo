@@ -118,7 +118,7 @@ NAME        READY
 npd-kafka   True
 ```
 
-3 pod dual-role (hoặc broker) Running trên **3 worker khác nhau** (anti-affinity).  
+3 pod dual-role Running. Lab: **không** dùng `rack.topologyKey` (worker thường thiếu `topology.kubernetes.io/zone` → Pending). Anti-affinity mặc định là *preferred*.  
 PVC `…` Bound với `nfs-csi`, size 20Gi.
 
 Lỗi thường gặp:
@@ -126,9 +126,11 @@ Lỗi thường gặp:
 | Lỗi | Xử lý |
 |-----|--------|
 | PVC Pending | `oc get sc nfs-csi` — SC phải tồn tại |
-| Pod Pending AntiAffinity | Cluster cần ≥ 3 node schedulable |
+| Pod Pending `topology.kubernetes.io/zone` / node affinity | Lab worker thường **không** có label zone. Chart mặc định **tắt rack**. Nếu CR cũ còn rack / pod còn `nodeAffinity zone Exists`: gỡ rack + `oc delete strimzipodset -l strimzi.io/cluster=npd-kafka`, hoặc gắn tạm `oc label node <worker> topology.kubernetes.io/zone=zone-a`. |
+| Pod Pending AntiAffinity | Cluster cần ≥ 3 node schedulable; lab dùng preferred anti-affinity |
 | CRD not found | `infra-strimzi` chưa Ready — đợi / sync lại |
 | NotReady | `oc -n kafka describe kafka npd-kafka` + logs operator |
+| Xóa SPS rồi không có pod | `oc -n kafka get kafka,kafkanodepool,strimzipodset` + annotate Kafka để reconcile; xem log operator |
 
 ### 2.3 Topics
 
