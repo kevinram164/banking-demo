@@ -29,11 +29,15 @@ nodePool:
     "-Xmx": 2g
 
 kafka:
-  rackTopologyKey: topology.kubernetes.io/zone
+  # Lab OCP thường không có label zone trên worker → tắt rack.
+  # Bật lại khi worker đã có topology.kubernetes.io/zone (hoặc failure-domain).
+  rackTopologyKey: ""
   # Lab gần prod: có thể tắt plain + bật values-prod (SCRAM). Mặc định plain cho onboard nhanh.
   plainListener: true
   tlsScramListener: true
   enableAuthorization: false
+  # required = cứng 1 pod/node; preferred = cố gắng spread, vẫn schedule nếu thiếu node
+  hardAntiAffinity: false
   config:
     # Quote số lớn thành string — tránh Helm/JSON → scientific notation (e+09)
     # mà Strimzi reject (phải là long/int thuần).

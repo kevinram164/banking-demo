@@ -13,8 +13,10 @@ spec:
   kafka:
     version: {{ .Values.kafkaVersion | quote }}
     metadataVersion: {{ .Values.metadataVersion | quote }}
+    {{- if .Values.kafka.rackTopologyKey }}
     rack:
       topologyKey: {{ .Values.kafka.rackTopologyKey }}
+    {{- end }}
     listeners:
       {{- if .Values.kafka.plainListener }}
       - name: plain
@@ -50,11 +52,21 @@ spec:
       pod:
         affinity:
           podAntiAffinity:
+            {{- if .Values.kafka.hardAntiAffinity }}
             requiredDuringSchedulingIgnoredDuringExecution:
               - labelSelector:
                   matchLabels:
                     strimzi.io/cluster: {{ .Values.clusterName }}
                 topologyKey: kubernetes.io/hostname
+            {{- else }}
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  labelSelector:
+                    matchLabels:
+                      strimzi.io/cluster: {{ .Values.clusterName }}
+                  topologyKey: kubernetes.io/hostname
+            {{- end }}
   entityOperator:
     topicOperator: {}
     userOperator: {}

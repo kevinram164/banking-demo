@@ -31,8 +31,18 @@ spec:
           app.kubernetes.io/part-of: npd-kafka
       affinity:
         podAntiAffinity:
+          {{- if .Values.kafka.hardAntiAffinity }}
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchLabels:
                   strimzi.io/cluster: {{ .Values.clusterName }}
               topologyKey: kubernetes.io/hostname
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    strimzi.io/cluster: {{ .Values.clusterName }}
+                topologyKey: kubernetes.io/hostname
+          {{- end }}
