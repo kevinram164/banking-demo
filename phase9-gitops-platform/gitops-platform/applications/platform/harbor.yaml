@@ -98,7 +98,8 @@ spec:
           persistentVolumeClaim:
             registry:
               storageClass: nfs-csi
-              size: 10Gi
+              # Must be >= live PVC capacity (K8s forbids shrink; Argo selfHeal will fail otherwise)
+              size: 30Gi
             jobservice:
               jobLog:
                 storageClass: nfs-csi
