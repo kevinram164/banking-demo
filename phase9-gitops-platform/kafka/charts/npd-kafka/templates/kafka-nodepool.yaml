@@ -29,6 +29,10 @@ spec:
       metadata:
         labels:
           app.kubernetes.io/part-of: npd-kafka
+      {{- with .Values.nodePool.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       affinity:
         podAntiAffinity:
           {{- if .Values.kafka.hardAntiAffinity }}

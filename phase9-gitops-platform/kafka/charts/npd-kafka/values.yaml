@@ -27,6 +27,11 @@ nodePool:
   jvmOptions:
     "-Xms": 2g
     "-Xmx": 2g
+  # OCP + nfs-csi: Kafka chạy UID ns (vd 1000910000). PVC NFS hay root:root → AccessDenied.
+  # fsGroup giúp một số CSI; nếu vẫn lỗi → chmod trên volume (xem DEPLOY.md).
+  securityContext:
+    fsGroup: 1000910000
+    fsGroupChangePolicy: OnRootMismatch
 
 kafka:
   # Lab OCP thường không có label zone trên worker → tắt rack.
