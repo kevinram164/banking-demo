@@ -29,7 +29,8 @@ spec:
           persistentVolumeClaim:
             registry:
               storageClass: nfs-client
-              size: 20Gi
+              # Must be >= live PVC capacity (K8s forbids shrink)
+              size: 30Gi
   destination:
     server: https://kubernetes.default.svc
     namespace: platform
