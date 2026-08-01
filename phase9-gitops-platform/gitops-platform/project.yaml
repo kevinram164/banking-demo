@@ -22,7 +22,6 @@ spec:
     - https://charts.jenkins.io
     - https://coroot.github.io/helm-charts
     - https://open-telemetry.github.io/opentelemetry-helm-charts
-    - https://helm.linkerd.io/stable
   destinations:
     - namespace: banking
       server: https://kubernetes.default.svc
@@ -42,11 +41,6 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: observability
       server: https://kubernetes.default.svc
-    - namespace: linkerd
-      server: https://kubernetes.default.svc
-    - namespace: linkerd-viz
-      server: https://kubernetes.default.svc
-    # Linkerd Viz chart: ClusterRoleBinding tap-auth-reader trong kube-system
     - namespace: kube-system
       server: https://kubernetes.default.svc
     - namespace: argocd
@@ -72,10 +66,6 @@ spec:
     - group: apiregistration.k8s.io
       kind: APIService
     - group: coroot.com
-      kind: "*"
-    - group: policy.linkerd.io
-      kind: "*"
-    - group: linkerd.io
       kind: "*"
   namespaceResourceWhitelist:
     - group: "*"

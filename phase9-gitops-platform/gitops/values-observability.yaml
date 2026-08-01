@@ -1,4 +1,4 @@
-# Phase 9 — OpenTelemetry + Linkerd (merge vào banking Helm apps trên dev-ocp)
+# Phase 9 — OpenTelemetry (merge vào banking Helm apps trên dev-ocp)
 # App → OTEL Collector → dual Coroot + Instana agent
 # k8s.namespace.name giúp Instana Application Perspective filter Dest Namespace
 
@@ -6,10 +6,6 @@ global:
   observability:
     otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
     otelProtocol: "grpc"
-
-namespace:
-  annotations:
-    linkerd.io/inject: enabled
 
 api-producer:
   extraEnv:

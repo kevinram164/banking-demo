@@ -6,7 +6,6 @@ resources:
   - vault-route.yaml
   - argocd-route.yaml
   - coroot-route.yaml
-  - linkerd-viz-route.yaml
   - keycloak-route.yaml
   - banking-kong-proxy-ext.yaml
   - banking-route-frontend.yaml

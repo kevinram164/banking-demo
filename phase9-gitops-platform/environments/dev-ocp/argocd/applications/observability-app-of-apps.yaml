@@ -1,4 +1,4 @@
-# Observability — Coroot + OTEL + Linkerd (dev-ocp)
+# Observability — Coroot + OTEL (dev-ocp)
 # Sync sau platform, trước banking app
 apiVersion: argoproj.io/v1alpha1
 kind: Application

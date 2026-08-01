@@ -1,5 +1,5 @@
 # Thiết kế gốc: Route /api,/ws → Service kong-proxy-ext trong ns app.
-# Bridge TCP (socat) → Kong DNS. Tắt Linkerd inject (Kong không mesh → mTLS gây 503).
+# Bridge TCP (socat) → Kong DNS.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,8 +21,6 @@ spec:
     metadata:
       labels:
         app: kong-proxy-bridge
-      annotations:
-        linkerd.io/inject: disabled
     spec:
       containers:
         - name: proxy
