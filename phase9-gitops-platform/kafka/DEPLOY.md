@@ -123,45 +123,55 @@ PVC `…` Bound với `nfs-csi`, size 20Gi.
 
 #### 2.2a PVC nfs-csi `AccessDeniedException` (meta.properties)
 
-Kafka chạy UID namespace (vd `1000910000` trong log `hsperfdata_…`). Volume NFS thường `root:root` → không format KRaft.
+Kafka UID = `1000910000` (ns `kafka`). **nfs-csi thường bỏ qua `fsGroup`** → phải `chown`/`chmod` trên volume.
 
 ```bash
-# UID range của ns kafka
-oc get ns kafka -o jsonpath='{.metadata.annotations.openshift\.io/sa\.scc\.uid-range}{"\n"}'
-# → 1000910000/10000  → dùng fsGroup=1000910000
+# Cho phép pod fix chạy root (lab, tạm)
+oc adm policy add-scc-to-user anyuid -z default -n kafka
 
-# Patch NodePool (nếu chart chưa sync)
-oc -n kafka patch kafkanodepool dual-role --type=merge -p '{
-  "spec":{"template":{"pod":{"securityContext":{
-    "fsGroup":1000910000,
-    "fsGroupChangePolicy":"OnRootMismatch"
-  }}}}
-}'
+# Dừng broker (giải phóng PVC nếu RWO)
+oc -n kafka patch kafkanodepool dual-role --type=merge -p '{"spec":{"replicas":0}}'
+oc -n kafka delete pod -l strimzi.io/cluster=npd-kafka --force --grace-period=0 2>/dev/null
+oc -n kafka wait --for=delete pod -l strimzi.io/cluster=npd-kafka --timeout=120s 2>/dev/null || true
 
-# Nếu NFS không chown theo fsGroup — chmod trực tiếp (lab):
-oc -n kafka scale kafkanodepool dual-role --replicas=0
-# đợi pod biến mất
-for pvc in $(oc -n kafka get pvc -o name | grep data); do
-  oc -n kafka delete pod vol-fix --ignore-not-found
-  oc -n kafka run vol-fix --restart=Never --image=busybox:1.36 --overrides="{
-    \"spec\":{
-      \"containers\":[{
-        \"name\":\"fix\",\"image\":\"busybox:1.36\",
-        \"command\":[\"sh\",\"-c\",\"chmod -R 777 /data; ls -la /data; sleep 2\"],
-        \"securityContext\":{\"runAsUser\":0},
-        \"volumeMounts\":[{\"name\":\"d\",\"mountPath\":\"/data\"}]
-      }],
-      \"volumes\":[{\"name\":\"d\",\"persistentVolumeClaim\":{\"claimName\":\"${pvc##*/}\"}}],
-      \"restartPolicy\":\"Never\"
-    }
-  }"
-  oc -n kafka wait --for=jsonpath='{.status.phase}'=Succeeded pod/vol-fix --timeout=120s || oc -n kafka logs vol-fix
-  oc -n kafka delete pod vol-fix --ignore-not-found
+# Fix quyền từng data PVC
+for PVC in $(oc -n kafka get pvc -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep data); do
+  echo "=== fix $PVC ==="
+  oc -n kafka delete pod "vol-fix-$PVC" --ignore-not-found --force --grace-period=0
+  cat <<EOF | oc -n kafka apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vol-fix-$PVC
+spec:
+  restartPolicy: Never
+  containers:
+  - name: fix
+    image: busybox:1.36
+    command: ["sh","-c","chown -R 1000910000:1000910000 /data; chmod -R u+rwX,g+rwX /data; ls -la /data"]
+    securityContext:
+      runAsUser: 0
+    volumeMounts:
+    - name: d
+      mountPath: /data
+  volumes:
+  - name: d
+    persistentVolumeClaim:
+      claimName: $PVC
+EOF
+  oc -n kafka wait --for=jsonpath='{.status.phase}'=Succeeded pod/"vol-fix-$PVC" --timeout=120s
+  oc -n kafka logs "vol-fix-$PVC"
+  oc -n kafka delete pod "vol-fix-$PVC"
 done
-oc -n kafka scale kafkanodepool dual-role --replicas=3
+
+# Bật lại 3 broker
+oc -n kafka patch kafkanodepool dual-role --type=merge -p '{"spec":{"replicas":3}}'
+oc -n kafka get pods -l strimzi.io/cluster=npd-kafka -w
 ```
 
-> `runAsUser: 0` cần SCC cho phép (vd `anyuid` / privileged ngắn hạn). Cách bền: trên NFS server `chown -R 1000910000:1000910000` export path, hoặc SC/block storage hỗ trợ fsGroup.
+Sau đó log không còn `AccessDenied`; `oc -n kafka get kafka npd-kafka` → Ready.
+
+> Cách bền: trên NFS server `chown -R 1000910000:1000910000 <path-export>`, hoặc dùng block CSI. Có thể gỡ SCC: `oc adm policy remove-scc-from-user anyuid -z default -n kafka`.
 
 Lỗi thường gặp:
 
