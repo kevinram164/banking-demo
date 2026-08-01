@@ -1,5 +1,9 @@
 # Shared platform — Strimzi Operator (Helm) · ns kafka
-# Cùng pattern Postgres/Redis: Helm chart upstream + ArgoCD Application trong infra/
+#
+# OCP mới trả /version field "emulationMajor" → Strimzi 0.45 crash
+# (fabric8 VersionInfo UnrecognizedPropertyException).
+# Fix: chart ≥0.46 + env STRIMZI_KUBERNETES_VERSION bypass.
+# https://github.com/strimzi/strimzi-kafka-operator/issues/11386
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -16,14 +20,16 @@ spec:
   source:
     repoURL: https://strimzi.io/charts/
     chart: strimzi-kafka-operator
-    targetRevision: 0.45.0
+    targetRevision: 0.46.1
     helm:
       releaseName: strimzi-kafka-operator
       values: |
-        # Operator chỉ watch ns kafka (shared cluster lives here)
         watchNamespaces:
           - kafka
         watchAnyNamespace: false
+        extraEnvs:
+          - name: STRIMZI_KUBERNETES_VERSION
+            value: "major=1,minor=30"
         resources:
           requests:
             cpu: 200m

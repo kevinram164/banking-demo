@@ -3,8 +3,8 @@ nameOverride: npd-kafka
 fullname: kafka
 
 clusterName: npd-kafka
-kafkaVersion: "3.8.0"
-metadataVersion: "3.8-IV0"
+kafkaVersion: "3.9.0"
+metadataVersion: "3.9-IV0"
 
 nodePool:
   name: dual-role

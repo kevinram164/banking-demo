@@ -96,7 +96,9 @@ Lỗi thường gặp:
 | Lỗi | Xử lý |
 |-----|--------|
 | Helm repo denied | AppProject thiếu `https://strimzi.io/charts/` |
-| Chart version không resolve | Đổi `targetRevision` chart trong `strimzi-operator.yaml` (vd `0.44.0`) cho khớp catalog |
+| Chart version không resolve | Đổi `targetRevision` trong `strimzi-operator.yaml` |
+| Operator CrashLoop `emulationMajor` / `UnrecognizedPropertyException` | OCP trả field mới trong `/version`. Đã fix bằng chart **≥0.46.1** + env `STRIMZI_KUBERNETES_VERSION`. Sync lại `infra-strimzi`, xoá pod operator cũ nếu còn. |
+| `javaagent-loader … Operation not permitted` | Instana/Java agent inject — **bỏ qua**, không phải nguyên nhân crash |
 
 ### 2.2 Đợi Kafka cluster
 
