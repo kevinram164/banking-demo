@@ -1,0 +1,34 @@
+{{- range .Values.users }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    strimzi.io/cluster: {{ $.Values.clusterName }}
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: orders.events
+          patternType: literal
+        operations: [Describe, Read, Write]
+        host: "*"
+      - resource:
+          type: topic
+          name: payments.events
+          patternType: literal
+        operations: [Describe, Read, Write]
+        host: "*"
+      - resource:
+          type: group
+          name: {{ .groupPrefix }}
+          patternType: prefix
+        operations: [Read]
+        host: "*"
+{{- end }}

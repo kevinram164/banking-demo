@@ -1,0 +1,38 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: {{ .Values.nodePool.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    strimzi.io/cluster: {{ .Values.clusterName }}
+    app.kubernetes.io/part-of: npd-platform
+    app.kubernetes.io/component: kafka
+spec:
+  replicas: {{ .Values.nodePool.replicas }}
+  roles:
+    {{- toYaml .Values.nodePool.roles | nindent 4 }}
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: {{ .Values.nodePool.storage.size }}
+        class: {{ .Values.nodePool.storage.class }}
+        deleteClaim: {{ .Values.nodePool.storage.deleteClaim }}
+        kraftMetadata: shared
+  resources:
+    {{- toYaml .Values.nodePool.resources | nindent 4 }}
+  jvmOptions:
+    {{- toYaml .Values.nodePool.jvmOptions | nindent 4 }}
+  template:
+    pod:
+      metadata:
+        labels:
+          app.kubernetes.io/part-of: npd-kafka
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  strimzi.io/cluster: {{ .Values.clusterName }}
+              topologyKey: kubernetes.io/hostname

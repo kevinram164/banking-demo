@@ -7,6 +7,7 @@ resources:
   - argocd-route.yaml
   - coroot-route.yaml
   - keycloak-route.yaml
+  - kafka-ui-route.yaml
   - banking-kong-proxy-ext.yaml
   - banking-route-frontend.yaml
   - banking-route-api.yaml

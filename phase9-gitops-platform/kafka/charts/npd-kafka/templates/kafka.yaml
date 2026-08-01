@@ -1,0 +1,80 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: {{ .Values.clusterName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: npd-platform
+    app.kubernetes.io/component: kafka
+  annotations:
+    strimzi.io/node-pools: enabled
+    strimzi.io/kraft: enabled
+spec:
+  kafka:
+    version: {{ .Values.kafkaVersion | quote }}
+    metadataVersion: {{ .Values.metadataVersion | quote }}
+    rack:
+      topologyKey: {{ .Values.kafka.rackTopologyKey }}
+    listeners:
+      {{- if .Values.kafka.plainListener }}
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      {{- end }}
+      {{- if .Values.kafka.tlsScramListener }}
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+        authentication:
+          type: scram-sha-512
+      {{- end }}
+    {{- if .Values.kafka.enableAuthorization }}
+    authorization:
+      type: simple
+    {{- end }}
+    config:
+      {{- range $k, $v := .Values.kafka.config }}
+      {{ $k }}: {{ $v | quote }}
+      {{- end }}
+    {{- if .Values.metrics.enabled }}
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: {{ .Values.clusterName }}-metrics
+          key: kafka-metrics-config.yml
+    {{- end }}
+    template:
+      pod:
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    strimzi.io/cluster: {{ .Values.clusterName }}
+                topologyKey: kubernetes.io/hostname
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+  kafkaExporter:
+    topicRegex: ".*"
+    groupRegex: ".*"
+{{- if .Values.metrics.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.clusterName }}-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: strimzi
+data:
+  kafka-metrics-config.yml: |
+    lowercaseOutputName: true
+    rules:
+      - pattern: kafka.server<type=(.+), name=(.+)><>Value
+        name: kafka_server_$1_$2
+        type: GAUGE
+{{- end }}

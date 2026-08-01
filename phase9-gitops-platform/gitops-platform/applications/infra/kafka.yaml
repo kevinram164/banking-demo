@@ -1,0 +1,42 @@
+# Shared platform — Kafka cluster (Helm chart local) · ns kafka
+# Dùng chung: banking, npd-shop, (tương lai movie/AIOps events)
+# Lab values mặc định (nfs-csi). Prod: thêm values-prod.yaml khi có SC kafka-block.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infra-kafka
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: kafka
+    npd/shared-platform: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/kafka/charts/npd-kafka
+    helm:
+      releaseName: npd-kafka
+      valueFiles:
+        - values.yaml
+        # Lab gần prod (TLS+SCRAM, vẫn nfs-csi 20Gi):
+        # - values-prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kafka
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    automated:
+      prune: false
+      selfHeal: false
+  # Đợi CRD từ infra-strimzi
+  ignoreDifferences:
+    - group: kafka.strimzi.io
+      kind: Kafka
+      jsonPointers:
+        - /status

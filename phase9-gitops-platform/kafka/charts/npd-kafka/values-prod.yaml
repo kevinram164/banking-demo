@@ -1,0 +1,22 @@
+# Lab “gần prod”: TLS+SCRAM+ACL — vẫn nfs-csi 20Gi / RAM 4Gi (không cần kafka-block).
+# Bật trong Argo: valueFiles: [values.yaml, values-prod.yaml]
+nodePool:
+  storage:
+    size: 20Gi
+    class: nfs-csi
+    deleteClaim: true
+  resources:
+    requests:
+      cpu: "500m"
+      memory: 3Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  jvmOptions:
+    "-Xms": 2g
+    "-Xmx": 2g
+
+kafka:
+  plainListener: false
+  tlsScramListener: true
+  enableAuthorization: true

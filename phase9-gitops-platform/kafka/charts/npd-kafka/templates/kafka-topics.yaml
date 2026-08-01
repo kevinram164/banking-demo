@@ -1,0 +1,20 @@
+{{- range .Values.topics }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    strimzi.io/cluster: {{ $.Values.clusterName }}
+spec:
+  partitions: {{ .partitions }}
+  replicas: {{ .replicas }}
+  config:
+    cleanup.policy: {{ $.Values.topicDefaults.cleanupPolicy }}
+    min.insync.replicas: {{ $.Values.topicDefaults.minInsyncReplicas | quote }}
+    retention.ms: {{ $.Values.topicDefaults.retentionMs | quote }}
+    retention.bytes: {{ $.Values.topicDefaults.retentionBytes | quote }}
+    segment.bytes: {{ $.Values.topicDefaults.segmentBytes | quote }}
+    compression.type: {{ $.Values.topicDefaults.compressionType }}
+{{- end }}

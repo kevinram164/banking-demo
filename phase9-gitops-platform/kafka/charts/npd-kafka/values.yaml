@@ -1,0 +1,83 @@
+# Lab NPD — chỉ nfs-csi, PVC 20Gi/broker, RAM ~4Gi, xóa message sau 7 ngày.
+nameOverride: npd-kafka
+fullname: kafka
+
+clusterName: npd-kafka
+kafkaVersion: "3.8.0"
+metadataVersion: "3.8-IV0"
+
+nodePool:
+  name: dual-role
+  replicas: 3
+  roles:
+    - controller
+    - broker
+  storage:
+    size: 20Gi
+    class: nfs-csi
+    deleteClaim: true
+  resources:
+    requests:
+      cpu: "500m"
+      memory: 3Gi
+    limits:
+      cpu: "2"
+      # Tổng pod ~4Gi (đủ lab; Kafka dùng thêm page cache trong limit)
+      memory: 4Gi
+  jvmOptions:
+    "-Xms": 2g
+    "-Xmx": 2g
+
+kafka:
+  rackTopologyKey: topology.kubernetes.io/zone
+  # Lab gần prod: có thể tắt plain + bật values-prod (SCRAM). Mặc định plain cho onboard nhanh.
+  plainListener: true
+  tlsScramListener: true
+  enableAuthorization: false
+  config:
+    default.replication.factor: 3
+    min.insync.replicas: 2
+    offsets.topic.replication.factor: 3
+    transaction.state.log.replication.factor: 3
+    transaction.state.log.min.isr: 2
+    auto.create.topics.enable: "false"
+    num.partitions: 5
+    # --- Dọn log / giữ PVC 20Gi ---
+    # Xóa segment theo thời gian (7 ngày) VÀ theo dung lượng (an toàn ổ NFS nhỏ)
+    log.cleanup.policy: delete
+    log.retention.hours: 168
+    # Broker default: max ~1Gi / partition (tránh phình PVC trước khi đủ 7 ngày)
+    log.retention.bytes: 1073741824
+    # Kiểm tra xóa thường xuyên hơn (5 phút) — lab
+    log.retention.check.interval.ms: 300000
+    # Segment nhỏ → roll + xóa nhanh hơn trên 20Gi
+    log.segment.bytes: 268435456
+    log.roll.ms: 86400000
+    compression.type: lz4
+
+topics:
+  - name: orders.events
+    partitions: 5
+    replicas: 3
+  - name: payments.events
+    partitions: 5
+    replicas: 3
+
+topicDefaults:
+  cleanupPolicy: delete
+  minInsyncReplicas: "2"
+  # 7 ngày
+  retentionMs: "604800000"
+  # Cap ~2Gi / topic (RF=3 nhân bản trên 3 broker — giữ trong 20Gi/broker)
+  retentionBytes: "2147483648"
+  segmentBytes: "268435456"
+  compressionType: lz4
+
+users:
+  - name: npd-shop
+    groupPrefix: noli-
+  - name: npd-banking
+    groupPrefix: banking-
+
+metrics:
+  enabled: true
