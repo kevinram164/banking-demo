@@ -47,13 +47,14 @@ git commit -m "feat(platform): strimzi kafka + kafka-ui helm/argocd"
 git push
 ```
 
-> **Quan trọng:** xem `infra-app-of-apps` đang `targetRevision` nào (`main` hay `dev-ocp`). Code Kafka phải nằm đúng nhánh đó.
+> **Quan trọng:** `infra-app-of-apps` phải track **`dev-ocp`** (đã cập nhật trong repo).  
+> Nếu Argo vẫn `targetRevision: main` → operator mãi 0.45.0 dù bạn đã push fix trên `dev-ocp`.
 
 ```bash
 oc -n argocd get application infra-app-of-apps -o jsonpath='{.spec.source.targetRevision}{"\n"}'
+oc -n argocd get application infra-strimzi -o jsonpath='{.spec.source.targetRevision}{"\n"}'
+# Kỳ vọng: dev-ocp  và  chart 0.46.1
 ```
-
-Nếu app-of-apps = `main` mà bạn push `dev-ocp` → đổi Application sang `dev-ocp` hoặc merge vào `main`.
 
 ---
 

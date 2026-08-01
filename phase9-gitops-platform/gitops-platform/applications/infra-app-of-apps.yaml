@@ -11,7 +11,7 @@ spec:
   project: banking-platform
   source:
     repoURL: https://github.com/kevinram164/banking-demo.git
-    targetRevision: main
+    targetRevision: dev-ocp
     path: phase9-gitops-platform/gitops-platform/applications/infra
     directory:
       recurse: false
