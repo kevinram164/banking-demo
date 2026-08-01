@@ -184,6 +184,7 @@ Lỗi thường gặp:
 | NotReady | `oc -n kafka describe kafka npd-kafka` + logs operator |
 | Xóa SPS rồi không có pod | `oc -n kafka get kafka,kafkanodepool,strimzipodset` + annotate Kafka để reconcile; xem log operator |
 | `AccessDeniedException: .../kafka-log0` | nfs-csi mount root-owned; Kafka UID OCP không ghi được. Xem §2.2a |
+| KafkaUser ACL not supported | Lab tắt `authorization` trên Kafka nhưng User còn ACL. Gỡ ACL khỏi User hoặc bật `enableAuthorization` (`values-prod`). |
 
 ### 2.3 Topics
 

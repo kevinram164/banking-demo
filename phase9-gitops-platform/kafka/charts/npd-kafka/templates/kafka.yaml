@@ -23,6 +23,9 @@ spec:
         port: 9092
         type: internal
         tls: false
+        # Cho phép client từ ns khác (shop/banking) khi Strimzi bật NetworkPolicy
+        networkPolicyPeers:
+          {{- toYaml .Values.kafka.networkPolicyPeers | nindent 10 }}
       {{- end }}
       {{- if .Values.kafka.tlsScramListener }}
       - name: tls
@@ -31,6 +34,8 @@ spec:
         tls: true
         authentication:
           type: scram-sha-512
+        networkPolicyPeers:
+          {{- toYaml .Values.kafka.networkPolicyPeers | nindent 10 }}
       {{- end }}
     {{- if .Values.kafka.enableAuthorization }}
     authorization:

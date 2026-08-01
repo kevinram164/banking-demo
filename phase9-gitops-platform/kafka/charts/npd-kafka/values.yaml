@@ -43,6 +43,10 @@ kafka:
   enableAuthorization: false
   # required = cứng 1 pod/node; preferred = cố gắng spread, vẫn schedule nếu thiếu node
   hardAntiAffinity: false
+  # Client namespaces được phép tới listener (Strimzi NetworkPolicy)
+  networkPolicyPeers:
+    - namespaceSelector: {}
+      podSelector: {}
   config:
     # Quote số lớn thành string — tránh Helm/JSON → scientific notation (e+09)
     # mà Strimzi reject (phải là long/int thuần).
