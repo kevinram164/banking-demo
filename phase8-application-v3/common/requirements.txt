@@ -9,6 +9,7 @@ redis==5.0.7
 aio-pika==9.4.1
 # Shared Strimzi (npd-shop ↔ banking) — Python 3.11+ safe fork
 kafka-python-ng==2.2.3
+lz4==4.3.3
 # Observability
 prometheus_client==0.20.0
 opentelemetry-api==1.27.0
