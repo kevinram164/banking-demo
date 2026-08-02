@@ -86,8 +86,9 @@ users:
     groupPrefix: noli-
   - name: npd-banking
     groupPrefix: banking-
-  # Kafka UI (cùng ns kafka — đọc topics)
+  # Kafka UI — ACL rộng cho AdminClient (Describe cluster, list topics, …)
   - name: kafka-ui
+    role: ui
     groupPrefix: kafka-ui-
 
 metrics:
