@@ -68,12 +68,18 @@ spec:
           limits:
             cpu: 500m
             memory: 512Mi
+        # OCP restricted-v2: chart default runAsUser=1000 / fsGroup=2000 bị reject.
+        # UID range ns kafka = 1000910000/10000
         podSecurityContext:
           runAsNonRoot: true
+          runAsUser: 1000910000
+          fsGroup: 1000910000
           seccompProfile:
             type: RuntimeDefault
         securityContext:
           allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000910000
           capabilities:
             drop: ["ALL"]
   destination:
