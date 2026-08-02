@@ -26,18 +26,20 @@ Server riêng gọi API `npd-banking.co` + `npd-shop.co` theo lịch.
 # từ máy có clone banking-demo
 cd banking-demo/scripts/ecosystem
 sudo bash install.sh
+# mặc định: /home/sysadmin/npd-ecosystem
 
-sudo vi /opt/npd-ecosystem/.env   # BANK_URL, SHOP_URL, ADMIN_SECRET
+vi /home/sysadmin/npd-ecosystem/.env   # BANK_URL, SHOP_URL, ADMIN_SECRET
 
 # Smoke
-sudo /opt/npd-ecosystem/bin/run-job.sh seed
+/home/sysadmin/npd-ecosystem/bin/run-job.sh seed
 # copy STK Ly → LY_ACCOUNT_NUMBER + GitOps SHOP_MERCHANT / BANK_ACCOUNT_NUMBER
-sudo /opt/npd-ecosystem/bin/run-job.sh peer
-sudo /opt/npd-ecosystem/bin/run-job.sh shop
-sudo /opt/npd-ecosystem/bin/run-job.sh restock
+/home/sysadmin/npd-ecosystem/bin/run-job.sh peer
+/home/sysadmin/npd-ecosystem/bin/run-job.sh shop
+/home/sysadmin/npd-ecosystem/bin/run-job.sh restock
 ```
 
-Log: `/opt/npd-ecosystem/logs/`. Users: `/opt/npd-ecosystem/data/users.json`.
+Log: `/home/sysadmin/npd-ecosystem/logs/`. Users: `/home/sysadmin/npd-ecosystem/data/users.json`.
+.env: `/home/sysadmin/npd-ecosystem/.env`.
 
 Seed mỗi tuần chỉ thêm tối đa `SEED_BATCH` (200) tới khi đủ `TARGET_CUSTOMERS` / `TARGET_SUPPLIERS`.
 

@@ -19,7 +19,7 @@ TEN = [
 
 
 def load_env(path: str | None = None) -> None:
-    env_path = Path(path or os.environ.get("ECOSYSTEM_ENV", "/opt/npd-ecosystem/.env"))
+    env_path = Path(path or os.environ.get("ECOSYSTEM_ENV", "/home/sysadmin/npd-ecosystem/.env"))
     if not env_path.is_file():
         # Dev: scripts/ecosystem/.env
         alt = Path(__file__).resolve().parent / ".env"
