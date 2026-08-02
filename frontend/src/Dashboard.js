@@ -8,6 +8,7 @@ export default function Dashboard({ onLogout, onGoAdmin }) {
   const [toAccount, setToAccount] = useState("");
   const [toName, setToName] = useState("");
   const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
   const [notifs, setNotifs] = useState([]);
   const [wsStatus, setWsStatus] = useState("disconnected");
   const [msg, setMsg] = useState("");
@@ -75,9 +76,12 @@ export default function Dashboard({ onLogout, onGoAdmin }) {
     }
     
     try {
-      const r = await api.transfer(toAccount.trim(), amountNum);
-      setMsg(`Transfer success: ${r.amount} to ${r.to} (${r.to_account_number})`);
-      setToAccount(""); setToName(""); setAmount("");
+      const r = await api.transfer(toAccount.trim(), amountNum, note.trim());
+      setMsg(
+        `Transfer success: ${r.amount} to ${r.to} (${r.to_account_number})` +
+          (r.note ? ` · ${r.note}` : "")
+      );
+      setToAccount(""); setToName(""); setAmount(""); setNote("");
       await load();
     } catch (e) {
       setErr(e.message);
@@ -163,6 +167,13 @@ export default function Dashboard({ onLogout, onGoAdmin }) {
                 placeholder="Amount (e.g. 1000)"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+              />
+              <input
+                className="w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Nội dung CK (vd NOLI-XXXX khi thanh toán shop)"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                maxLength={64}
               />
               <div className="flex gap-3">
                 <button

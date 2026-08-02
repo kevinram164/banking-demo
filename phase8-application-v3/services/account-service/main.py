@@ -117,7 +117,7 @@ async def handle_admin_transfers(payload: dict, headers: dict) -> dict:
         transfers = db.execute(select(Transfer).order_by(Transfer.created_at.desc()).offset((page - 1) * size).limit(size)).scalars().all()
         user_ids = {t.from_user for t in transfers} | {t.to_user for t in transfers}
         users = {u.id: u.username for u in db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()} if user_ids else {}
-        result = [{"id": t.id, "from_user": t.from_user, "from_username": users.get(t.from_user, f"#{t.from_user}"), "to_user": t.to_user, "to_username": users.get(t.to_user, f"#{t.to_user}"), "amount": t.amount, "created_at": t.created_at.isoformat() + "Z"} for t in transfers]
+        result = [{"id": t.id, "from_user": t.from_user, "from_username": users.get(t.from_user, f"#{t.from_user}"), "to_user": t.to_user, "to_username": users.get(t.to_user, f"#{t.to_user}"), "amount": t.amount, "note": getattr(t, "note", "") or "", "created_at": t.created_at.isoformat() + "Z"} for t in transfers]
         return {"status": 200, "body": {"transfers": result, "total": total_count, "page": page, "size": size, "pages": (total_count + size - 1) // size}}
     finally:
         db.close()
@@ -153,7 +153,7 @@ async def handle_admin_user_detail(user_id: int, headers: dict) -> dict:
         if not u:
             return {"status": 404, "body": {"detail": "User not found"}}
         transfers = db.execute(select(Transfer).where((Transfer.from_user == user_id) | (Transfer.to_user == user_id)).order_by(Transfer.created_at.desc()).limit(20)).scalars().all()
-        return {"status": 200, "body": {"id": u.id, "phone": u.phone, "username": u.username, "account_number": u.account_number, "balance": u.balance, "transfers": [{"id": t.id, "from_user": t.from_user, "to_user": t.to_user, "amount": t.amount, "direction": "out" if t.from_user == user_id else "in", "created_at": t.created_at.isoformat() + "Z"} for t in transfers]}}
+        return {"status": 200, "body": {"id": u.id, "phone": u.phone, "username": u.username, "account_number": u.account_number, "balance": u.balance, "transfers": [{"id": t.id, "from_user": t.from_user, "to_user": t.to_user, "amount": t.amount, "note": getattr(t, "note", "") or "", "direction": "out" if t.from_user == user_id else "in", "created_at": t.created_at.isoformat() + "Z"} for t in transfers]}}
     finally:
         db.close()
 

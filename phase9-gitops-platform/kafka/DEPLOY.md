@@ -294,6 +294,25 @@ oc -n npd-banking logs deploy/shop-bridge --tail=50
 
 ---
 
+## Bước 4c — Ecosystem Phase 1–3 (CK thật)
+
+1. Tắt auto-confirm: `gitops/values-ecosystem.yaml` (`SHOP_BRIDGE_AUTO_CONFIRM=false`).
+2. Rebuild **transfer-service** + **frontend** + **shop-bridge** (note + matcher + httpx).
+3. Seed chủ shop:
+
+```bash
+python scripts/seed_huongly.py --base-url https://npd-banking.co --insecure
+# → scripts/demo-huongly.json (account_number)
+```
+
+4. Điền STK vào:
+   - `gitops/values-ecosystem.yaml` → `SHOP_MERCHANT_ACCOUNT_NUMBER`
+   - `npd-shop/gitops/values-merchant.yaml` → `BANK_ACCOUNT_NUMBER`
+5. Sync Argo `banking-transfer-service`, `banking-shop-bridge`, `npd-shop`.
+6. Test: đặt đơn shop → login banking → CK đúng STK + nội dung `NOLI-…` → đơn Thành công.
+
+---
+
 ## Bước 5 — Monitor (lab)
 
 ### A. Kafka UI (chi tiết topic/message)

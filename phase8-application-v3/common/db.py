@@ -39,3 +39,19 @@ def log_db_pool_status(logger: "Logger | None" = None) -> None:
 
 class Base(DeclarativeBase):
     pass
+
+
+def ensure_schema() -> None:
+    """Additive schema fixes for existing Postgres (create_all không ALTER)."""
+    from sqlalchemy import text
+
+    stmts = [
+        "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS note VARCHAR(64) DEFAULT ''",
+    ]
+    with engine.begin() as conn:
+        for sql in stmts:
+            try:
+                conn.execute(text(sql))
+            except Exception:
+                # SQLite / non-Postgres: ignore
+                pass

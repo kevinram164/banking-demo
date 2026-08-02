@@ -1,18 +1,21 @@
 """
 Transfer Service — Phase 8 Consumer
 Consumes from transfer.requests, processes, stores response in Redis.
-FastAPI + instrument_fastapi để xuất traces sang Jaeger (health check tạo span).
+After success: nếu CK vào STK chủ shop + note NOLI-* → gọi shop-bridge confirm-payment.
 """
 import os
+import re
 import asyncio
 import json
 from contextlib import asynccontextmanager
+
+import httpx
 from sqlalchemy import select
 from redis.asyncio import Redis
 from aio_pika import IncomingMessage
 from fastapi import FastAPI
 
-from common.db import SessionLocal, engine, Base, log_db_pool_status
+from common.db import SessionLocal, engine, Base, log_db_pool_status, ensure_schema
 from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, publish_notify, create_redis_client
 from common.rabbitmq_utils import store_response
@@ -20,16 +23,74 @@ from common.logging_utils import get_json_logger, log_event, log_error_event, ma
 from common.observability import instrument_fastapi, get_tracer, consumer_span
 
 Base.metadata.create_all(bind=engine)
+ensure_schema()
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
+SHOP_BRIDGE_URL = os.getenv("SHOP_BRIDGE_URL", "http://shop-bridge:8010").rstrip("/")
+SHOP_MERCHANT_ACCOUNT = os.getenv("SHOP_MERCHANT_ACCOUNT_NUMBER", "").strip()
+SHOP_NOTE_PREFIX = os.getenv("SHOP_TRANSFER_NOTE_PREFIX", "NOLI").strip().upper() or "NOLI"
 
 logger = get_json_logger("transfer-service")
 redis: Redis | None = None
 
+_NOTE_RE = re.compile(rf"\b({re.escape(SHOP_NOTE_PREFIX)}-[A-Z0-9]+)\b", re.IGNORECASE)
+
+
+def _normalize_note(raw: str) -> str:
+    note = (raw or "").strip().upper()
+    if not note:
+        return ""
+    m = _NOTE_RE.search(note.replace(" ", ""))
+    if m:
+        return m.group(1).upper()
+    # Cho phép gửi đúng "NOLI-XXXX" thuần
+    compact = note.replace(" ", "")
+    if compact.startswith(f"{SHOP_NOTE_PREFIX}-"):
+        return compact
+    return note[:64]
+
+
+async def _notify_shop_bridge(transfer_ref: str, amount_vnd: int) -> None:
+    """Best-effort: không fail transfer nếu bridge lỗi."""
+    if not SHOP_BRIDGE_URL:
+        return
+    url = f"{SHOP_BRIDGE_URL}/api/shop/confirm-payment"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                url,
+                json={"transfer_ref": transfer_ref, "amount_vnd": int(amount_vnd)},
+            )
+            if resp.status_code >= 400:
+                log_event(
+                    logger,
+                    "shop_bridge_confirm_failed",
+                    status=resp.status_code,
+                    detail=resp.text[:200],
+                    transfer_ref=transfer_ref,
+                    service="transfer-service",
+                )
+            else:
+                log_event(
+                    logger,
+                    "shop_bridge_confirm_ok",
+                    transfer_ref=transfer_ref,
+                    amount_vnd=amount_vnd,
+                    service="transfer-service",
+                )
+    except Exception as exc:
+        log_event(
+            logger,
+            "shop_bridge_confirm_error",
+            error=str(exc)[:200],
+            transfer_ref=transfer_ref,
+            service="transfer-service",
+        )
+
 
 async def handle_transfer(payload: dict, headers: dict, trace: dict) -> dict:
-    """Business logic — same as v2."""
+    """Business logic — same as v2 + optional note / shop matcher."""
     correlation_id = trace.get("correlation_id", "")
     path = trace.get("path", "")
     action = trace.get("action", "")
@@ -40,6 +101,7 @@ async def handle_transfer(payload: dict, headers: dict, trace: dict) -> dict:
     amount = body.get("amount", 0)
     to_acct = (body.get("to_account_number") or "").strip()
     to_username = (body.get("to_username") or "").strip()
+    note = _normalize_note(body.get("note") or body.get("content") or "")
     if amount <= 0:
         log_event(logger, "transfer_rejected", correlation_id=correlation_id, path=path, action=action, reason="amount_invalid", detail="Amount must be > 0", service="transfer-service")
         return {"status": 400, "body": {"detail": "Amount must be > 0"}}
@@ -70,12 +132,13 @@ async def handle_transfer(payload: dict, headers: dict, trace: dict) -> dict:
             return {"status": 400, "body": {"detail": "Insufficient balance"}}
         sender.balance -= amount
         receiver.balance += amount
-        transfer = Transfer(from_user=sender.id, to_user=receiver.id, amount=amount)
+        transfer = Transfer(from_user=sender.id, to_user=receiver.id, amount=amount, note=note)
         db.add(transfer)
-        db.add(Notification(user_id=sender.id, message=f"Bạn đã chuyển {amount} đến {receiver.username}"))
-        db.add(Notification(user_id=receiver.id, message=f"Bạn nhận {amount} từ {sender.username}"))
+        note_suffix = f" ({note})" if note else ""
+        db.add(Notification(user_id=sender.id, message=f"Bạn đã chuyển {amount} đến {receiver.username}{note_suffix}"))
+        db.add(Notification(user_id=receiver.id, message=f"Bạn nhận {amount} từ {sender.username}{note_suffix}"))
         db.commit()
-        await publish_notify(redis, receiver.id, f"Bạn nhận {amount} từ {sender.username}")
+        await publish_notify(redis, receiver.id, f"Bạn nhận {amount} từ {sender.username}{note_suffix}")
         log_event(
             logger,
             "transfer_success",
@@ -90,10 +153,31 @@ async def handle_transfer(payload: dict, headers: dict, trace: dict) -> dict:
             to_username=receiver.username,
             to_account_masked=mask_account_number(receiver.account_number),
             amount_hash=mask_amount(amount),
+            note=note or None,
             service="transfer-service",
             queue="transfer.requests",
         )
-        return {"status": 200, "body": {"ok": True, "from": sender.username, "to": receiver.username, "to_account_number": receiver.account_number, "amount": amount}}
+
+        # Matcher: CK vào STK chủ shop + note NOLI-* → báo shop
+        merchant = SHOP_MERCHANT_ACCOUNT
+        if (
+            merchant
+            and receiver.account_number == merchant
+            and note.startswith(f"{SHOP_NOTE_PREFIX}-")
+        ):
+            asyncio.create_task(_notify_shop_bridge(note, amount))
+
+        return {
+            "status": 200,
+            "body": {
+                "ok": True,
+                "from": sender.username,
+                "to": receiver.username,
+                "to_account_number": receiver.account_number,
+                "amount": amount,
+                "note": note or None,
+            },
+        }
     except Exception as e:
         db.rollback()
         raise
@@ -150,6 +234,8 @@ async def consume():
         queue="transfer.requests",
         service="transfer-service",
         prefetch=5,
+        shop_merchant=SHOP_MERCHANT_ACCOUNT or None,
+        shop_bridge=SHOP_BRIDGE_URL or None,
     )
     await asyncio.Future()
 
@@ -187,6 +273,12 @@ async def health():
             db_status = "error"
         finally:
             db.close()
-        return {"status": "healthy", "service": "transfer-service", "database": db_status, "redis": "ok"}
+        return {
+            "status": "healthy",
+            "service": "transfer-service",
+            "database": db_status,
+            "redis": "ok",
+            "shop_matcher": bool(SHOP_MERCHANT_ACCOUNT),
+        }
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}

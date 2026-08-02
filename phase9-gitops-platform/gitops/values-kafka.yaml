@@ -19,8 +19,8 @@ shop-bridge:
     KAFKA_SSL_CAFILE: "/etc/kafka/certs/ca.crt"
     KAFKA_GROUP_ID: "banking-shop-bridge"
     KAFKA_COMPRESSION: "gzip"
-    # Lab E2E: auto payment.completed sau vài giây. Tắt khi làm luồng CK tay.
-    SHOP_BRIDGE_AUTO_CONFIRM: "true"
+    # Lab E2E cũ: auto payment. Override bởi values-ecosystem.yaml (AUTO=false).
+    SHOP_BRIDGE_AUTO_CONFIRM: "false"
     SHOP_BRIDGE_AUTO_CONFIRM_DELAY_SEC: "3"
     # OTEL (gộp vào đây vì Helm replace nguyên map extraEnv theo valueFile cuối)
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"

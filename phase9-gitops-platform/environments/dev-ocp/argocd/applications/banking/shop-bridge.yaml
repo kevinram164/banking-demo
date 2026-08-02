@@ -24,6 +24,7 @@ spec:
         - ../../phase9-gitops-platform/gitops/values-images.yaml
         - ../../phase9-gitops-platform/gitops/values-observability.yaml
         - ../../phase9-gitops-platform/gitops/values-kafka.yaml
+        - ../../phase9-gitops-platform/gitops/values-ecosystem.yaml
       parameters:
         - name: namespace.enabled
           value: "false"

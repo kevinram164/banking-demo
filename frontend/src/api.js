@@ -48,10 +48,14 @@ export const api = {
   lookupAccount: (account_number) =>
     req(`/api/account/lookup?account_number=${encodeURIComponent(account_number)}`),
 
-  transfer: (to_account_number, amount) =>
+  transfer: (to_account_number, amount, note = "") =>
     req("/api/transfer/transfer", {
       method: "POST",
-      body: { to_account_number, amount: Number(amount) }
+      body: {
+        to_account_number,
+        amount: Number(amount),
+        ...(note ? { note: String(note).trim() } : {}),
+      },
     }),
 
   notifications: () => req("/api/notifications/notifications"),

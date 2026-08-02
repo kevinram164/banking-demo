@@ -18,6 +18,8 @@ class Transfer(Base):
     from_user: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     to_user: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     amount: Mapped[int] = mapped_column(Integer)
+    # Nội dung CK (vd NOLI-XXXX) — khớp đơn shop
+    note: Mapped[str] = mapped_column(String(64), default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Notification(Base):

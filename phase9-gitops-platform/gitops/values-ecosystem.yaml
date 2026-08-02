@@ -1,0 +1,36 @@
+# Ecosystem Phase 1–3 — CK thật (matcher + tắt auto-confirm).
+# Sau seed Ly: điền SHOP_MERCHANT_ACCOUNT_NUMBER = STK của huongly
+# (file scripts/demo-huongly.json → account_number).
+
+shop-bridge:
+  extraEnv:
+    KAFKA_BOOTSTRAP: "npd-kafka-kafka-bootstrap.kafka.svc.cluster.local:9093"
+    KAFKA_ORDERS_TOPIC: "orders.events"
+    KAFKA_PAYMENTS_TOPIC: "payments.events"
+    KAFKA_SECURITY_PROTOCOL: "SASL_SSL"
+    KAFKA_SASL_MECHANISM: "SCRAM-SHA-512"
+    KAFKA_USERNAME: "npd-banking"
+    KAFKA_SSL_CAFILE: "/etc/kafka/certs/ca.crt"
+    KAFKA_GROUP_ID: "banking-shop-bridge"
+    KAFKA_COMPRESSION: "gzip"
+    # CK thật qua banking — không auto
+    SHOP_BRIDGE_AUTO_CONFIRM: "false"
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_SERVICE_NAME: "shop-bridge"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
+    OTEL_HEARTBEAT: "1"
+    OTEL_HEARTBEAT_SECONDS: "30"
+
+transfer-service:
+  extraEnv:
+    SHOP_BRIDGE_URL: "http://shop-bridge.npd-banking.svc.cluster.local:8010"
+    # TODO: thay bằng STK thật sau seed (scripts/seed_huongly.py)
+    SHOP_MERCHANT_ACCOUNT_NUMBER: ""
+    SHOP_TRANSFER_NOTE_PREFIX: "NOLI"
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_SERVICE_NAME: "transfer-service"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
+    OTEL_HEARTBEAT: "1"
+    OTEL_HEARTBEAT_SECONDS: "30"
