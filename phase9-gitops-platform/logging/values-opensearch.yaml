@@ -11,6 +11,11 @@ masterService: opensearch-cluster-master
 singleNode: true
 replicas: 1
 
+# Pin cùng version với Dashboards
+image:
+  repository: "opensearchproject/opensearch"
+  tag: "2.17.1"
+
 roles:
   - master
   - ingest
