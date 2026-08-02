@@ -81,3 +81,9 @@ ingress:
 # Lab: không cần serviceMonitor trừ khi đã có Prometheus Operator scrape
 serviceMonitor:
   enabled: false
+
+# OCP: SA gắn SCC opensearch-uid1000
+rbac:
+  create: true
+  serviceAccountName: opensearch
+  automountServiceAccountToken: true

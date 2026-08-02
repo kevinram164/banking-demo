@@ -1,0 +1,50 @@
+# OpenSearch + Dashboards — image UID 1000 (không khớp dải ns logging)
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: opensearch-uid1000
+  labels:
+    banking-demo/environment: dev-ocp
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: logging
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+runAsUser:
+  type: MustRunAs
+  uid: 1000
+runAsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+      max: 1000
+fsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+      max: 1000
+supplementalGroups:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+seccompProfiles:
+  - runtime/default
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  # Chart mặc định (rbac.create=false) → default SA
+  - system:serviceaccount:logging:default
+  # SA tường minh (sau khi bật rbac trong values)
+  - system:serviceaccount:logging:opensearch
+  - system:serviceaccount:logging:opensearch-dashboards

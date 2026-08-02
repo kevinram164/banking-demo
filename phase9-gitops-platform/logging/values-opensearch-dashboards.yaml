@@ -35,3 +35,8 @@ securityContext:
   runAsNonRoot: true
   runAsUser: 1000
   allowPrivilegeEscalation: false
+
+# OCP: SA gắn SCC opensearch-uid1000
+serviceAccount:
+  create: true
+  name: opensearch-dashboards

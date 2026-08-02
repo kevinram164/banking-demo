@@ -31,6 +31,27 @@ oc debug node/<node> -- chroot /host sysctl -w vm.max_map_count=262144
 
 StorageClass: `nfs-csi` (đã dùng lab).
 
+### 0b. SCC UID 1000 (bắt buộc trên OCP)
+
+Image OpenSearch/Dashboards chạy `runAsUser: 1000` — `restricted-v2` của ns `logging` không cho phép → `FailedCreate`.
+
+**Sửa ngay (không chờ git):**
+
+```bash
+cd D:/Tai-lieu/LPI-DOCKER-K8S/OCP/banking-demo
+
+# Git Bash / WSL / Linux jump host:
+bash phase9-gitops-platform/environments/dev-ocp/scripts/opensearch-scc-setup.sh
+
+# hoặc từng lệnh:
+oc apply -f phase9-gitops-platform/environments/dev-ocp/ocp-values/scc/opensearch-scc.yaml
+oc adm policy add-scc-to-user opensearch-uid1000 -z default -n logging
+oc adm policy add-scc-to-user opensearch-uid1000 -z opensearch -n logging
+oc adm policy add-scc-to-user opensearch-uid1000 -z opensearch-dashboards -n logging
+oc -n logging delete pod --all --force --grace-period=0
+oc -n logging get pods -w
+```
+
 ### 1. AppProject (live apply — git push không đủ)
 
 ```bash
