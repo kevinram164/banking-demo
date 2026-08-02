@@ -30,7 +30,7 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
+      # Không dùng ServerSideApply — conflict với Sync Force trên ArgoCD mới
     automated:
       prune: false
       selfHeal: false

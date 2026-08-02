@@ -184,7 +184,7 @@ Lỗi thường gặp:
 | NotReady | `oc -n kafka describe kafka npd-kafka` + logs operator |
 | Xóa SPS rồi không có pod | `oc -n kafka get kafka,kafkanodepool,strimzipodset` + annotate Kafka để reconcile; xem log operator |
 | `AccessDeniedException: .../kafka-log0` | nfs-csi mount root-owned; Kafka UID OCP không ghi được. Xem §2.2a |
-| KafkaUser ACL not supported | Cluster chưa bật `authorization.type=simple` trong khi User có ACL. Chart mặc định đã bật ACL+SCRAM — sync `infra-kafka`. |
+| Sync Failed: `--force` cannot be used with `--server-side` | Bỏ tick **Force** khi sync, hoặc bỏ `ServerSideApply` khỏi Application (đã sửa trong `infra/kafka.yaml`). |
 
 ### 2.3 Topics
 
