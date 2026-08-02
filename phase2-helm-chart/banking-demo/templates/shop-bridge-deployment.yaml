@@ -1,0 +1,78 @@
+{{- $svc := index .Values "shop-bridge" | default dict }}
+{{- if $svc.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "banking-demo.shop-bridge.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "banking-demo.shop-bridge.fullname" . }}
+    {{- include "banking-demo.shop-bridge.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $svc.replicas | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "banking-demo.shop-bridge.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "banking-demo.shop-bridge.fullname" . }}
+        {{- include "banking-demo.shop-bridge.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with $svc.securityContext.pod }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $svc.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml $svc.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      {{- if and .Values.kafka .Values.kafka.enabled .Values.kafka.caSecretName }}
+      volumes:
+        - name: kafka-cluster-ca
+          secret:
+            secretName: {{ .Values.kafka.caSecretName }}
+      {{- end }}
+      containers:
+        - name: shop-bridge
+          image: "{{ $svc.image.repository }}:{{ $svc.image.tag }}"
+          imagePullPolicy: {{ $svc.image.pullPolicy }}
+          {{- with $svc.securityContext.container }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: {{ $svc.service.port }}
+              name: {{ $svc.service.portName }}
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          {{- if and .Values.kafka .Values.kafka.enabled .Values.kafka.caSecretName }}
+          volumeMounts:
+            - name: kafka-cluster-ca
+              mountPath: {{ .Values.kafka.caMountPath | default "/etc/kafka/certs" }}
+              readOnly: true
+          {{- end }}
+          env:
+            {{- if and .Values.kafka .Values.kafka.enabled .Values.kafka.userSecretName }}
+            - name: KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.kafka.userSecretName }}
+                  key: {{ .Values.kafka.userSecretPasswordKey | default "password" }}
+            {{- end }}
+            {{- range $k, $v := $svc.extraEnv }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          {{- if $svc.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ $svc.readinessProbe.path }}
+              port: {{ $svc.readinessProbe.port }}
+            initialDelaySeconds: {{ $svc.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $svc.readinessProbe.periodSeconds }}
+            {{- if $svc.readinessProbe.timeoutSeconds }}
+            timeoutSeconds: {{ $svc.readinessProbe.timeoutSeconds }}
+            {{- end }}
+          {{- end }}
+{{- end }}

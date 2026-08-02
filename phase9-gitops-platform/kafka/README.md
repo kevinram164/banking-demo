@@ -41,7 +41,17 @@ Manifest apps:
 | Lab (plain) | `npd-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092` |
 | Prod (TLS+SCRAM) | `…:9093` + Secret user `npd-shop` / `npd-banking` |
 
-Shop: `npd-shop/gitops/values-kafka.yaml` → uncomment trong Argo Helm valueFiles.
+Shop: `npd-shop/gitops/values-kafka.yaml` → Argo Helm valueFiles.  
+Banking: `gitops/values-kafka.yaml` + app **`banking-shop-bridge`** (user `npd-banking`).
+
+Secrets sync (bastion):
+
+```bash
+# shop
+bash ../npd-shop/deploy/scripts/sync-kafka-client-secrets.sh
+# banking
+bash phase9-gitops-platform/environments/dev-ocp/scripts/sync-kafka-client-secrets.sh
+```
 
 ---
 

@@ -89,3 +89,15 @@ kongExternalService:
   name: kong-proxy-ext
   externalName: kong-kong-proxy.kong.svc.cluster.local
   port: 8000
+
+# Shared Strimzi (platform ns kafka) — bật qua values-kafka.yaml
+kafka:
+  enabled: false
+  userSecretName: npd-banking-kafka-user
+  userSecretPasswordKey: password
+  caSecretName: npd-banking-kafka-cluster-ca
+  caMountPath: /etc/kafka/certs
+
+# Shop↔Banking bridge — default off; Argo shop-bridge app bật
+shop-bridge:
+  enabled: false

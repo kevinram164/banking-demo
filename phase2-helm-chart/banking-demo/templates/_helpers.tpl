@@ -93,6 +93,17 @@ app.kubernetes.io/name: {{ include "banking-demo.transfer-service.fullname" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
+{{- define "banking-demo.shop-bridge.fullname" -}}{{- (index .Values "shop-bridge" | default dict).fullnameOverride | default "shop-bridge" -}}{{- end -}}
+{{- define "banking-demo.shop-bridge.labels" -}}
+app.kubernetes.io/name: {{ include "banking-demo.shop-bridge.fullname" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: shop-bridge
+{{- end -}}
+{{- define "banking-demo.shop-bridge.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "banking-demo.shop-bridge.fullname" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
+
 {{- define "banking-demo.notification-service.fullname" -}}{{- (index .Values "notification-service").fullnameOverride | default "notification-service" -}}{{- end -}}
 {{- define "banking-demo.notification-service.labels" -}}
 app.kubernetes.io/name: {{ include "banking-demo.notification-service.fullname" . }}

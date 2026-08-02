@@ -1,0 +1,18 @@
+{{- $svc := index .Values "shop-bridge" | default dict }}
+{{- if $svc.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "banking-demo.shop-bridge.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "banking-demo.shop-bridge.fullname" . }}
+    {{- include "banking-demo.shop-bridge.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "banking-demo.shop-bridge.selectorLabels" . | nindent 4 }}
+  ports:
+    - port: {{ $svc.service.port }}
+      targetPort: {{ $svc.service.port }}
+      name: {{ $svc.service.portName }}
+{{- end }}

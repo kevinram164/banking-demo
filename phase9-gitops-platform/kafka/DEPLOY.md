@@ -255,6 +255,45 @@ oc -n npd-shop logs deploy/payment-worker --tail=30
 
 ---
 
+## Bước 4b — Nối banking (`shop-bridge`)
+
+Luồng: shop `orders.events` → banking **shop-bridge** → `payments.events` → shop payment-worker.
+
+1. Copy SCRAM user + CA vào ns `npd-banking`:
+
+```bash
+bash phase9-gitops-platform/environments/dev-ocp/scripts/sync-kafka-client-secrets.sh
+oc -n npd-banking get secret npd-banking-kafka-user npd-banking-kafka-cluster-ca
+```
+
+2. Build/push image `shop-bridge` (Jenkins `PipelineConfig` đã có service; hoặc Kaniko tay).  
+   Tag cập nhật trong `gitops/values-images.yaml` → key `shop-bridge`.
+
+3. Sync Argo `banking-shop-bridge` (app-of-apps banking recurse, hoặc):
+
+```bash
+oc apply -f phase9-gitops-platform/gitops-platform/applications/banking/shop-bridge.yaml -n argocd
+argocd app sync banking-shop-bridge
+```
+
+4. Lab: `SHOP_BRIDGE_AUTO_CONFIRM=true` (trong `gitops/values-kafka.yaml`) → đặt hàng shop → ~3s đơn paid.  
+   CK tay: set `false`, gọi:
+
+```bash
+oc -n npd-banking exec deploy/shop-bridge -- \
+  curl -sS -X POST http://127.0.0.1:8010/api/shop/confirm-payment \
+  -H 'Content-Type: application/json' \
+  -d '{"transfer_ref":"NOLI-XXXX","amount_vnd":1290000}'
+```
+
+```bash
+oc -n npd-banking logs deploy/shop-bridge --tail=50
+# Kafka consumer started topic=orders.events
+# shop order seen … / kafka published … payment.completed
+```
+
+---
+
 ## Bước 5 — Monitor (lab)
 
 ### A. Kafka UI (chi tiết topic/message)

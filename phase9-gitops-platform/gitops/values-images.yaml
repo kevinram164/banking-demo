@@ -43,6 +43,13 @@ notification-service:
     tag: 801a526
     pullPolicy: Always
 
+shop-bridge:
+  imagePullSecrets: *harborPullSecrets
+  image:
+    repository: harbor-platform.apps.ocp01.npd.co/banking-demo/shop-bridge
+    tag: "pending-build"
+    pullPolicy: Always
+
 frontend:
   imagePullSecrets: *harborPullSecrets
   image:

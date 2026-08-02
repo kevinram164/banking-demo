@@ -1,0 +1,31 @@
+# Wire banking shop-bridge → Strimzi (TLS:9093 + SCRAM-SHA-512 + ACL).
+# Trước sync Argo: copy secret từ ns kafka (sync-kafka-client-secrets.sh).
+
+kafka:
+  enabled: true
+  userSecretName: npd-banking-kafka-user
+  userSecretPasswordKey: password
+  caSecretName: npd-banking-kafka-cluster-ca
+  caMountPath: /etc/kafka/certs
+
+shop-bridge:
+  extraEnv:
+    KAFKA_BOOTSTRAP: "npd-kafka-kafka-bootstrap.kafka.svc.cluster.local:9093"
+    KAFKA_ORDERS_TOPIC: "orders.events"
+    KAFKA_PAYMENTS_TOPIC: "payments.events"
+    KAFKA_SECURITY_PROTOCOL: "SASL_SSL"
+    KAFKA_SASL_MECHANISM: "SCRAM-SHA-512"
+    KAFKA_USERNAME: "npd-banking"
+    KAFKA_SSL_CAFILE: "/etc/kafka/certs/ca.crt"
+    KAFKA_GROUP_ID: "banking-shop-bridge"
+    KAFKA_COMPRESSION: "gzip"
+    # Lab E2E: auto payment.completed sau vài giây. Tắt khi làm luồng CK tay.
+    SHOP_BRIDGE_AUTO_CONFIRM: "true"
+    SHOP_BRIDGE_AUTO_CONFIRM_DELAY_SEC: "3"
+    # OTEL (gộp vào đây vì Helm replace nguyên map extraEnv theo valueFile cuối)
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_SERVICE_NAME: "shop-bridge"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
+    OTEL_HEARTBEAT: "1"
+    OTEL_HEARTBEAT_SECONDS: "30"

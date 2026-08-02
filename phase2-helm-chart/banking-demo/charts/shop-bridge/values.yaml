@@ -1,0 +1,38 @@
+# ArgoCD/Helm merge theo key shop-bridge
+shop-bridge:
+  fullnameOverride: shop-bridge
+  enabled: true
+  image:
+    repository: harbor-platform.apps.ocp01.npd.co/banking-demo/shop-bridge
+    tag: "latest"
+    pullPolicy: Always
+  imagePullSecrets: []
+  replicas: 1
+  service:
+    port: 8010
+    portName: http
+  corsOrigins: "*"
+  extraEnv: {}
+  readinessProbe:
+    enabled: true
+    path: /health
+    port: 8010
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 1
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  securityContext:
+    pod:
+      seccompProfile:
+        type: RuntimeDefault
+    container:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+      runAsNonRoot: true
