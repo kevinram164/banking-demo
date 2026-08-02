@@ -1,5 +1,5 @@
-# Shared platform — Kafka UI (Kafbat) · TLS + SCRAM tới npd-kafka
-# Dùng envs.config + secretMappings (tránh yamlApplicationConfig bị Argo/Helm bind null)
+# Shared platform — Kafka UI (Kafbat) · TLS + SCRAM
+# Chart 1.5.0: secretMappings có thể không có → dùng env[] valueFrom
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -16,7 +16,8 @@ spec:
   source:
     repoURL: https://kafbat.github.io/helm-charts
     chart: kafka-ui
-    targetRevision: 1.5.0
+    # Helm chart 1.6.4 → app v1.5.0 (1.5.0 chart = app cũ v1.2.0, thiếu secretMappings)
+    targetRevision: 1.6.4
     helm:
       releaseName: kafka-ui
       values: |
@@ -37,6 +38,18 @@ spec:
             KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_PASSWORD:
               name: npd-kafka-cluster-ca-cert
               keyName: ca.password
+        # Fallback nếu secretMappings chưa render (chart cũ)
+        env:
+          - name: KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG
+            valueFrom:
+              secretKeyRef:
+                name: kafka-ui
+                key: sasl.jaas.config
+          - name: KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: npd-kafka-cluster-ca-cert
+                key: ca.password
         volumeMounts:
           - name: cluster-ca
             mountPath: /etc/kafka/certs
