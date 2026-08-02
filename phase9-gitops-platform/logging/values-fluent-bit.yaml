@@ -1,12 +1,5 @@
-# Fluent Bit → OpenSearch — tách index theo domain
-# Chart: fluent/fluent-bit
-#
-# Index:
-#   logs-bank-YYYY.MM.DD
-#   logs-shop-YYYY.MM.DD
-#   logs-movie-YYYY.MM.DD
-#   logs-infra-YYYY.MM.DD
-# Retention: ISM 7 ngày (manifests/ism-retention.yaml)
+# Fluent Bit → OpenSearch — tách index bank/shop/movie/infra
+# OCP CRI-O: mount /var/log + runAsUser 0 + SCC fluent-bit-npd (hostPath)
 
 kind: DaemonSet
 
@@ -17,8 +10,9 @@ image:
 openShift:
   enabled: true
   securityContextConstraints:
-    create: true
-    name: fluent-bit-npd
+    create: false
+    # Dùng SCC GitOps: environments/dev-ocp/ocp-values/scc/fluent-bit-scc.yaml
+    existingName: fluent-bit-npd
 
 serviceAccount:
   create: true
@@ -26,6 +20,20 @@ serviceAccount:
 
 rbac:
   create: true
+  nodeAccess: true
+
+# Bắt buộc để đọc log host trên OCP
+podSecurityContext:
+  runAsUser: 0
+  runAsNonRoot: false
+
+securityContext:
+  runAsUser: 0
+  runAsNonRoot: false
+  allowPrivilegeEscalation: true
+  readOnlyRootFilesystem: false
+  seLinuxOptions:
+    type: spc_t
 
 resources:
   requests:
@@ -37,6 +45,18 @@ resources:
 
 tolerations:
   - operator: Exists
+
+# OCP CRI-O: chỉ cần /var/log (chứa pods/ + containers/ symlink)
+# Không mount /var/lib/docker (không có trên OCP) /etc/machine-id type:File dễ fail
+daemonSetVolumes:
+  - name: varlog
+    hostPath:
+      path: /var/log
+
+daemonSetVolumeMounts:
+  - name: varlog
+    mountPath: /var/log
+    readOnly: true
 
 config:
   service: |
@@ -53,13 +73,15 @@ config:
   inputs: |
     [INPUT]
         Name              tail
-        Path              /var/log/containers/*.log
+        Path              /var/log/pods/*/*/*.log
+        Exclude_Path      /var/log/pods/*/*fluent-bit*/**,/var/log/pods/*/fluent-bit*/**
         multiline.parser  cri
         Tag               kube.*
         Mem_Buf_Limit     32MB
         Skip_Long_Lines   On
         Refresh_Interval  5
         DB                /tmp/flb_kube.db
+        Path_Key          filepath
 
   filters: |
     [FILTER]
@@ -71,8 +93,8 @@ config:
         K8S-Logging.Exclude On
         Labels              Off
         Annotations         Off
+        Kube_Tag_Prefix     kube.var.log.pods.
 
-    # Chỉ thu 4 nhóm ns
     [FILTER]
         Name    grep
         Match   kube.*
@@ -83,7 +105,6 @@ config:
         Match   kube.*
         Exclude $kubernetes['container_name'] ^(fluent-bit|POD|pause|linkerd-proxy)$
 
-    # Tách tag → index khác nhau
     [FILTER]
         Name          rewrite_tag
         Match         kube.*
