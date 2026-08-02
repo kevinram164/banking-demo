@@ -1,14 +1,17 @@
 # OpenSearch Dashboards — lab OCP
 # Chart: opensearch-dashboards
+#
+# Service OpenSearch trên cluster (đã quan sát):
+#   opensearch-cluster-master  (không phải npd-logs-master)
+# STS pod vẫn tên npd-logs-master-0 — khác tên Service do chart masterService.
 
-opensearchHosts: "http://npd-logs-master:9200"
+opensearchHosts: "http://opensearch-cluster-master.logging.svc.cluster.local:9200"
 
-# Security plugin đã tắt trên cluster
 extraEnvs:
   - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
     value: "true"
   - name: OPENSEARCH_HOSTS
-    value: '["http://npd-logs-master:9200"]'
+    value: '["http://opensearch-cluster-master.logging.svc.cluster.local:9200"]'
 
 resources:
   requests:
@@ -25,7 +28,6 @@ service:
 ingress:
   enabled: false
 
-# OCP
 podSecurityContext:
   fsGroup: 1000
   runAsUser: 1000
@@ -36,7 +38,6 @@ securityContext:
   runAsUser: 1000
   allowPrivilegeEscalation: false
 
-# OCP: SA gắn SCC opensearch-uid1000
 serviceAccount:
   create: true
   name: opensearch-dashboards
