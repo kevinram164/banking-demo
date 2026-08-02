@@ -40,6 +40,11 @@ spec:
         operations: [Describe, Write]
         host: "*"
       {{- else }}
+      # Idempotent / InitProducerId (broker cũ hoặc authorizer chặt)
+      - resource:
+          type: cluster
+        operations: [Describe, IdempotentWrite]
+        host: "*"
       - resource:
           type: topic
           name: orders.events
