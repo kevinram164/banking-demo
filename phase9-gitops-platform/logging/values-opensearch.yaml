@@ -4,9 +4,10 @@
 clusterName: npd-logs
 nodeGroup: master
 
-# Lab: 1 node đủ
+# Lab: 1 node — BẮT BUỘC khi dùng discovery.type=single-node
+# (không set → chart vẫn inject cluster.initial_master_nodes → crash)
+singleNode: true
 replicas: 1
-minimumMasterNodes: 1
 
 roles:
   - master

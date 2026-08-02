@@ -7,7 +7,7 @@ metadata:
     banking-demo/environment: dev-ocp
     openshift.io/cluster-monitoring: "true"
 ---
-# OpenSearch + Dashboards — UID 1000 (giống kong-uid1000)
+# Mirror ocp-values/scc/opensearch-scc.yaml — bind SA bằng script (users: [] để tránh đè oc adm policy)
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
@@ -28,18 +28,11 @@ allowPrivilegedContainer: false
 allowedCapabilities: null
 defaultAddCapabilities: null
 runAsUser:
-  type: MustRunAs
-  uid: 1000
+  type: RunAsAny
 runAsGroup:
-  type: MustRunAs
-  ranges:
-    - min: 1000
-      max: 1000
+  type: RunAsAny
 fsGroup:
-  type: MustRunAs
-  ranges:
-    - min: 1000
-      max: 1000
+  type: RunAsAny
 supplementalGroups:
   type: RunAsAny
 seLinuxContext:
@@ -53,28 +46,19 @@ volumes:
   - persistentVolumeClaim
   - projected
   - secret
-users:
-  - system:serviceaccount:logging:default
-  - system:serviceaccount:logging:opensearch
-  - system:serviceaccount:logging:opensearch-dashboards
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: opensearch
   namespace: logging
-  labels:
-    app.kubernetes.io/component: logging
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: opensearch-dashboards
   namespace: logging
-  labels:
-    app.kubernetes.io/component: logging
 ---
-# OpenSearch Dashboards UI
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:

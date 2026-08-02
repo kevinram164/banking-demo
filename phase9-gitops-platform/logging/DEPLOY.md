@@ -142,6 +142,7 @@ Gợi ý query OpenSearch khi smoke job:
 | Triệu chứng | Xử lý |
 |-------------|--------|
 | OpenSearch CrashLoop `max virtual memory` | Tăng `vm.max_map_count` trên node |
+| OpenSearch CrashLoop `initial_master_nodes` + `single-node` | Set `singleNode: true` trong values (đã có); sync Argo `logging-opensearch` rồi `oc -n logging delete pod npd-logs-master-0` |
 | PVC Pending | Kiểm tra `nfs-csi` + NFS server |
 | Fluent Bit `403` / SCC | `oc adm policy add-scc-to-user fluent-bit-npd -z fluent-bit -n logging` (chart thường tự tạo SCC) |
 | Không có log app | Đợi 1–2 phút; kiểm tra grep namespace; pod có stdout |

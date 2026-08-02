@@ -1,4 +1,5 @@
-# OpenSearch + Dashboards — image UID 1000 (không khớp dải ns logging)
+# OpenSearch + Dashboards — UID 1000 (OCP restricted-v2 không cho)
+# Gắn SA logging; permissive hơn kong một chút (RunAsAny) để initContainer chart cũng qua được
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
@@ -16,19 +17,13 @@ allowPrivilegeEscalation: false
 allowPrivilegedContainer: false
 allowedCapabilities: null
 defaultAddCapabilities: null
+# RunAsAny: chart có initContainer + container đều set 1000; MustRunAs đôi khi miss
 runAsUser:
-  type: MustRunAs
-  uid: 1000
+  type: RunAsAny
 runAsGroup:
-  type: MustRunAs
-  ranges:
-    - min: 1000
-      max: 1000
+  type: RunAsAny
 fsGroup:
-  type: MustRunAs
-  ranges:
-    - min: 1000
-      max: 1000
+  type: RunAsAny
 supplementalGroups:
   type: RunAsAny
 seLinuxContext:
@@ -42,9 +37,4 @@ volumes:
   - persistentVolumeClaim
   - projected
   - secret
-users:
-  # Chart mặc định (rbac.create=false) → default SA
-  - system:serviceaccount:logging:default
-  # SA tường minh (sau khi bật rbac trong values)
-  - system:serviceaccount:logging:opensearch
-  - system:serviceaccount:logging:opensearch-dashboards
+users: []
