@@ -70,7 +70,8 @@ config:
     [INPUT]
         Name              tail
         Path              /var/log/containers/*.log
-        Exclude_Path      *_fluent-bit-*.log,*_POD-*.log
+        # Bỏ OCP system + fluent-bit (giảm API call / buffer)
+        Exclude_Path      *_fluent-bit-*.log,*_POD-*.log,*_openshift-*_*.log,*_kube-system_*.log,*_kube-system-*_*.log,*_instana-agent_*.log
         multiline.parser  cri
         Tag               kube.*
         Mem_Buf_Limit     32MB
@@ -88,6 +89,7 @@ config:
         K8S-Logging.Exclude On
         Labels              Off
         Annotations         Off
+        Buffer_Size         1MB
 
     [FILTER]
         Name    grep
