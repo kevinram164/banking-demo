@@ -1,20 +1,24 @@
-# Logging — OpenSearch (bank + shop + Kafka)
+# Logging — OpenSearch (bank / shop / movie / infra)
 
-Lab OCP: thu **stdout JSON** từ namespace `npd-banking`, `npd-shop`, `kafka` → **OpenSearch** → **Dashboards**.
+Lab OCP: thu stdout → Fluent Bit → **4 nhóm index** → Dashboards.
 
 ```text
-Pod logs (CRI) ──► Fluent Bit (DaemonSet) ──► OpenSearch :9200
-                                              └── Dashboards :5601
-                                                    Route: logs-platform.apps.ocp01.npd.co
+Pod logs ──► Fluent Bit ──► OpenSearch
+                              ├── logs-bank-YYYY.MM.DD    (npd-banking)
+                              ├── logs-shop-YYYY.MM.DD    (npd-shop)
+                              ├── logs-movie-YYYY.MM.DD   (npd-movie)
+                              └── logs-infra-YYYY.MM.DD   (kafka, platform, observability, …)
+ISM: xóa index sau 7 ngày
 ```
 
-| Thành phần | Ns | Vai trò |
-|------------|-----|---------|
-| OpenSearch single-node | `logging` | Index `npd-YYYY.MM.DD` |
-| OpenSearch Dashboards | `logging` | UI search |
-| Fluent Bit | `logging` | Shipper, filter 3 ns |
+| Nhóm | Namespaces | Index pattern (Dashboards) |
+|------|------------|----------------------------|
+| bank | `npd-banking` | `logs-bank-*` |
+| shop | `npd-shop` | `logs-shop-*` |
+| movie | `npd-movie` | `logs-movie-*` |
+| infra | `kafka`, `platform`, `observability`, `logging`, `argocd`, `kong`, `vault`, `postgres`, `redis`, `rabbit`, `minio`, `external-secrets` | `logs-infra-*` |
 
-**Không thay** Coroot / Instana / Kafka UI — chúng vẫn dùng cho metrics, eBPF, topic browse.
+**Không thay** Coroot / Instana / Kafka UI.
 
 ## Deploy (dev-ocp)
 
@@ -81,19 +85,23 @@ oc -n logging exec deploy/npd-logs-master -- curl -sS http://127.0.0.1:9200
 
 Dashboards: https://logs-platform.apps.ocp01.npd.co
 
-### 4. Index pattern (lần đầu)
+### 4. Index patterns (Dashboards)
 
-Trong Dashboards → Management → Index patterns:
+Management → Index patterns — tạo **4** pattern (time: `@timestamp`):
 
-- Pattern: `npd-*`
-- Time field: `@timestamp`
+| Pattern | Dùng cho |
+|---------|----------|
+| `logs-bank-*` | Banking |
+| `logs-shop-*` | Shop |
+| `logs-movie-*` | Movie / CineHome |
+| `logs-infra-*` | Kafka, Harbor, Jenkins, Coroot, … |
 
-Discover → filter:
+Retention: policy ISM `logs-retention-7d` (Job/CronJob trong `manifests/ism-retention.yaml`) — index > **7 ngày** → delete.
 
-```
-kubernetes.namespace_name: npd-banking
-kubernetes.namespace_name: npd-shop
-kubernetes.namespace_name: kafka
+```bash
+oc -n logging logs job/opensearch-ism-retention --tail=30
+oc -n logging exec sts/npd-logs-master -- \
+  curl -sS http://127.0.0.1:9200/_plugins/_ism/policies/logs-retention-7d | head -c 500
 ```
 
 ### 5. Verify trước khi chạy ecosystem jobs
@@ -107,10 +115,32 @@ curl -sk https://npd-shop.co/api/products | head -c 200
 oc -n logging logs ds/fluent-bit --tail=30
 # OpenSearch có index?
 oc -n logging exec deploy/npd-logs-master -- \
-  curl -sS 'http://127.0.0.1:9200/_cat/indices/npd-*?v'
+  curl -sS 'http://127.0.0.1:9200/_cat/indices/logs-.*?v'
 ```
 
-Khi thấy index `npd-…` và document từ 3 ns → **bắt đầu cron ecosystem** (`scripts/ecosystem/`).
+Khi thấy index `logs-…` và document từ các ns → **bắt đầu cron ecosystem** (`scripts/ecosystem/`).
+
+### Apply ISM 7 ngày ngay (không chờ Argo)
+
+```bash
+oc -n logging exec sts/npd-logs-master -- curl -sS -X PUT \
+  'http://127.0.0.1:9200/_plugins/_ism/policies/logs-retention-7d' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "policy": {
+    "description": "Delete logs-* after 7 days",
+    "default_state": "hot",
+    "states": [
+      {"name":"hot","actions":[],"transitions":[{"state_name":"delete","conditions":{"min_index_age":"7d"}}]},
+      {"name":"delete","actions":[{"delete":{}}],"transitions":[]}
+    ],
+    "ism_template":[{
+      "index_patterns":["logs-bank-*","logs-shop-*","logs-movie-*","logs-infra-*"],
+      "priority":100
+    }]
+  }
+}'
+```
 
 ## Monitor checklist (khi chạy job)
 

@@ -1,0 +1,143 @@
+# ISM: xóa index logs-* sau 7 ngày
+# Job chạy 1 lần (và cron hàng ngày để đảm bảo policy còn)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opensearch-ism-retention
+  namespace: logging
+  labels:
+    app.kubernetes.io/component: logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+data:
+  apply-ism.sh: |
+    #!/bin/sh
+    set -eu
+    OS_URL="${OPENSEARCH_URL:-http://opensearch-cluster-master:9200}"
+    echo "OpenSearch: ${OS_URL}"
+
+    # Đợi cluster xanh/vàng
+    i=0
+    while [ "$i" -lt 60 ]; do
+      if curl -sf "${OS_URL}" >/dev/null; then
+        break
+      fi
+      i=$((i + 1))
+      sleep 5
+    done
+    curl -sf "${OS_URL}" >/dev/null || { echo "OpenSearch not ready"; exit 1; }
+
+    echo "==> PUT ISM policy logs-retention-7d"
+    curl -sf -X PUT "${OS_URL}/_plugins/_ism/policies/logs-retention-7d" \
+      -H 'Content-Type: application/json' \
+      -d '{
+      "policy": {
+        "description": "Delete logs-bank/shop/movie/infra indices after 7 days",
+        "default_state": "hot",
+        "states": [
+          {
+            "name": "hot",
+            "actions": [],
+            "transitions": [
+              {
+                "state_name": "delete",
+                "conditions": { "min_index_age": "7d" }
+              }
+            ]
+          },
+          {
+            "name": "delete",
+            "actions": [ { "delete": {} } ],
+            "transitions": []
+          }
+        ],
+        "ism_template": [
+          {
+            "index_patterns": [
+              "logs-bank-*",
+              "logs-shop-*",
+              "logs-movie-*",
+              "logs-infra-*"
+            ],
+            "priority": 100
+          }
+        ]
+      }
+    }'
+    echo
+    echo "==> Policy OK"
+    curl -sf "${OS_URL}/_plugins/_ism/policies/logs-retention-7d" | head -c 400
+    echo
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: opensearch-ism-retention
+  namespace: logging
+  labels:
+    app.kubernetes.io/component: logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: apply-ism
+          image: curlimages/curl:8.5.0
+          command: ["/bin/sh", "/scripts/apply-ism.sh"]
+          env:
+            - name: OPENSEARCH_URL
+              value: http://opensearch-cluster-master:9200
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: opensearch-ism-retention
+            defaultMode: 0755
+---
+# CronJob: re-apply policy mỗi ngày (idempotent) + an toàn nếu ai xóa tay
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: opensearch-ism-retention
+  namespace: logging
+  labels:
+    app.kubernetes.io/component: logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: apply-ism
+              image: curlimages/curl:8.5.0
+              command: ["/bin/sh", "/scripts/apply-ism.sh"]
+              env:
+                - name: OPENSEARCH_URL
+                  value: http://opensearch-cluster-master:9200
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
+            - name: scripts
+              configMap:
+                name: opensearch-ism-retention
+                defaultMode: 0755

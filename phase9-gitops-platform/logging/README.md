@@ -1,8 +1,14 @@
 # Logging (OpenSearch)
 
-Thu log **npd-banking** + **npd-shop** + **kafka** vào OpenSearch.
+Index tách 4 nhóm: **bank / shop / movie / infra** — retention **7 ngày** (ISM).
 
-→ Hướng dẫn deploy: **[DEPLOY.md](DEPLOY.md)**
+→ [DEPLOY.md](DEPLOY.md)
 
-UI: `https://logs-platform.apps.ocp01.npd.co`  
-Index: `npd-YYYY.MM.DD` / pattern `npd-*`
+| Pattern | Ns |
+|---------|-----|
+| `logs-bank-*` | npd-banking |
+| `logs-shop-*` | npd-shop |
+| `logs-movie-*` | npd-movie |
+| `logs-infra-*` | kafka, platform, observability, … |
+
+UI: https://logs-platform.apps.ocp01.npd.co

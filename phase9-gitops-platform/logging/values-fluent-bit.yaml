@@ -1,5 +1,12 @@
-# Fluent Bit → OpenSearch — chỉ log ns: npd-banking, npd-shop, kafka
-# Chart: fluent/fluent-bit (https://fluent.github.io/helm-charts)
+# Fluent Bit → OpenSearch — tách index theo domain
+# Chart: fluent/fluent-bit
+#
+# Index:
+#   logs-bank-YYYY.MM.DD
+#   logs-shop-YYYY.MM.DD
+#   logs-movie-YYYY.MM.DD
+#   logs-infra-YYYY.MM.DD
+# Retention: ISM 7 ngày (manifests/ism-retention.yaml)
 
 kind: DaemonSet
 
@@ -26,7 +33,7 @@ resources:
     memory: 64Mi
   limits:
     cpu: 500m
-    memory: 256Mi
+    memory: 512Mi
 
 tolerations:
   - operator: Exists
@@ -65,26 +72,83 @@ config:
         Labels              Off
         Annotations         Off
 
+    # Chỉ thu 4 nhóm ns
     [FILTER]
         Name    grep
         Match   kube.*
-        Regex   $kubernetes['namespace_name'] ^(npd-banking|npd-shop|kafka)$
+        Regex   $kubernetes['namespace_name'] ^(npd-banking|npd-shop|npd-movie|kafka|platform|observability|logging|argocd|kong|vault|postgres|redis|rabbit|minio|external-secrets)$
 
     [FILTER]
         Name    grep
         Match   kube.*
         Exclude $kubernetes['container_name'] ^(fluent-bit|POD|pause|linkerd-proxy)$
 
+    # Tách tag → index khác nhau
+    [FILTER]
+        Name          rewrite_tag
+        Match         kube.*
+        Rule          $kubernetes['namespace_name'] ^npd-banking$ logs.bank false
+        Rule          $kubernetes['namespace_name'] ^npd-shop$ logs.shop false
+        Rule          $kubernetes['namespace_name'] ^npd-movie$ logs.movie false
+        Rule          $kubernetes['namespace_name'] ^(kafka|platform|observability|logging|argocd|kong|vault|postgres|redis|rabbit|minio|external-secrets)$ logs.infra false
+        Emitter_Name  re_emitted
+        Emitter_Storage.type memory
+
   outputs: |
     [OUTPUT]
         Name               opensearch
-        Match              kube.*
-        Host               npd-logs-master
+        Match              logs.bank
+        Host               opensearch-cluster-master
         Port               9200
         TLS                Off
         Suppress_Type_Name On
         Logstash_Format    On
-        Logstash_Prefix    npd
+        Logstash_Prefix    logs-bank
+        Logstash_DateFormat %Y.%m.%d
+        Replace_Dots       On
+        Retry_Limit        False
+        Trace_Error        On
+        Generate_ID        On
+
+    [OUTPUT]
+        Name               opensearch
+        Match              logs.shop
+        Host               opensearch-cluster-master
+        Port               9200
+        TLS                Off
+        Suppress_Type_Name On
+        Logstash_Format    On
+        Logstash_Prefix    logs-shop
+        Logstash_DateFormat %Y.%m.%d
+        Replace_Dots       On
+        Retry_Limit        False
+        Trace_Error        On
+        Generate_ID        On
+
+    [OUTPUT]
+        Name               opensearch
+        Match              logs.movie
+        Host               opensearch-cluster-master
+        Port               9200
+        TLS                Off
+        Suppress_Type_Name On
+        Logstash_Format    On
+        Logstash_Prefix    logs-movie
+        Logstash_DateFormat %Y.%m.%d
+        Replace_Dots       On
+        Retry_Limit        False
+        Trace_Error        On
+        Generate_ID        On
+
+    [OUTPUT]
+        Name               opensearch
+        Match              logs.infra
+        Host               opensearch-cluster-master
+        Port               9200
+        TLS                Off
+        Suppress_Type_Name On
+        Logstash_Format    On
+        Logstash_Prefix    logs-infra
         Logstash_DateFormat %Y.%m.%d
         Replace_Dots       On
         Retry_Limit        False
