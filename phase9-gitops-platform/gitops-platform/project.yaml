@@ -25,7 +25,8 @@ spec:
     - https://strimzi.io/charts/
     - https://kafbat.github.io/helm-charts
   destinations:
-    - namespace: banking
+    # OCP lab app ns (không dùng ns "banking" cũ)
+    - namespace: npd-banking
       server: https://kubernetes.default.svc
     - namespace: kong
       server: https://kubernetes.default.svc
@@ -40,6 +41,8 @@ spec:
     - namespace: openshift-operators
       server: https://kubernetes.default.svc
     - namespace: platform
+      server: https://kubernetes.default.svc
+    - namespace: keycloak
       server: https://kubernetes.default.svc
     - namespace: vault
       server: https://kubernetes.default.svc
@@ -73,6 +76,8 @@ spec:
       kind: APIService
     - group: operators.coreos.com
       kind: "*"
+    - group: security.openshift.io
+      kind: SecurityContextConstraints
     - group: coroot.com
       kind: "*"
   namespaceResourceWhitelist:

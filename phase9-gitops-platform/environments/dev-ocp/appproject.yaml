@@ -22,7 +22,10 @@ spec:
     - https://charts.jenkins.io
     - https://coroot.github.io/helm-charts
     - https://open-telemetry.github.io/opentelemetry-helm-charts
+    - https://strimzi.io/charts/
+    - https://kafbat.github.io/helm-charts
   destinations:
+    # OCP lab app ns (không dùng ns "banking" cũ)
     - namespace: npd-banking
       server: https://kubernetes.default.svc
     - namespace: kong
@@ -32,6 +35,10 @@ spec:
     - namespace: postgres
       server: https://kubernetes.default.svc
     - namespace: rabbit
+      server: https://kubernetes.default.svc
+    - namespace: kafka
+      server: https://kubernetes.default.svc
+    - namespace: openshift-operators
       server: https://kubernetes.default.svc
     - namespace: platform
       server: https://kubernetes.default.svc
