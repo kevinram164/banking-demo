@@ -16,10 +16,9 @@ spec:
     acls:
       {{- if eq (.role | default "app") "ui" }}
       # Kafbat UI AdminClient — cần cluster + wildcard topic/group
+      # type: cluster — không dùng name/patternType (Strimzi Warning UnknownFields)
       - resource:
           type: cluster
-          name: kafka-cluster
-          patternType: literal
         operations: [Describe, DescribeConfigs, Alter, AlterConfigs, ClusterAction, Create]
         host: "*"
       - resource:
