@@ -1,5 +1,5 @@
 # Fluent Bit → OpenSearch — tách index bank/shop/movie/infra
-# OCP CRI-O: mount /var/log + runAsUser 0 + SCC fluent-bit-npd (hostPath)
+# OCP: mount /var/log + Path containers (tag chuẩn cho filter kubernetes)
 
 kind: DaemonSet
 
@@ -11,7 +11,6 @@ openShift:
   enabled: true
   securityContextConstraints:
     create: false
-    # Dùng SCC GitOps: environments/dev-ocp/ocp-values/scc/fluent-bit-scc.yaml
     existingName: fluent-bit-npd
 
 serviceAccount:
@@ -22,7 +21,6 @@ rbac:
   create: true
   nodeAccess: true
 
-# Bắt buộc để đọc log host trên OCP
 podSecurityContext:
   runAsUser: 0
   runAsNonRoot: false
@@ -46,8 +44,6 @@ resources:
 tolerations:
   - operator: Exists
 
-# OCP CRI-O: chỉ cần /var/log (chứa pods/ + containers/ symlink)
-# Không mount /var/lib/docker (không có trên OCP) /etc/machine-id type:File dễ fail
 daemonSetVolumes:
   - name: varlog
     hostPath:
@@ -73,15 +69,14 @@ config:
   inputs: |
     [INPUT]
         Name              tail
-        Path              /var/log/pods/*/*/*.log
-        Exclude_Path      /var/log/pods/*/*fluent-bit*/**,/var/log/pods/*/fluent-bit*/**
+        Path              /var/log/containers/*.log
+        Exclude_Path      *_fluent-bit-*.log,*_POD-*.log
         multiline.parser  cri
         Tag               kube.*
         Mem_Buf_Limit     32MB
         Skip_Long_Lines   On
         Refresh_Interval  5
         DB                /tmp/flb_kube.db
-        Path_Key          filepath
 
   filters: |
     [FILTER]
@@ -93,7 +88,6 @@ config:
         K8S-Logging.Exclude On
         Labels              Off
         Annotations         Off
-        Kube_Tag_Prefix     kube.var.log.pods.
 
     [FILTER]
         Name    grep
