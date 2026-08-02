@@ -25,8 +25,8 @@ shop-bridge:
 transfer-service:
   extraEnv:
     SHOP_BRIDGE_URL: "http://shop-bridge.npd-banking.svc.cluster.local:8010"
-    # TODO: thay bằng STK thật sau seed (scripts/seed_huongly.py)
-    SHOP_MERCHANT_ACCOUNT_NUMBER: ""
+    # STK Nguyễn Hương Ly (seed ecosystem)
+    SHOP_MERCHANT_ACCOUNT_NUMBER: "638607571915"
     SHOP_TRANSFER_NOTE_PREFIX: "NOLI"
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
