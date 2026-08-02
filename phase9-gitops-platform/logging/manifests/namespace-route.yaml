@@ -7,7 +7,6 @@ metadata:
     banking-demo/environment: dev-ocp
     openshift.io/cluster-monitoring: "true"
 ---
-# Mirror ocp-values/scc/opensearch-scc.yaml — bind SA bằng script (users: [] để tránh đè oc adm policy)
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
@@ -46,6 +45,8 @@ volumes:
   - persistentVolumeClaim
   - projected
   - secret
+groups:
+  - system:serviceaccounts:logging
 ---
 apiVersion: v1
 kind: ServiceAccount

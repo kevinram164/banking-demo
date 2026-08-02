@@ -1,5 +1,5 @@
-# OpenSearch + Dashboards — UID 1000 (OCP restricted-v2 không cho)
-# Gắn SA logging; permissive hơn kong một chút (RunAsAny) để initContainer chart cũng qua được
+# OpenSearch + Dashboards — UID 1000
+# Bind cả group SA ns logging (tránh sót SA default / opensearch / dashboards)
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
@@ -17,7 +17,6 @@ allowPrivilegeEscalation: false
 allowPrivilegedContainer: false
 allowedCapabilities: null
 defaultAddCapabilities: null
-# RunAsAny: chart có initContainer + container đều set 1000; MustRunAs đôi khi miss
 runAsUser:
   type: RunAsAny
 runAsGroup:
@@ -37,4 +36,7 @@ volumes:
   - persistentVolumeClaim
   - projected
   - secret
+# Mọi SA trong ns logging đều dùng được SCC này
+groups:
+  - system:serviceaccounts:logging
 users: []
