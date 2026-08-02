@@ -68,20 +68,24 @@ spec:
           limits:
             cpu: 500m
             memory: 512Mi
-        # OCP restricted-v2: chart default runAsUser=1000 / fsGroup=2000 bị reject.
-        # UID range ns kafka = 1000910000/10000
+        # OCP restricted-v2 — MUST override full chart defaults (Helm merge giữ field cũ nếu thiếu)
+        # Chart default: fsGroup/runAsGroup=2000, runAsUser=1000
         podSecurityContext:
-          runAsNonRoot: true
-          runAsUser: 1000910000
           fsGroup: 1000910000
+          runAsNonRoot: true
           seccompProfile:
             type: RuntimeDefault
         securityContext:
           allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: false
+          runAsGroup: 1000910000
           runAsNonRoot: true
           runAsUser: 1000910000
-          capabilities:
-            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
   destination:
     server: https://kubernetes.default.svc
     namespace: kafka
