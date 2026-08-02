@@ -3,7 +3,7 @@
 
 clusterName: npd-logs
 nodeGroup: master
-# Khớp Service đang chạy trên cluster (đừng đổi trừ khi recreate svc)
+# Giữ tên Service hiện có trên cluster
 masterService: opensearch-cluster-master
 
 # Lab: 1 node — BẮT BUỘC khi dùng discovery.type=single-node

@@ -1,9 +1,4 @@
-# OpenSearch Dashboards — lab OCP
-# Chart: opensearch-dashboards
-#
-# Service OpenSearch trên cluster (đã quan sát):
-#   opensearch-cluster-master  (không phải npd-logs-master)
-# STS pod vẫn tên npd-logs-master-0 — khác tên Service do chart masterService.
+# OpenSearch Dashboards — trỏ Service đang chạy: opensearch-cluster-master
 
 opensearchHosts: "http://opensearch-cluster-master.logging.svc.cluster.local:9200"
 
