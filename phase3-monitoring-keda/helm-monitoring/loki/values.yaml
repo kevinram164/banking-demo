@@ -530,7 +530,8 @@ loki:
   schemaConfig: {}
   # -- a real Loki install requires a proper schemaConfig defined above this, however for testing or playing around
   # you can enable useTestSchema
-  useTestSchema: false
+  # true: helm template/Trivy scan; deploy thật dùng values có schemaConfig (vd: simple-scalable-values.yaml)
+  useTestSchema: true
   testSchemaConfig:
     configs:
       - from: 2024-04-01
