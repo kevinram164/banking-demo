@@ -1,4 +1,5 @@
 # Shared platform — Kafka UI (Kafbat) · TLS + SCRAM tới npd-kafka
+# Dùng envs.config + secretMappings (tránh yamlApplicationConfig bị Argo/Helm bind null)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -20,31 +21,22 @@ spec:
       releaseName: kafka-ui
       values: |
         replicaCount: 1
-        yamlApplicationConfig:
-          kafka:
-            clusters:
-              - name: npd-kafka
-                bootstrapServers: npd-kafka-kafka-bootstrap.kafka.svc.cluster.local:9093
-                properties:
-                  security.protocol: SASL_SSL
-                  sasl.mechanism: SCRAM-SHA-512
-                  ssl.truststore.location: /etc/kafka/certs/ca.p12
-                  ssl.truststore.type: PKCS12
-          auth:
-            type: DISABLED
-        env:
-          - name: KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG
-            valueFrom:
-              secretKeyRef:
-                name: kafka-ui
-                key: sasl.jaas.config
-          - name: KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: npd-kafka-cluster-ca-cert
-                key: ca.password
-          - name: KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_LOCATION
-            value: /etc/kafka/certs/ca.p12
+        envs:
+          config:
+            KAFKA_CLUSTERS_0_NAME: npd-kafka
+            KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: npd-kafka-kafka-bootstrap.kafka.svc.cluster.local:9093
+            KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: SASL_SSL
+            KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: SCRAM-SHA-512
+            KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_LOCATION: /etc/kafka/certs/ca.p12
+            KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_TYPE: PKCS12
+            AUTH_TYPE: DISABLED
+          secretMappings:
+            KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG:
+              name: kafka-ui
+              keyName: sasl.jaas.config
+            KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_PASSWORD:
+              name: npd-kafka-cluster-ca-cert
+              keyName: ca.password
         volumeMounts:
           - name: cluster-ca
             mountPath: /etc/kafka/certs
