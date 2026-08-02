@@ -10,7 +10,7 @@ class User(Base):
     account_number: Mapped[str] = mapped_column(String(20), unique=True, index=True)
     username: Mapped[str] = mapped_column(String(50), index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
-    balance: Mapped[int] = mapped_column(Integer, default=100000)
+    balance: Mapped[int] = mapped_column(Integer, default=10_000_000)
 
 class Transfer(Base):
     __tablename__ = "transfers"

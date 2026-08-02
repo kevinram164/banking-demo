@@ -123,6 +123,44 @@ async def handle_admin_transfers(payload: dict, headers: dict) -> dict:
         db.close()
 
 
+async def handle_admin_credit(payload: dict, headers: dict) -> dict:
+    """Lab: set absolute balance by phone or account_number."""
+    if not _verify_admin(headers):
+        return {"status": 403, "body": {"detail": "Forbidden"}}
+    phone = (payload.get("phone") or "").strip()
+    acct = (payload.get("account_number") or "").strip()
+    if "balance" not in payload:
+        return {"status": 400, "body": {"detail": "balance required"}}
+    try:
+        balance = int(payload["balance"])
+    except (TypeError, ValueError):
+        return {"status": 400, "body": {"detail": "balance must be int"}}
+    balance = max(0, min(balance, 100_000_000))
+    db = SessionLocal()
+    try:
+        if phone:
+            u = db.execute(select(User).where(User.phone == phone).with_for_update()).scalar_one_or_none()
+        elif acct:
+            u = db.execute(select(User).where(User.account_number == acct).with_for_update()).scalar_one_or_none()
+        else:
+            return {"status": 400, "body": {"detail": "phone or account_number required"}}
+        if not u:
+            return {"status": 404, "body": {"detail": "User not found"}}
+        u.balance = balance
+        db.commit()
+        return {
+            "status": 200,
+            "body": {
+                "id": u.id,
+                "phone": u.phone,
+                "account_number": u.account_number,
+                "balance": u.balance,
+            },
+        }
+    finally:
+        db.close()
+
+
 async def handle_admin_notifications(payload: dict, headers: dict) -> dict:
     if not _verify_admin(headers):
         return {"status": 403, "body": {"detail": "Forbidden"}}
@@ -190,6 +228,8 @@ async def process_message(message: IncomingMessage):
                         result = await handle_admin_users(payload, headers)
                 elif "admin/transfers" in (path or ""):
                     result = await handle_admin_transfers(payload, headers)
+                elif "admin/credit" in (path or "") or action == "credit":
+                    result = await handle_admin_credit(payload, headers)
                 elif "admin/notifications" in (path or ""):
                     result = await handle_admin_notifications(payload, headers)
                 else:

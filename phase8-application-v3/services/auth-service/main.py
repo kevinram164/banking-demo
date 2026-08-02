@@ -46,10 +46,11 @@ def _mask_phone(phone: str) -> str:
 
 
 async def handle_register(payload: dict) -> dict:
-    """Business logic — same as v2."""
+    """Business logic — same as v2. Optional initial_balance (lab ecosystem)."""
     phone = (payload.get("phone") or "").strip()
     username = (payload.get("username") or "").strip()
     password = payload.get("password", "")
+    raw_bal = payload.get("initial_balance", None)
     if not phone.isdigit():
         return {"status": 400, "body": {"detail": "Phone must be digits only"}}
     db = SessionLocal()
@@ -66,7 +67,20 @@ async def handle_register(payload: dict) -> dict:
         if not account_number:
             return {"status": 503, "body": {"detail": "Cannot generate account number"}}
         pw_hash = await asyncio.to_thread(hash_password, password)
-        u = User(phone=phone, account_number=account_number, username=username, password_hash=pw_hash)
+        balance = 10_000_000
+        if raw_bal is not None:
+            try:
+                balance = int(raw_bal)
+            except (TypeError, ValueError):
+                return {"status": 400, "body": {"detail": "initial_balance must be int"}}
+            balance = max(0, min(balance, 100_000_000))
+        u = User(
+            phone=phone,
+            account_number=account_number,
+            username=username,
+            password_hash=pw_hash,
+            balance=balance,
+        )
         db.add(u)
         db.commit()
         db.refresh(u)

@@ -1,0 +1,34 @@
+# OpenSearch (single-node lab)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: logging-opensearch
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: banking-platform
+  sources:
+    - repoURL: https://opensearch-project.github.io/helm-charts
+      chart: opensearch
+      targetRevision: 2.26.0
+      helm:
+        releaseName: npd-logs
+        valueFiles:
+          - $values/phase9-gitops-platform/logging/values-opensearch.yaml
+    - repoURL: https://github.com/kevinram164/banking-demo.git
+      targetRevision: dev-ocp
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - SkipDryRunOnMissingResource=true
+    automated:
+      prune: false
+      selfHeal: true

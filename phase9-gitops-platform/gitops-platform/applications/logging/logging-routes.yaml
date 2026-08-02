@@ -1,0 +1,26 @@
+# Namespace + Route Dashboards
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: logging-routes
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/logging/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    automated:
+      prune: false
+      selfHeal: true

@@ -1,0 +1,35 @@
+# Fluent Bit DaemonSet → OpenSearch
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: logging-fluent-bit
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: banking-platform
+  sources:
+    - repoURL: https://fluent.github.io/helm-charts
+      chart: fluent-bit
+      targetRevision: 0.48.0
+      helm:
+        releaseName: fluent-bit
+        valueFiles:
+          - $values/phase9-gitops-platform/logging/values-fluent-bit.yaml
+    - repoURL: https://github.com/kevinram164/banking-demo.git
+      targetRevision: dev-ocp
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+    automated:
+      prune: false
+      selfHeal: true

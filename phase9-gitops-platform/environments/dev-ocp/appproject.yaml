@@ -24,6 +24,8 @@ spec:
     - https://open-telemetry.github.io/opentelemetry-helm-charts
     - https://strimzi.io/charts/
     - https://kafbat.github.io/helm-charts
+    - https://opensearch-project.github.io/helm-charts
+    - https://fluent.github.io/helm-charts
   destinations:
     # OCP lab app ns (không dùng ns "banking" cũ)
     - namespace: npd-banking
@@ -49,6 +51,8 @@ spec:
     - namespace: external-secrets
       server: https://kubernetes.default.svc
     - namespace: observability
+      server: https://kubernetes.default.svc
+    - namespace: logging
       server: https://kubernetes.default.svc
     - namespace: kube-system
       server: https://kubernetes.default.svc

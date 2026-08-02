@@ -1,0 +1,83 @@
+# OpenSearch — lab OCP (single-node)
+# Chart: https://opensearch-project.github.io/helm-charts (opensearch)
+
+clusterName: npd-logs
+nodeGroup: master
+
+# Lab: 1 node đủ
+replicas: 1
+minimumMasterNodes: 1
+
+roles:
+  - master
+  - ingest
+  - data
+  - remote_cluster_client
+
+# Tắt security plugin — lab nội bộ (Dashboards không cần login phức tạp)
+extraEnvs:
+  - name: DISABLE_INSTALL_DEMO_CONFIG
+    value: "true"
+  - name: DISABLE_SECURITY_PLUGIN
+    value: "true"
+  - name: OPENSEARCH_JAVA_OPTS
+    value: "-Xms1g -Xmx1g"
+
+config:
+  opensearch.yml: |
+    cluster.name: npd-logs
+    network.host: 0.0.0.0
+    discovery.type: single-node
+    plugins.security.disabled: true
+    action.auto_create_index: true
+
+persistence:
+  enabled: true
+  enableInitChown: false
+  storageClass: nfs-csi
+  size: 50Gi
+  accessModes:
+    - ReadWriteOnce
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: 2Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+# OCP / restricted SCC — uid 1000 (image default)
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsNonRoot: true
+
+securityContext:
+  capabilities:
+    drop: ["ALL"]
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+
+# Init sysctl thường cần privileged — tắt; đảm bảo node đã có vm.max_map_count=262144
+sysctlInit:
+  enabled: false
+
+# Anti-affinity không cần với 1 replica
+antiAffinity: soft
+
+service:
+  type: ClusterIP
+  httpPort: 9200
+  transportPort: 9300
+
+protocol: http
+
+# Không tạo Ingress (dùng OpenShift Route riêng nếu cần expose API)
+ingress:
+  enabled: false
+
+# Lab: không cần serviceMonitor trừ khi đã có Prometheus Operator scrape
+serviceMonitor:
+  enabled: false

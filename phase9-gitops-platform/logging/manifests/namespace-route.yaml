@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-ocp
+    openshift.io/cluster-monitoring: "true"
+---
+# OpenSearch Dashboards UI
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: opensearch-dashboards
+  namespace: logging
+  labels:
+    app.kubernetes.io/name: opensearch-dashboards
+    app.kubernetes.io/part-of: phase9-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  host: logs-platform.apps.ocp01.npd.co
+  to:
+    kind: Service
+    name: opensearch-dashboards
+    weight: 100
+  port:
+    targetPort: 5601
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

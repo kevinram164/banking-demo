@@ -1,5 +1,9 @@
 # Scripts
 
+## ecosystem/ — cron 4 kịch bản (server mới)
+
+Xem [ecosystem/README.md](ecosystem/README.md): seed users, peer CK 10′, mua shop 3h, Ly restock 12h/18h.
+
 ## seed_users.py (Python — khuyến nghị)
 
 Tạo users giả lập với **tên**, **số điện thoại**, **số tài khoản** (STK do backend sinh) để test dịch vụ.

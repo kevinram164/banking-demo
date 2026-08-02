@@ -1,0 +1,37 @@
+# OpenSearch Dashboards — lab OCP
+# Chart: opensearch-dashboards
+
+opensearchHosts: "http://npd-logs-master:9200"
+
+# Security plugin đã tắt trên cluster
+extraEnvs:
+  - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+    value: "true"
+  - name: OPENSEARCH_HOSTS
+    value: '["http://npd-logs-master:9200"]'
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+service:
+  type: ClusterIP
+  port: 5601
+
+ingress:
+  enabled: false
+
+# OCP
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsNonRoot: true
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false

@@ -313,17 +313,44 @@ python scripts/seed_huongly.py --base-url https://npd-banking.co --insecure
 
 ---
 
+## Bước 4d — Ecosystem cron (server riêng)
+
+4 kịch bản + cron: `scripts/ecosystem/` (README trong thư mục).
+
+```bash
+cd banking-demo/scripts/ecosystem
+sudo bash install.sh
+# chỉnh /opt/npd-ecosystem/.env
+sudo /opt/npd-ecosystem/bin/run-job.sh seed   # Ly 50tr, users 10tr, pass 123456, SĐT 09*
+# điền LY_ACCOUNT_NUMBER + GitOps merchant STK (nếu chưa)
+```
+
+| Cron | Job |
+|------|-----|
+| `0 3 * * 0` | seed users |
+| `*/10 * * * *` | peer CK 50k–500k |
+| `0 */3 * * *` | mua shop + note `NOLI-*` |
+| `0 12,18 * * *` | Ly nhập hàng @ 70% catalog |
+
+Rebuild thêm **auth-service** + **account-service** (`initial_balance`, `admin/credit`).
+
+---
+
 ## Bước 5 — Monitor (lab)
 
-### A. Kafka UI (chi tiết topic/message)
+### A. OpenSearch logs (bank + shop + kafka)
+Xem `phase9-gitops-platform/logging/DEPLOY.md`  
+UI: https://logs-platform.apps.ocp01.npd.co — index pattern `npd-*`
+
+### B. Kafka UI (chi tiết topic/message)
 https://kafka-ui-platform.apps.ocp01.npd.co
 
-### B. Coroot
+### C. Coroot
 1. Mở Coroot UI (Route coroot lab)
 2. Filter namespace **`kafka`**
 3. Kỳ vọng: pod brokers, CPU/mem, kết nối TCP từ `npd-shop` / `npd-banking` khi có traffic
 
-### C. Instana
+### D. Instana
 1. Infrastructure → Kubernetes → ns **`kafka`** → pod brokers
 2. APM: sau khi shop/banking gửi/nhận message + OTEL → service map có cạnh messaging
 3. **Chưa có:** dashboard Kafka broker (ISR, under-replicated) kiểu Instana Kafka sensor — cần cấu hình thêm
