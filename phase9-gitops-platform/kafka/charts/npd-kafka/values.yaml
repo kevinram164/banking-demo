@@ -1,4 +1,4 @@
-# Lab NPD — chỉ nfs-csi, PVC 20Gi/broker, RAM ~4Gi, xóa message sau 7 ngày.
+# Lab NPD — nfs-csi 20Gi, RAM ~4Gi. Auth gần prod: TLS + SCRAM + ACL (không plain).
 nameOverride: npd-kafka
 fullname: kafka
 
@@ -34,16 +34,12 @@ nodePool:
     fsGroupChangePolicy: OnRootMismatch
 
 kafka:
-  # Lab OCP thường không có label zone trên worker → tắt rack.
-  # Bật lại khi worker đã có topology.kubernetes.io/zone (hoặc failure-domain).
+  # Gần prod: tắt plain — chỉ TLS:9093 + SCRAM + ACL
   rackTopologyKey: ""
-  # Lab gần prod: có thể tắt plain + bật values-prod (SCRAM). Mặc định plain cho onboard nhanh.
-  plainListener: true
+  plainListener: false
   tlsScramListener: true
-  enableAuthorization: false
-  # required = cứng 1 pod/node; preferred = cố gắng spread, vẫn schedule nếu thiếu node
+  enableAuthorization: true
   hardAntiAffinity: false
-  # Client namespaces được phép tới listener (Strimzi NetworkPolicy)
   networkPolicyPeers:
     - namespaceSelector: {}
       podSelector: {}
@@ -90,6 +86,9 @@ users:
     groupPrefix: noli-
   - name: npd-banking
     groupPrefix: banking-
+  # Kafka UI (cùng ns kafka — đọc topics)
+  - name: kafka-ui
+    groupPrefix: kafka-ui-
 
 metrics:
   enabled: true

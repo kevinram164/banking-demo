@@ -22,7 +22,7 @@ spec:
       releaseName: npd-kafka
       valueFiles:
         - values.yaml
-        # Lab gần prod (TLS+SCRAM, vẫn nfs-csi 20Gi):
+        # Overlay cũ (plain off / ACL on) — đã merge vào values.yaml mặc định
         # - values-prod.yaml
   destination:
     server: https://kubernetes.default.svc

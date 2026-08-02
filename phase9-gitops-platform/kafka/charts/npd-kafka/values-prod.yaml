@@ -1,5 +1,5 @@
-# Lab “gần prod”: TLS+SCRAM+ACL — vẫn nfs-csi 20Gi / RAM 4Gi (không cần kafka-block).
-# Bật trong Argo: valueFiles: [values.yaml, values-prod.yaml]
+# Lab “gần prod” overlay (tùy chọn) — mặc định đã nằm trong values.yaml
+# (plain off, TLS+SCRAM+ACL, nfs-csi 20Gi).
 nodePool:
   storage:
     size: 20Gi

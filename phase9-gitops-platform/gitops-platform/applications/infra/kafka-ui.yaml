@@ -1,5 +1,4 @@
-# Shared platform — Kafka UI (Kafbat, Helm) · ns kafka
-# Monitor topics / consumer groups / messages cho cluster npd-kafka
+# Shared platform — Kafka UI (Kafbat) · TLS + SCRAM tới npd-kafka
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -25,11 +24,35 @@ spec:
           kafka:
             clusters:
               - name: npd-kafka
-                bootstrapServers: npd-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
-                # Readonly lab optional — bỏ comment nếu chỉ xem, không produce từ UI:
-                # readOnly: true
+                bootstrapServers: npd-kafka-kafka-bootstrap.kafka.svc.cluster.local:9093
+                properties:
+                  security.protocol: SASL_SSL
+                  sasl.mechanism: SCRAM-SHA-512
+                  ssl.truststore.location: /etc/kafka/certs/ca.p12
+                  ssl.truststore.type: PKCS12
           auth:
             type: DISABLED
+        env:
+          - name: KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG
+            valueFrom:
+              secretKeyRef:
+                name: kafka-ui
+                key: sasl.jaas.config
+          - name: KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: npd-kafka-cluster-ca-cert
+                key: ca.password
+          - name: KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_LOCATION
+            value: /etc/kafka/certs/ca.p12
+        volumeMounts:
+          - name: cluster-ca
+            mountPath: /etc/kafka/certs
+            readOnly: true
+        volumes:
+          - name: cluster-ca
+            secret:
+              secretName: npd-kafka-cluster-ca-cert
         service:
           type: ClusterIP
           port: 80
@@ -40,7 +63,6 @@ spec:
           limits:
             cpu: 500m
             memory: 512Mi
-        # OCP: unprivileged
         podSecurityContext:
           runAsNonRoot: true
           seccompProfile:
