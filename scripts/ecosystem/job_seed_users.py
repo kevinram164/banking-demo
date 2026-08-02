@@ -58,10 +58,16 @@ def ensure_ly() -> dict:
             "balance": sess.get("balance"),
             "role": "merchant",
         }
-        bank_credit(phone, bal)
+
+    # Luôn credit tuyệt đối — auth cũ có thể bỏ qua initial_balance (còn 100k)
+    if bank_credit(phone, bal):
+        out["balance"] = bal
+        print(f"[ly] admin/credit OK → {bal}")
+    else:
+        print(f"[ly] WARN admin/credit FAIL — kiểm ADMIN_SECRET / rebuild account-service")
 
     save_ly(out)
-    print(f"[ly] STK={out['account_number']} balance→{bal}")
+    print(f"[ly] STK={out['account_number']} balance={out.get('balance')}")
     print(f"    → set SHOP_MERCHANT_ACCOUNT_NUMBER / BANK_ACCOUNT_NUMBER = {out['account_number']}")
     return out
 
