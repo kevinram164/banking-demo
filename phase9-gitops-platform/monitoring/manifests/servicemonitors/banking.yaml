@@ -21,6 +21,7 @@ spec:
   endpoints:
     - targetPort: 8080
       path: /metrics
+      honorLabels: true
       interval: 15s
       scrapeTimeout: 10s
 ---
@@ -42,6 +43,7 @@ spec:
   endpoints:
     - targetPort: 8080
       path: /metrics
+      honorLabels: true
       interval: 15s
       scrapeTimeout: 10s
 ---
@@ -71,26 +73,32 @@ spec:
   endpoints:
     - targetPort: 8080
       path: /metrics
+      honorLabels: true
       interval: 15s
       scrapeTimeout: 10s
     - targetPort: 8001
       path: /metrics
+      honorLabels: true
       interval: 15s
       scrapeTimeout: 10s
     - targetPort: 8002
       path: /metrics
+      honorLabels: true
       interval: 15s
       scrapeTimeout: 10s
     - targetPort: 8003
       path: /metrics
+      honorLabels: true
       interval: 15s
       scrapeTimeout: 10s
     - targetPort: 8004
       path: /metrics
+      honorLabels: true
       interval: 15s
       scrapeTimeout: 10s
     - targetPort: 8010
       path: /metrics
+      honorLabels: true
       interval: 15s
       scrapeTimeout: 10s
 ---
@@ -120,19 +128,25 @@ spec:
   endpoints:
     - targetPort: 8080
       path: /metrics
+      honorLabels: true
       interval: 15s
     - targetPort: 8001
       path: /metrics
+      honorLabels: true
       interval: 15s
     - targetPort: 8002
       path: /metrics
+      honorLabels: true
       interval: 15s
     - targetPort: 8003
       path: /metrics
+      honorLabels: true
       interval: 15s
     - targetPort: 8004
       path: /metrics
+      honorLabels: true
       interval: 15s
     - targetPort: 8010
       path: /metrics
+      honorLabels: true
       interval: 15s

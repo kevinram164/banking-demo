@@ -389,13 +389,13 @@ oc logs -n openshift-monitoring -l app.kubernetes.io/name=alertmanager --tail=80
 | Hiện tượng | Việc kiểm |
 |------------|-----------|
 | Không có pod `openshift-user-workload-monitoring` | CM `enableUserWorkload` chưa có / operator chưa reconcile |
-| ServiceMonitor có nhưng Grafana No data (app) | Sai `matchLabels` / sai `port` name — so `oc get svc --show-labels` |
+| ServiceMonitor có nhưng Grafana No data (app) | Sai `matchLabels` / sai `port` — so `oc get svc --show-labels`. **Quan trọng:** nếu `count by (endpoint)` ra `endpoint="8080"` (số port) thay vì `/api/...` → thiếu `honorLabels: true` trên ServiceMonitor (label scrape đè label app). |
 | Nodes OK, app No data | UWM chưa scrape; kiểm Targets User Workload |
 | Grafana toàn No data | Secret `grafana-thanos-token` + ClusterRoleBinding `cluster-monitoring-view` |
 | Alert firing nhưng không vào Tele | Sai `chatID`, bot chưa vào channel, Secret sai ns, hoặc `enableUserAlertmanagerConfig` |
 | Rabbit `up=0` | Chưa bật metrics plugin — chấp nhận hoặc nâng cấp Rabbit |
-| Kafka lag trống | Chưa scrape kafka-exporter — sửa ServiceMonitor selector Strimzi |
-
+| Kafka lag trống | Chưa có pod/Service `*-kafka-exporter` — patch Kafka CR `spec.kafkaExporter` |
+| Transfer panel 0% / No data | Cùng bug `honorLabels`; sau fix: `count by (endpoint) (http_requests_total{namespace="npd-banking"})` phải thấy `/api/transfer/transfer` |
 ---
 
 ## 11. Việc không cần làm
