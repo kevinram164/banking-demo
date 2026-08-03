@@ -394,7 +394,7 @@ oc logs -n openshift-monitoring -l app.kubernetes.io/name=alertmanager --tail=80
 | Grafana toàn No data | Secret `grafana-thanos-token` + ClusterRoleBinding `cluster-monitoring-view` |
 | Alert firing nhưng không vào Tele | Sai `chatID`, bot chưa vào channel, Secret sai ns, hoặc `enableUserAlertmanagerConfig` |
 | Rabbit `up=0` | Chưa bật metrics plugin — chấp nhận hoặc nâng cấp Rabbit |
-| Kafka lag trống | Chưa có pod/Service `*-kafka-exporter` — patch Kafka CR `spec.kafkaExporter` |
+| Kafka lag trống | (1) Pod exporter chưa có → patch Kafka CR `spec.kafkaExporter`. (2) Pod có metrics nhưng **không có Service** → apply `PodMonitor` + optional Service trong `infra.yaml` (`strimzi.io/name=npd-kafka-kafka-exporter`, port `tcp-prometheus`/9404). Verify: `count(kafka_consumergroup_lag)` trong UWM. |
 | Transfer panel 0% / No data | Cùng bug `honorLabels`; sau fix: `count by (endpoint) (http_requests_total{namespace="npd-banking"})` phải thấy `/api/transfer/transfer` |
 ---
 

@@ -99,7 +99,44 @@ spec:
       path: /metrics
       interval: 15s
 ---
-# Strimzi Kafka Exporter — Service thường: npd-kafka-kafka-exporter
+# Strimzi Kafka Exporter — cluster lab KHÔNG có Service exporter → dùng PodMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: kafka-exporter
+  namespace: kafka
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  namespaceSelector:
+    matchNames: [kafka]
+  selector:
+    matchLabels:
+      strimzi.io/name: npd-kafka-kafka-exporter
+  podMetricsEndpoints:
+    - port: tcp-prometheus
+      path: /metrics
+      interval: 15s
+      honorLabels: true
+---
+# Optional: Service để ServiceMonitor cũng scrape được (nếu muốn)
+apiVersion: v1
+kind: Service
+metadata:
+  name: npd-kafka-kafka-exporter
+  namespace: kafka
+  labels:
+    app.kubernetes.io/name: kafka-exporter
+    strimzi.io/name: npd-kafka-kafka-exporter
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  selector:
+    strimzi.io/name: npd-kafka-kafka-exporter
+  ports:
+    - name: tcp-prometheus
+      port: 9404
+      targetPort: tcp-prometheus
+---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -111,36 +148,15 @@ spec:
   namespaceSelector:
     matchNames: [kafka]
   selector:
-    matchExpressions:
-      - key: app.kubernetes.io/name
-        operator: In
-        values: [kafka-exporter]
+    matchLabels:
+      strimzi.io/name: npd-kafka-kafka-exporter
   endpoints:
-    - targetPort: 9404
+    - port: tcp-prometheus
       path: /metrics
       interval: 15s
+      honorLabels: true
 ---
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: kafka-exporter-strimzi
-  namespace: kafka
-  labels:
-    app.kubernetes.io/part-of: npd-monitoring
-spec:
-  namespaceSelector:
-    matchNames: [kafka]
-  selector:
-    matchExpressions:
-      - key: strimzi.io/name
-        operator: In
-        values: [npd-kafka-kafka-exporter]
-  endpoints:
-    - targetPort: 9404
-      path: /metrics
-      interval: 15s
----
-# Broker JMX / metrics port trên Kafka pods (nếu expose Service)
+# Broker JMX (tuỳ cluster có expose port metrics)
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
