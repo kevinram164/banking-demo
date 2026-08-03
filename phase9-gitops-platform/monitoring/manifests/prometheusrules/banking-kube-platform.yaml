@@ -1,6 +1,8 @@
-# Gốc hạ tầng (tuỳ chọn) — KHÔNG phải tín hiệu chính cho “service lỗi”.
-# Triệu chứng chính = 504/5xx trên api-producer (banking.yaml → Telegram).
-# Rule này chỉ gợi ý khi ai đó scale replicas=0 (lab) hoặc deploy bị tắt.
+# Gốc hạ tầng — MẶC ĐỊNH TẮT gửi Tele (lab dễ ầm ĩ).
+# Triệu chứng chính = 504/5xx trong banking.yaml.
+#
+# Bật lại khi cần: bỏ annotation / đổi labels, hoặc oc apply file này.
+# Hiện: không tạo rule replicas=0 để tránh nhầm với “service lỗi”.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -14,60 +16,18 @@ spec:
   groups:
     - name: banking.kube.hint
       rules:
-        - alert: BankingTransferReplicasZero
+        # Giữ rule “pod crash khi desired>0” — không phải scale cố ý về 0
+        - alert: BankingDeploymentUnavailable
           expr: |
-            kube_deployment_spec_replicas{namespace="npd-banking", deployment="transfer-service"} == 0
-          for: 2m
+            kube_deployment_status_replicas_unavailable{namespace="npd-banking"} > 0
+            and
+            kube_deployment_spec_replicas{namespace="npd-banking"} > 0
+          for: 5m
           labels:
             severity: warning
             team: banking
-            tier: root-cause-hint
-            impact: transfer
+            tier: infra
             namespace: npd-banking
           annotations:
-            summary: "[Gốc] transfer-service replicas=0 (lab/scale)"
-            description: >-
-              Gợi ý nguyên nhân. Cảnh báo nghiệp vụ chính: BankingTransferGatewayTimeout / BankingTransfer5xx
-              sau khi có request CK.
-
-        - alert: BankingAuthReplicasZero
-          expr: |
-            kube_deployment_spec_replicas{namespace="npd-banking", deployment="auth-service"} == 0
-          for: 2m
-          labels:
-            severity: warning
-            team: banking
-            tier: root-cause-hint
-            impact: login
-            namespace: npd-banking
-          annotations:
-            summary: "[Gốc] auth-service replicas=0"
-            description: "Triệu chứng chính: BankingAuthGatewayTimeout / BankingAuth5xx."
-
-        - alert: BankingAccountReplicasZero
-          expr: |
-            kube_deployment_spec_replicas{namespace="npd-banking", deployment="account-service"} == 0
-          for: 2m
-          labels:
-            severity: warning
-            team: banking
-            tier: root-cause-hint
-            impact: balance
-            namespace: npd-banking
-          annotations:
-            summary: "[Gốc] account-service replicas=0"
-            description: "Triệu chứng chính: BankingAccountGatewayTimeout / BankingAccount5xx."
-
-        - alert: BankingApiReplicasZero
-          expr: |
-            kube_deployment_spec_replicas{namespace="npd-banking", deployment="api-producer"} == 0
-          for: 2m
-          labels:
-            severity: warning
-            team: banking
-            tier: root-cause-hint
-            impact: all-api
-            namespace: npd-banking
-          annotations:
-            summary: "[Gốc] api-producer replicas=0 — không còn cổng /api"
-            description: "Không có HTTP metric; Kong fail. Không có 504 từ producer."
+            summary: "Pod banking unavailable (crash/probe) — {{ $labels.deployment }}"
+            description: "desired>0 nhưng unavailable>0 trong 5m (sự cố thật, không phải scale=0)."

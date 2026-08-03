@@ -9,10 +9,11 @@ Alert gửi Telegram phải dựa trên **triệu chứng khi user gọi API**:
 
 | Service chết (giả lập scale 0) | User gọi | HTTP (api-producer) | Log (OpenSearch) | Alert Tele |
 |-------------------------------|----------|---------------------|------------------|------------|
-| **transfer-service** | `POST /api/transfer/transfer` | **504** (timeout) hoặc 502 | `producer_timeout` / `producer_error`, path chứa transfer | `BankingTransferGatewayTimeout`, `BankingTransfer5xx` |
-| **auth-service** | `POST /api/auth/login` | **504** / 5xx | `producer_timeout` path auth | `BankingAuthGatewayTimeout`, `BankingAuth5xx` |
-| **account-service** | `GET /api/account/balance` | **504** / 5xx | `producer_timeout` path account | `BankingAccountGatewayTimeout`, `BankingAccount5xx` |
-| **api-producer** | mọi `/api` | Kong lỗi / không scrape | — | Không có 504 từ producer; hint kube `BankingApiReplicasZero` |
+| **transfer-service** | `POST /api/transfer/transfer` | **504** (timeout) hoặc 502 | `producer_timeout` / `producer_error` | `BankingTransferGatewayTimeout`, `BankingTransfer5xx` |
+| **auth-service** | `POST /api/auth/login` | **504** / 5xx | `producer_timeout` | `BankingAuthGatewayTimeout`, `BankingAuth5xx` |
+| **account-service** | `GET /api/account/balance` | **504** / 5xx | `producer_timeout` | `BankingAccountGatewayTimeout`, `BankingAccount5xx` |
+
+**Không** alert Tele vì `replicas=0` (đã bỏ `BankingTransferReplicasZero`). Scale=0 chỉ là cách giả lập; tín hiệu = 504 + log.
 
 Code: `phase8-application-v3/producer/main.py` — `TimeoutError` → log `producer_timeout` + status **504**.
 
