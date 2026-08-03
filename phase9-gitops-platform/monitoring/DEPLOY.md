@@ -38,39 +38,46 @@ Node / cluster metrics ◄──────┤  (đã có sẵn từ openshift-
 
 ### Cơ chế alert banking (3 tầng) — đọc kỹ
 
+Chi tiết blast-radius từng service: **`monitoring/SERVICE-IMPACT.md`**.
+
 ```text
 Người dùng / Shop gọi CK
         │
         ▼
 ┌───────────────────────────────────────────────────────────┐
 │ Tầng 1 — NGHIỆP VỤ (API còn sống, có HTTP metric)         │
-│  BankingTransferHighFailureRate  >20% 4xx/5xx transfer    │
-│  BankingTransferErrorsBurst      5xx transfer              │
-│  → “Chuyển tiền không thành công”                         │
+│  BankingTransferHighFailureRate / BankingAuthHighFailureRate│
+│  → “Chuyển tiền / login không thành công”                 │
 └────────────────────────────┬──────────────────────────────┘
                              │ nếu không còn request / scrape
                              ▼
 ┌───────────────────────────────────────────────────────────┐
-│ Tầng 2 — AVAILABILITY (UWM `up` / absent)                 │
-│  BankingApiDown            api-producer scrape mất         │
-│  BankingAuth/Account/TransferServiceDown                   │
-│  → “API/dịch vụ không hoạt động — giao dịch không làm được”│
-│  (Khi API tắt hẳn: Tầng 1 KHÔNG fire vì hết HTTP metric)  │
+│ Tầng 2 — AVAILABILITY (UWM `up`)                          │
+│  BankingApi|Auth|Account|Transfer|Notification|ShopBridgeDown│
+│  → annotation mô tả feature mất (login / CK / shop…)      │
 └────────────────────────────┬──────────────────────────────┘
-                             │ nguyên nhân kube
+                             │ scale replicas=0
                              ▼
 ┌───────────────────────────────────────────────────────────┐
-│ Tầng 3 — INFRA (platform kube-state-metrics)              │
-│  BankingApiScaledToZero    deployment replicas=0          │
-│  BankingDeploymentUnavailable                             │
+│ Tầng 3 — INFRA kube (platform)                            │
+│  Banking*ScaledToZero theo từng deployment                │
 └───────────────────────────────────────────────────────────┘
 ```
 
+| Scale về 0 | Alert chính | Mất chức năng |
+|------------|-------------|----------------|
+| `api-producer` | `BankingApiDown` + `BankingApiScaledToZero` | Mọi `/api` |
+| `auth-service` | `BankingAuth*` | Login/register |
+| `account-service` | `BankingAccount*` | Số dư/lookup |
+| `transfer-service` | `BankingTransfer*` | CK + shop pay |
+| `notification-service` | `BankingNotification*` | WS/notify |
+| `shop-bridge` | `BankingShopBridge*` | Confirm shop |
+
 | Tình huống lab | Alert kỳ vọng | Không kỳ vọng |
 |----------------|---------------|---------------|
-| `replicas: 0` api-producer | **Tầng 2+3** (`BankingApiDown`, `BankingApiScaledToZero`) | Tầng 1 (không còn traffic) |
-| API sống, transfer 5xx nhiều | **Tầng 1** | Không cần scale pod |
-| Dashboard RPS=0 | Chỉ là panel Grafana | **Không** phải alert — xem Observe→Alerting / `ALERTS{tier=...}` |
+| `replicas: 0` một deploy | Tầng 2/3 đúng tên service | Tầng 1 (hết traffic path đó) |
+| API sống, transfer 5xx nhiều | Tầng 1 transfer | Không cần scale |
+| Dashboard RPS=0 | Panel Grafana | Không phải alert — xem `ALERTS` |
 
 **Hai repo liên quan:**
 
