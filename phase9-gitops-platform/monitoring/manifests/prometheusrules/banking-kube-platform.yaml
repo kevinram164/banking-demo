@@ -1,5 +1,6 @@
-# Tầng 3 — kube replicas=0 (chắc khi scale deploy về 0)
-# Deploy names = fullnameOverride trong Helm charts.
+# Gốc hạ tầng (tuỳ chọn) — KHÔNG phải tín hiệu chính cho “service lỗi”.
+# Triệu chứng chính = 504/5xx trên api-producer (banking.yaml → Telegram).
+# Rule này chỉ gợi ý khi ai đó scale replicas=0 (lab) hoặc deploy bị tắt.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -11,101 +12,62 @@ metadata:
     role: alert-rules
 spec:
   groups:
-    - name: banking.kube.scaled
+    - name: banking.kube.hint
       rules:
-        - alert: BankingApiScaledToZero
+        - alert: BankingTransferReplicasZero
           expr: |
-            kube_deployment_spec_replicas{namespace="npd-banking", deployment="api-producer"} == 0
-          for: 1m
-          labels:
-            severity: critical
-            team: banking
-            tier: infra
-            impact: all-api
-            namespace: npd-banking
-          annotations:
-            summary: "api-producer replicas=0 — mọi API banking tắt"
-            description: "Scale 0. Ảnh hưởng: login, số dư, CK, notify qua /api."
-
-        - alert: BankingAuthScaledToZero
-          expr: |
-            kube_deployment_spec_replicas{namespace="npd-banking", deployment="auth-service"} == 0
-          for: 1m
-          labels:
-            severity: critical
-            team: banking
-            tier: infra
-            impact: login
-            namespace: npd-banking
-          annotations:
-            summary: "auth-service replicas=0 — không login/register"
-            description: "Consumer auth tắt."
-
-        - alert: BankingAccountScaledToZero
-          expr: |
-            kube_deployment_spec_replicas{namespace="npd-banking", deployment="account-service"} == 0
-          for: 1m
+            kube_deployment_spec_replicas{namespace="npd-banking", deployment="transfer-service"} == 0
+          for: 2m
           labels:
             severity: warning
             team: banking
-            tier: infra
-            impact: balance
-            namespace: npd-banking
-          annotations:
-            summary: "account-service replicas=0 — không số dư/lookup"
-            description: "me/balance/lookup/admin hỏng."
-
-        - alert: BankingTransferScaledToZero
-          expr: |
-            kube_deployment_spec_replicas{namespace="npd-banking", deployment="transfer-service"} == 0
-          for: 1m
-          labels:
-            severity: critical
-            team: banking
-            tier: infra
+            tier: root-cause-hint
             impact: transfer
             namespace: npd-banking
           annotations:
-            summary: "transfer-service replicas=0 — không CK / shop pay"
-            description: "P2P + NOLI confirm hỏng."
+            summary: "[Gốc] transfer-service replicas=0 (lab/scale)"
+            description: >-
+              Gợi ý nguyên nhân. Cảnh báo nghiệp vụ chính: BankingTransferGatewayTimeout / BankingTransfer5xx
+              sau khi có request CK.
 
-        - alert: BankingNotificationScaledToZero
+        - alert: BankingAuthReplicasZero
           expr: |
-            kube_deployment_spec_replicas{namespace="npd-banking", deployment="notification-service"} == 0
-          for: 1m
+            kube_deployment_spec_replicas{namespace="npd-banking", deployment="auth-service"} == 0
+          for: 2m
           labels:
             severity: warning
             team: banking
-            tier: infra
-            impact: notifications
+            tier: root-cause-hint
+            impact: login
             namespace: npd-banking
           annotations:
-            summary: "notification-service replicas=0 — mất WS/notify"
-            description: "Realtime + lịch sử thông báo."
+            summary: "[Gốc] auth-service replicas=0"
+            description: "Triệu chứng chính: BankingAuthGatewayTimeout / BankingAuth5xx."
 
-        - alert: BankingShopBridgeScaledToZero
+        - alert: BankingAccountReplicasZero
           expr: |
-            kube_deployment_spec_replicas{namespace="npd-banking", deployment="shop-bridge"} == 0
-          for: 1m
-          labels:
-            severity: critical
-            team: banking
-            tier: infra
-            impact: shop-payment
-            namespace: npd-banking
-          annotations:
-            summary: "shop-bridge replicas=0 — shop không thanh toán xong"
-            description: "orders.events / confirm-payment / payments.events dừng."
-
-        - alert: BankingDeploymentUnavailable
-          expr: |
-            kube_deployment_status_replicas_unavailable{namespace="npd-banking"} > 0
-          for: 3m
+            kube_deployment_spec_replicas{namespace="npd-banking", deployment="account-service"} == 0
+          for: 2m
           labels:
             severity: warning
             team: banking
-            tier: infra
+            tier: root-cause-hint
+            impact: balance
             namespace: npd-banking
           annotations:
-            summary: "Banking deployment có pod unavailable"
-            description: "{{ $labels.deployment }} unavailable >0 trong 3m (crash/probe)."
+            summary: "[Gốc] account-service replicas=0"
+            description: "Triệu chứng chính: BankingAccountGatewayTimeout / BankingAccount5xx."
+
+        - alert: BankingApiReplicasZero
+          expr: |
+            kube_deployment_spec_replicas{namespace="npd-banking", deployment="api-producer"} == 0
+          for: 2m
+          labels:
+            severity: warning
+            team: banking
+            tier: root-cause-hint
+            impact: all-api
+            namespace: npd-banking
+          annotations:
+            summary: "[Gốc] api-producer replicas=0 — không còn cổng /api"
+            description: "Không có HTTP metric; Kong fail. Không có 504 từ producer."

@@ -1,4 +1,11 @@
-# Rules theo blast-radius — xem SERVICE-IMPACT.md
+# Alert theo TRIỆU CHỨNG sự cố service (không phải “replicas=0”).
+# Scale=0 chỉ là cách GIẢ LẬP consumer chết.
+#
+# Khi transfer-service không chạy + client gọi CK:
+#   api-producer → TimeoutError → log producer_timeout → HTTP 504
+#   (xem producer/main.py). Metric: http_requests_total{status="504",endpoint=~".*transfer.*"}
+#
+# Telegram nhận alert từ metric 5xx/504 đó (= cùng sự kiện với log).
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -9,10 +16,52 @@ metadata:
     role: alert-rules
 spec:
   groups:
-    # ── Tầng 1: Nghiệp vụ (API sống + có traffic) ──────────────────────
-    - name: banking.business
+    - name: banking.symptoms
       rules:
-        - alert: BankingTransferHighFailureRate
+        # --- Transfer không hoạt động (timeout consumer) ---
+        - alert: BankingTransferGatewayTimeout
+          expr: |
+            sum(rate(http_requests_total{
+              namespace="npd-banking",
+              job="banking-api-producer",
+              endpoint=~".*transfer.*",
+              status="504"
+            }[5m])) > 0.01
+          for: 1m
+          labels:
+            severity: critical
+            team: banking
+            tier: symptom
+            impact: transfer
+            namespace: npd-banking
+          annotations:
+            summary: "Transfer không hoạt động — API trả 504 Gateway timeout"
+            description: >-
+              api-producer timeout chờ transfer-service (log: producer_timeout, path /api/transfer/*).
+              Giả lập: scale transfer=0 rồi gọi CK. OpenSearch: event=producer_timeout.
+
+        - alert: BankingTransfer5xx
+          expr: |
+            sum(rate(http_requests_total{
+              namespace="npd-banking",
+              job="banking-api-producer",
+              endpoint=~".*transfer.*",
+              status=~"5.."
+            }[5m])) > 0.02
+          for: 1m
+          labels:
+            severity: critical
+            team: banking
+            tier: symptom
+            impact: transfer
+            namespace: npd-banking
+          annotations:
+            summary: "Chuyển tiền lỗi 5xx (502/504/500)"
+            description: >-
+              /api/transfer/* trả 5xx. Thường transfer-service down/lỗi hoặc RabbitMQ/Redis.
+              Log api-producer: producer_timeout | producer_error.
+
+        - alert: BankingTransferFailRate
           expr: |
             (
               sum(rate(http_requests_total{
@@ -30,158 +79,98 @@ spec:
                 }[5m])),
                 0.01
               )
-            ) > 0.2
+            ) > 0.5
             and
             sum(rate(http_requests_total{
               namespace="npd-banking",
               job="banking-api-producer",
               endpoint=~".*transfer.*"
-            }[5m])) > 0.05
+            }[5m])) > 0.02
           for: 2m
           labels:
-            severity: critical
+            severity: warning
             team: banking
-            tier: business
+            tier: symptom
             impact: transfer
             namespace: npd-banking
           annotations:
-            summary: "Chuyển tiền thất bại cao (>20%)"
-            description: "Path /api/transfer/* 4xx/5xx cao trên api-producer. Ảnh hưởng: P2P + shop CK."
+            summary: "Tỷ lệ CK thất bại >50%"
+            description: "Nửa request transfer là 4xx/5xx (có traffic)."
 
-        - alert: BankingAuthHighFailureRate
+        # --- Auth không hoạt động ---
+        - alert: BankingAuthGatewayTimeout
           expr: |
-            (
-              sum(rate(http_requests_total{
-                namespace="npd-banking",
-                job="banking-api-producer",
-                endpoint=~".*auth.*",
-                status=~"[45].."
-              }[5m]))
-              /
-              clamp_min(
-                sum(rate(http_requests_total{
-                  namespace="npd-banking",
-                  job="banking-api-producer",
-                  endpoint=~".*auth.*"
-                }[5m])),
-                0.01
-              )
-            ) > 0.3
-            and
             sum(rate(http_requests_total{
               namespace="npd-banking",
               job="banking-api-producer",
-              endpoint=~".*auth.*"
-            }[5m])) > 0.05
-          for: 3m
-          labels:
-            severity: warning
-            team: banking
-            tier: business
-            impact: login
-            namespace: npd-banking
-          annotations:
-            summary: "Login/register lỗi cao"
-            description: "Path /api/auth/* fail rate >30%. Ảnh hưởng: không đăng nhập được."
-
-        - alert: BankingHttpHighErrorRate
-          expr: |
-            sum(rate(http_requests_total{namespace="npd-banking",status=~"5.."}[5m]))
-              /
-            clamp_min(sum(rate(http_requests_total{namespace="npd-banking"}[5m])), 0.01)
-              > 0.1
-            and
-            sum(rate(http_requests_total{namespace="npd-banking"}[5m])) > 0.05
-          for: 5m
-          labels:
-            severity: warning
-            team: banking
-            tier: business
-            namespace: npd-banking
-          annotations:
-            summary: "Banking HTTP 5xx > 10%"
-            description: "Toàn ns error rate cao (label status)."
-
-    # ── Tầng 2: Scrape up==0 (có target đang down) ─────────────────────
-    - name: banking.availability
-      rules:
-        # Chỉ up==0 (đang scrape nhưng fail). Scale 0 → dùng BankingApiScaledToZero (kube).
-        # Không dùng absent() — dễ fire ảo khi target tạm mất khỏi TSDB.
-        - alert: BankingApiDown
-          expr: |
-            up{namespace="npd-banking", job="banking-api-producer"} == 0
-          for: 2m
+              endpoint=~".*auth.*",
+              status="504"
+            }[5m])) > 0.01
+          for: 1m
           labels:
             severity: critical
             team: banking
-            tier: availability
-            impact: all-api
-            namespace: npd-banking
-          annotations:
-            summary: "api-producer scrape DOWN — mọi API banking qua Kong fail"
-            description: "up=0 job banking-api-producer. Scale 0 xem BankingApiScaledToZero."
-
-        - alert: BankingAuthDown
-          expr: up{namespace="npd-banking", job="banking-auth"} == 0
-          for: 2m
-          labels:
-            severity: critical
-            team: banking
-            tier: availability
+            tier: symptom
             impact: login
             namespace: npd-banking
           annotations:
-            summary: "auth-service DOWN — không đăng ký/đăng nhập"
-            description: "Consumer auth.requests. Session mới không tạo được."
+            summary: "Auth không hoạt động — login trả 504"
+            description: "Timeout chờ auth-service. Log: producer_timeout path /api/auth/*."
 
-        - alert: BankingAccountDown
-          expr: up{namespace="npd-banking", job="banking-account"} == 0
-          for: 2m
+        - alert: BankingAuth5xx
+          expr: |
+            sum(rate(http_requests_total{
+              namespace="npd-banking",
+              job="banking-api-producer",
+              endpoint=~".*auth.*",
+              status=~"5.."
+            }[5m])) > 0.02
+          for: 1m
           labels:
-            severity: warning
+            severity: critical
             team: banking
-            tier: availability
+            tier: symptom
+            impact: login
+            namespace: npd-banking
+          annotations:
+            summary: "Login/register lỗi 5xx"
+            description: "/api/auth/* 5xx — auth-service hoặc infra."
+
+        # --- Account không hoạt động ---
+        - alert: BankingAccountGatewayTimeout
+          expr: |
+            sum(rate(http_requests_total{
+              namespace="npd-banking",
+              job="banking-api-producer",
+              endpoint=~".*account.*",
+              status="504"
+            }[5m])) > 0.01
+          for: 1m
+          labels:
+            severity: critical
+            team: banking
+            tier: symptom
             impact: balance
             namespace: npd-banking
           annotations:
-            summary: "account-service DOWN — không xem số dư/lookup STK"
-            description: "me/balance/lookup/admin credit fail. Login + CK (đã biết STK) có thể còn."
+            summary: "Account không hoạt động — số dư/lookup trả 504"
+            description: "Timeout chờ account-service. Log: producer_timeout path /api/account/*."
 
-        - alert: BankingTransferDown
-          expr: up{namespace="npd-banking", job="banking-transfer"} == 0
-          for: 2m
+        - alert: BankingAccount5xx
+          expr: |
+            sum(rate(http_requests_total{
+              namespace="npd-banking",
+              job="banking-api-producer",
+              endpoint=~".*account.*",
+              status=~"5.."
+            }[5m])) > 0.02
+          for: 1m
           labels:
             severity: critical
             team: banking
-            tier: availability
-            impact: transfer
+            tier: symptom
+            impact: balance
             namespace: npd-banking
           annotations:
-            summary: "transfer-service DOWN — không chuyển tiền / shop CK"
-            description: "P2P + confirm merchant NOLI hỏng. Login/số dư vẫn OK."
-
-        - alert: BankingNotificationDown
-          expr: up{namespace="npd-banking", job="banking-notification"} == 0
-          for: 3m
-          labels:
-            severity: warning
-            team: banking
-            tier: availability
-            impact: notifications
-            namespace: npd-banking
-          annotations:
-            summary: "notification-service DOWN — mất realtime/lịch sử notify"
-            description: "WS /ws + list notifications. CK vẫn thành công."
-
-        - alert: BankingShopBridgeDown
-          expr: up{namespace="npd-banking", job="banking-shop-bridge"} == 0
-          for: 2m
-          labels:
-            severity: critical
-            team: banking
-            tier: availability
-            impact: shop-payment
-            namespace: npd-banking
-          annotations:
-            summary: "shop-bridge DOWN — shop không confirm thanh toán"
-            description: "Kafka orders→payments + /api/shop/confirm-payment. Banking P2P thuần vẫn OK."
+            summary: "Account API lỗi 5xx"
+            description: "/api/account/* 5xx."

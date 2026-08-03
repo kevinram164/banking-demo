@@ -1,59 +1,63 @@
-# Banking services — chức năng & ảnh hưởng khi lỗi
+# Banking services — sự cố = triệu chứng (5xx / log), không phải “replicas=0”
 
-Ns: `npd-banking`. Luồng REST: **Kong `/api` → api-producer → RabbitMQ → consumer → Redis reply**.
+Ns: `npd-banking`. REST: **Kong → api-producer → RabbitMQ → consumer → Redis**.
+
+## Hiểu đúng lab
+
+`replicas: 0` chỉ **giả lập** “service không chạy”.  
+Alert gửi Telegram phải dựa trên **triệu chứng khi user gọi API**:
+
+| Service chết (giả lập scale 0) | User gọi | HTTP (api-producer) | Log (OpenSearch) | Alert Tele |
+|-------------------------------|----------|---------------------|------------------|------------|
+| **transfer-service** | `POST /api/transfer/transfer` | **504** (timeout) hoặc 502 | `producer_timeout` / `producer_error`, path chứa transfer | `BankingTransferGatewayTimeout`, `BankingTransfer5xx` |
+| **auth-service** | `POST /api/auth/login` | **504** / 5xx | `producer_timeout` path auth | `BankingAuthGatewayTimeout`, `BankingAuth5xx` |
+| **account-service** | `GET /api/account/balance` | **504** / 5xx | `producer_timeout` path account | `BankingAccountGatewayTimeout`, `BankingAccount5xx` |
+| **api-producer** | mọi `/api` | Kong lỗi / không scrape | — | Không có 504 từ producer; hint kube `BankingApiReplicasZero` |
+
+Code: `phase8-application-v3/producer/main.py` — `TimeoutError` → log `producer_timeout` + status **504**.
+
+**Không gọi API** (im traffic) → **không có 5xx** → không có alert triệu chứng. Phải gọi thử (curl / ecosystem) sau khi “làm hỏng” service.
+
+## Chức năng & blast radius
+
+| Service | Chức năng | User mất gì khi chết |
+|---------|-----------|----------------------|
+| api-producer | Cổng `/api/*` → queue | Mọi REST banking |
+| auth-service | login/register | Không đăng nhập |
+| account-service | me/balance/lookup | Không số dư/tra STK |
+| transfer-service | P2P CK + shop NOLI | Không chuyển tiền / shop pay |
+| notification-service | WS + list notify | Mất realtime (CK vẫn OK) |
+| shop-bridge | Kafka + confirm | Shop không `payment.completed` |
+
+## Log vs metric
+
+Cùng một sự cố timeout:
 
 ```text
-Client / Shop
-    │
-    ▼
-  Kong ──/api/*──► api-producer ──publish──► RabbitMQ queues
-                       │                         │
-                       │ wait Redis reply         ▼
-                       │              auth | account | transfer | notification
-                       ▼
-                  Redis correlation
-
-  Kong ──/ws──► notification-service (realtime)
-  Kafka orders.events ──► shop-bridge ──► payments.events
-  transfer-service ──HTTP──► shop-bridge /api/shop/confirm-payment
+log  producer_timeout  ──►  OpenSearch Discover (điều tra)
+         │
+         └── HTTP 504  ──►  http_requests_total{status="504"}  ──►  PrometheusRule  ──►  Telegram
 ```
 
-## Bảng chức năng & blast radius
+Alertmanager **không đọc** OpenSearch trực tiếp; 504 trên metric = tín hiệu đã “đóng gói” từ cùng lỗi ghi log.
 
-| Service | Deploy | Job (ServiceMonitor) | Chức năng chính | Nếu DOWN — mất gì | Vẫn OK |
-|---------|--------|----------------------|-----------------|-------------------|--------|
-| **api-producer** | `api-producer` | `banking-api-producer` | Gateway nội bộ: map `/api/auth\|account\|transfer\|notifications/*` → queue, chờ Redis | **Mọi REST banking qua Kong** (login, số dư, CK, lịch sử notify qua producer). Shop gọi bank API fail | WS `/ws` nếu notification còn; Kafka shop-bridge độc lập |
-| **auth-service** | `auth-service` | `banking-auth` | Consumer `auth.requests`: register, login | **Đăng ký / đăng nhập** mới. Session mới không tạo được → me/balance/CK cũng fail nếu chưa login | Session Redis còn hạn; WS nếu đã có session |
-| **account-service** | `account-service` | `banking-account` | Consumer `account.requests`: me, balance, lookup, admin credit/stats | **Xem số dư / profile / tra STK**; admin credit; UI CK thiếu lookup người nhận | Login; CK nếu đã biết STK (transfer vẫn chạy) |
-| **transfer-service** | `transfer-service` | `banking-transfer` | Consumer `transfer.requests`: P2P CK; ghi DB; notify Redis; confirm shop (`NOLI-*`) | **Chuyển tiền P2P**; shop thanh toán treo (không debit / không confirm) | Login, xem số dư, WS |
-| **notification-service** | `notification-service` | `banking-notification` | Consumer list notify; HTTP `/api/notifications`; **WS `/ws`** | **Realtime toast / lịch sử thông báo** | Login, số dư, CK vẫn thành công (user không thấy push) |
-| **shop-bridge** | `shop-bridge` | `banking-shop-bridge` | Kafka `orders.events` → `payments.events`; HTTP confirm-payment | **Checkout shop / payment.completed**; đơn treo “chờ CK” | Banking P2P thuần; login/balance |
+## Test transfer “hỏng”
 
-## Feature → services bắt buộc UP
+```bash
+# 1) Giả lập sự cố
+oc -n npd-banking scale deploy/transfer-service --replicas=0
+# (hoặc Helm replicas: 0 + sync)
 
-| Tính năng người dùng | Cần UP |
-|----------------------|--------|
-| Đăng ký / Đăng nhập | Kong, api-producer, RabbitMQ, Redis, Postgres, **auth-service** |
-| Xem số dư / me / lookup STK | … + **account-service** |
-| Chuyển tiền P2P | … + **transfer-service** (+ Redis notify) |
-| Thông báo realtime | Kong `/ws`, **notification-service**, Redis |
-| Lịch sử thông báo | api-producer path **hoặc** Kong direct → **notification-service** |
-| Shop mua hàng (CK merchant + `NOLI-*`) | **transfer-service** + **shop-bridge** + Kafka (+ api-producer nếu gọi bank API) |
+# 2) Tạo triệu chứng — BẮT BUỘC gọi API (vài lần)
+# login lấy session rồi:
+curl -sk -X POST https://npd-banking.co/api/transfer/transfer \
+  -H "Content-Type: application/json" -H "X-Session: $SESSION" \
+  -d '{"amount":1000,"to_account_number":"STK","note":"test"}'
+# Kỳ vọng body: Gateway timeout, HTTP 504
 
-## Mapping alert (rules trong `prometheusrules/`)
+# 3) ~1–2 phút → Tele: BankingTransferGatewayTimeout / BankingTransfer5xx
+# OpenSearch: event producer_timeout
 
-| Khi lỗi | Alert | Severity | Ý nghĩa nghiệp vụ |
-|---------|-------|----------|-------------------|
-| Transfer HTTP 4xx/5xx cao (API còn sống) | `BankingTransferHighFailureRate` | critical | Chuyển tiền thất bại |
-| api-producer down / replicas=0 | `BankingApiDown` / `BankingApiScaledToZero` | critical | Toàn bộ API banking tắt |
-| auth down / replicas=0 | `BankingAuthDown` / `BankingAuthScaledToZero` | critical | Không đăng nhập được |
-| account down / replicas=0 | `BankingAccountDown` / `BankingAccountScaledToZero` | warning | Không xem số dư / lookup |
-| transfer down / replicas=0 | `BankingTransferDown` / `BankingTransferScaledToZero` | critical | Không chuyển tiền / shop CK |
-| notification down / replicas=0 | `BankingNotificationDown` / `BankingNotificationScaledToZero` | warning | Mất realtime / lịch sử notify |
-| shop-bridge down / replicas=0 | `BankingShopBridgeDown` / `BankingShopBridgeScaledToZero` | critical | Shop không confirm thanh toán |
-
-**Ghi chú kỹ thuật**
-
-- Tầng nghiệp vụ (HTTP `status` trên path transfer) chỉ fire khi **còn traffic**.
-- Scale `replicas=0` → dùng rule **kube** (`spec_replicas==0`) cho chắc; `up==0` bổ sung khi scrape còn target.
-- Không dùng `absent(up)` cho consumer (dễ ảo); chỉ api-producer giữ `absent` vì là cổng duy nhất.
+# 4) Restore
+oc -n npd-banking scale deploy/transfer-service --replicas=1
+```
