@@ -174,14 +174,10 @@ spec:
   namespaceSelector:
     matchNames: [rabbit]
   selector:
-    matchExpressions:
-      - key: app.kubernetes.io/name
-        operator: In
-        values: [rabbitmq]
+    matchLabels:
+      app: rabbitmq
   endpoints:
-    - targetPort: 9419
+    - port: metrics
       path: /metrics
       interval: 15s
-    - targetPort: 15692
-      path: /metrics
-      interval: 15s
+      honorLabels: true

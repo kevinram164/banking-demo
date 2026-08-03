@@ -1,13 +1,18 @@
-# RabbitMQ standalone — ns rabbit, official image (fallback khi Bitnami ImagePullBackOff)
-# Secret tạo trước:
-#   kubectl create namespace rabbit
-#   kubectl create secret generic rabbitmq-secret --from-literal=rabbitmq-username=banking --from-literal=rabbitmq-password='<PASSWORD>' -n rabbit
-# Deploy: kubectl apply -f phase8-application-v3/rabbitmq/k8s-rabbitmq-standalone.yaml
+# RabbitMQ standalone — ns rabbit, official image + prometheus metrics :15692
+# Secret:
+#   oc -n rabbit create secret generic rabbitmq-secret \
+#     --from-literal=rabbitmq-username=banking --from-literal=rabbitmq-password='...'
 ---
 apiVersion: v1
-kind: Namespace
+kind: ConfigMap
 metadata:
-  name: rabbit
+  name: rabbitmq-enabled-plugins
+  namespace: rabbit
+  labels:
+    app: rabbitmq
+data:
+  enabled_plugins: |
+    [rabbitmq_management,rabbitmq_prometheus].
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -26,6 +31,9 @@ kind: StatefulSet
 metadata:
   name: rabbitmq
   namespace: rabbit
+  labels:
+    app: rabbitmq
+    app.kubernetes.io/name: rabbitmq
 spec:
   serviceName: rabbitmq
   replicas: 1
@@ -36,10 +44,8 @@ spec:
     metadata:
       labels:
         app: rabbitmq
+        app.kubernetes.io/name: rabbitmq
     spec:
-      # OCP restricted-v2 gán fsGroup → kubelet chmod đệ quy volume mỗi lần mount,
-      # mở quyền group trên .erlang.cookie → RabbitMQ từ chối boot ("owner only").
-      # OnRootMismatch: bỏ qua chmod khi group thư mục gốc đã khớp fsGroup.
       securityContext:
         fsGroupChangePolicy: OnRootMismatch
       containers:
@@ -51,6 +57,8 @@ spec:
               name: amqp
             - containerPort: 15672
               name: management
+            - containerPort: 15692
+              name: prometheus
           env:
             - name: RABBITMQ_DEFAULT_USER
               valueFrom:
@@ -65,6 +73,15 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/rabbitmq
+            - name: enabled-plugins
+              mountPath: /etc/rabbitmq/enabled_plugins
+              subPath: enabled_plugins
+              readOnly: true
+          readinessProbe:
+            tcpSocket:
+              port: amqp
+            initialDelaySeconds: 20
+            periodSeconds: 10
           resources:
             requests:
               memory: "256Mi"
@@ -76,19 +93,28 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: rabbitmq-data
+        - name: enabled-plugins
+          configMap:
+            name: rabbitmq-enabled-plugins
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: rabbitmq
   namespace: rabbit
+  labels:
+    app: rabbitmq
+    app.kubernetes.io/name: rabbitmq
 spec:
   selector:
     app: rabbitmq
   ports:
     - port: 5672
-      targetPort: 5672
+      targetPort: amqp
       name: amqp
     - port: 15672
-      targetPort: 15672
+      targetPort: management
       name: management
+    - port: 15692
+      targetPort: prometheus
+      name: metrics
