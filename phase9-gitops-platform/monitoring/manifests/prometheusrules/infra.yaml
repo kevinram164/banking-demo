@@ -1,0 +1,113 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-infra-alerts
+  namespace: postgres
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    role: alert-rules
+spec:
+  groups:
+    - name: infra.datastore
+      rules:
+        - alert: PostgresDown
+          expr: |
+            up{namespace="postgres", job=~".*postgres.*|.*postgresql.*"} == 0
+          for: 3m
+          labels:
+            severity: critical
+            team: infra
+          annotations:
+            summary: "Postgres metrics target down"
+            description: "Job {{ $labels.job }} instance {{ $labels.instance }} down 3m."
+
+        - alert: RedisDown
+          expr: |
+            up{namespace="redis", job=~".*redis.*"} == 0
+          for: 3m
+          labels:
+            severity: critical
+            team: infra
+          annotations:
+            summary: "Redis metrics target down"
+            description: "Redis scrape target down 3m."
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-infra-kafka-alerts
+  namespace: kafka
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    role: alert-rules
+spec:
+  groups:
+    - name: infra.kafka
+      rules:
+        - alert: KafkaExporterDown
+          expr: |
+            up{namespace="kafka", job=~".*kafka.*"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            team: infra
+          annotations:
+            summary: "Kafka scrape target down"
+            description: "Kafka/exporter target {{ $labels.instance }} down 5m."
+
+        - alert: KafkaConsumerLagHigh
+          expr: |
+            sum by (consumergroup, topic) (kafka_consumergroup_lag) > 1000
+          for: 10m
+          labels:
+            severity: warning
+            team: infra
+          annotations:
+            summary: "Kafka consumer lag high"
+            description: "Group {{ $labels.consumergroup }} topic {{ $labels.topic }} lag {{ $value }}."
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-infra-kong-alerts
+  namespace: kong
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    role: alert-rules
+spec:
+  groups:
+    - name: infra.kong
+      rules:
+        - alert: KongDown
+          expr: |
+            up{namespace="kong"} == 0
+          for: 3m
+          labels:
+            severity: critical
+            team: infra
+          annotations:
+            summary: "Kong metrics target down"
+            description: "Kong instance {{ $labels.instance }} down."
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-infra-rabbit-alerts
+  namespace: rabbit
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    role: alert-rules
+spec:
+  groups:
+    - name: infra.rabbit
+      rules:
+        - alert: RabbitmqDown
+          expr: |
+            up{namespace="rabbit"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            team: infra
+          annotations:
+            summary: "RabbitMQ metrics target down (hoặc chưa bật exporter)"
+            description: "Rabbit scrape down — kiểm tra ServiceMonitor / prometheus plugin."

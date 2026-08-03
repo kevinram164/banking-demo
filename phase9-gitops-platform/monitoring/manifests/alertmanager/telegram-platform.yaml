@@ -1,0 +1,37 @@
+# Platform / node alerts → Telegram (ns openshift-monitoring)
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: npd-telegram-platform
+  namespace: openshift-monitoring
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    alertmanagerConfig: aiops
+spec:
+  route:
+    receiver: telegram
+    groupBy:
+      - alertname
+      - severity
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 2h
+    routes:
+      - receiver: telegram
+        matchers:
+          - name: team
+            matchType: =
+            value: platform
+  receivers:
+    - name: telegram
+      telegramConfigs:
+        - botToken:
+            name: alertmanager-telegram
+            key: bot-token
+          chatID: -1000000000000
+          parseMode: HTML
+          sendResolved: true
+          message: |
+            <b>OCP {{ .Status | toUpper }}</b> {{ .CommonLabels.alertname }}
+            {{ range .Alerts }}• {{ .Annotations.summary }} — {{ .Annotations.description }}
+            {{ end }}

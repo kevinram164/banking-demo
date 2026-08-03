@@ -1,0 +1,49 @@
+# Alertmanager → Telegram (+ giữ webhook AIOps nếu đã có riêng)
+# Sửa chatID thành số thật (int). Bot token từ Secret alertmanager-telegram.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: npd-telegram
+  namespace: npd-banking
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    alertmanagerConfig: aiops
+spec:
+  route:
+    receiver: telegram
+    groupBy:
+      - namespace
+      - alertname
+      - severity
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 2h
+    routes:
+      - receiver: telegram
+        matchers:
+          - name: severity
+            matchType: =~
+            value: warning|critical
+        continue: true
+      - receiver: aiops-webhook
+        continue: false
+  receivers:
+    - name: telegram
+      telegramConfigs:
+        - botToken:
+            name: alertmanager-telegram
+            key: bot-token
+          chatID: -1000000000000
+          parseMode: HTML
+          sendResolved: true
+          message: |
+            <b>{{ .Status | toUpper }}</b> {{ .CommonLabels.alertname }}
+            severity={{ .CommonLabels.severity }} ns={{ .CommonLabels.namespace }}
+            {{ range .Alerts -}}
+            • {{ .Annotations.summary }}
+              {{ .Annotations.description }}
+            {{ end }}
+    - name: aiops-webhook
+      webhookConfigs:
+        - url: http://incident-api.aiops-core.svc.cluster.local:8080/api/v1/alerts
+          sendResolved: true

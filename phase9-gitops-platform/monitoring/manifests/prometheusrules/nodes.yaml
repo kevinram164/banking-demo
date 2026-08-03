@@ -1,0 +1,58 @@
+# Node / cluster alerts — đặt trong openshift-monitoring (platform Prometheus)
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-ocp-node-alerts
+  namespace: openshift-monitoring
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+    - name: npd.nodes
+      rules:
+        - alert: NPDNodeNotReady
+          expr: |
+            kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "OCP node NotReady"
+            description: "Node {{ $labels.node }} not Ready for 5m."
+
+        - alert: NPDNodeHighCPU
+          expr: |
+            100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 85
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Node CPU > 85%"
+            description: "Instance {{ $labels.instance }} CPU high 10m."
+
+        - alert: NPDNodeDiskPressure
+          expr: |
+            (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",mountpoint="/"} 
+              / node_filesystem_size_bytes{fstype!~"tmpfs|overlay",mountpoint="/"}) < 0.15
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Node root disk < 15% free"
+            description: "Instance {{ $labels.instance }} disk pressure."
+
+        - alert: NPDNodeMemoryPressure
+          expr: |
+            (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.9
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Node memory > 90%"
+            description: "Instance {{ $labels.instance }} memory pressure."

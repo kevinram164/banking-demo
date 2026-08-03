@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-shop-alerts
+  namespace: npd-shop
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    role: alert-rules
+spec:
+  groups:
+    - name: shop.apps
+      rules:
+        - alert: ShopPodNotReady
+          expr: |
+            kube_deployment_status_replicas_unavailable{namespace="npd-shop"} > 0
+          for: 5m
+          labels:
+            severity: warning
+            team: shop
+          annotations:
+            summary: "Shop deployment unavailable"
+            description: "{{ $labels.deployment }} in npd-shop has unavailable replicas."
+
+        - alert: ShopPodRestarting
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="npd-shop"}[15m]) > 3
+          for: 5m
+          labels:
+            severity: warning
+            team: shop
+          annotations:
+            summary: "Shop pod restarting"
+            description: "Pod {{ $labels.pod }} restarted >3 times in 15m."

@@ -1,0 +1,44 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-banking-alerts
+  namespace: npd-banking
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    role: alert-rules
+spec:
+  groups:
+    - name: banking.apps
+      rules:
+        - alert: BankingPodNotReady
+          expr: |
+            kube_deployment_status_replicas_unavailable{namespace="npd-banking"} > 0
+          for: 5m
+          labels:
+            severity: warning
+            team: banking
+          annotations:
+            summary: "Banking deployment unavailable replicas"
+            description: "{{ $labels.deployment }} in npd-banking has unavailable replicas for 5m."
+
+        - alert: BankingPodRestarting
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="npd-banking"}[15m]) > 3
+          for: 5m
+          labels:
+            severity: warning
+            team: banking
+          annotations:
+            summary: "Banking pod restarting"
+            description: "Pod {{ $labels.pod }} restarted >3 times in 15m."
+
+        - alert: BankingHighCPU
+          expr: |
+            sum by (pod) (rate(container_cpu_usage_seconds_total{namespace="npd-banking",container!=""}[5m])) > 0.8
+          for: 10m
+          labels:
+            severity: warning
+            team: banking
+          annotations:
+            summary: "Banking pod high CPU"
+            description: "{{ $labels.pod }} CPU > 0.8 cores for 10m."

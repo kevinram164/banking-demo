@@ -1,0 +1,50 @@
+# Scrape /metrics — ns npd-banking (UWM)
+# Sau apply: oc -n npd-banking get svc --show-labels  → chỉnh matchLabels nếu cần
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: banking-api-producer
+  namespace: npd-banking
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api-producer
+  namespaceSelector:
+    matchNames:
+      - npd-banking
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: banking-services
+  namespace: npd-banking
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  selector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - auth-service
+          - account-service
+          - transfer-service
+          - notification-service
+          - shop-bridge
+          - frontend
+  namespaceSelector:
+    matchNames:
+      - npd-banking
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

@@ -1,0 +1,31 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: npd-telegram
+  namespace: npd-shop
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    alertmanagerConfig: aiops
+spec:
+  route:
+    receiver: telegram
+    groupBy:
+      - namespace
+      - alertname
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 2h
+  receivers:
+    - name: telegram
+      telegramConfigs:
+        - botToken:
+            name: alertmanager-telegram
+            key: bot-token
+          chatID: -1000000000000
+          parseMode: HTML
+          sendResolved: true
+          message: |
+            <b>{{ .Status | toUpper }}</b> {{ .CommonLabels.alertname }}
+            ns={{ .CommonLabels.namespace }}
+            {{ range .Alerts }}• {{ .Annotations.summary }}
+            {{ end }}

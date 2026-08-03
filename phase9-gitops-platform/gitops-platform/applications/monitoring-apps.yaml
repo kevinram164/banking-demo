@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: npd-monitoring-servicemonitors
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: main
+    path: phase9-gitops-platform/monitoring/manifests/servicemonitors
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: npd-banking
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: npd-monitoring-rules
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "31"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: main
+    path: phase9-gitops-platform/monitoring/manifests/prometheusrules
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: npd-banking
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true

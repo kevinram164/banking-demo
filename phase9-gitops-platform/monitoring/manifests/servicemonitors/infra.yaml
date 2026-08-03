@@ -1,0 +1,104 @@
+# Infra exporters — xác nhận tên Service bằng:
+#   oc -n redis get svc | grep -i metric
+#   oc -n postgres get svc | grep -i metric
+#   oc -n kong get svc
+#   oc -n kafka get svc | grep -i export
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis-metrics
+  namespace: redis
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: metrics
+  namespaceSelector:
+    matchNames:
+      - redis
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postgres-metrics
+  namespace: postgres
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: metrics
+  namespaceSelector:
+    matchNames:
+      - postgres
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kong-metrics
+  namespace: kong
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  namespaceSelector:
+    matchNames:
+      - kong
+  endpoints:
+    - port: kong-admin
+      path: /metrics
+      interval: 30s
+---
+# Strimzi Kafka Exporter (tên Service thường chứa kafka-exporter)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kafka-exporter
+  namespace: kafka
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka-exporter
+  namespaceSelector:
+    matchNames:
+      - kafka
+  endpoints:
+    - port: tcp-prometheus
+      path: /metrics
+      interval: 30s
+---
+# RabbitMQ — cần bật rabbitmq_prometheus (:15692) hoặc Bitnami metrics (:9419)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rabbitmq-metrics
+  namespace: rabbit
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+  namespaceSelector:
+    matchNames:
+      - rabbit
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      # fallback nếu port tên khác — sửa sau oc get svc -n rabbit
