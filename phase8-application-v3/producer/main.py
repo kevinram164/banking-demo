@@ -106,8 +106,12 @@ async def proxy_to_queue(request: Request, path: str):
         async with rmq_connection.channel() as channel:
             result = await publish_and_wait(redis, channel, queue_name, payload, headers, logger=logger)
     except TimeoutError as e:
-        log_error_event(logger, "producer_timeout", exc=e, path=full_path, service="api-producer")
-        return JSONResponse(status_code=504, content={"detail": "Gateway timeout"})
+        # Consumer không trả lời (down / treo) → 503 Service Unavailable (không dùng 504).
+        log_error_event(logger, "downstream_unavailable", exc=e, path=full_path, service="api-producer", queue=queue_name)
+        return JSONResponse(
+            status_code=503,
+            content={"detail": f"Service unavailable: no response from {queue_name} within timeout"},
+        )
     except Exception as e:
         log_error_event(logger, "producer_error", exc=e, path=full_path, service="api-producer")
         return JSONResponse(status_code=502, content={"detail": str(e)})

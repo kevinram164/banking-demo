@@ -1,64 +1,52 @@
-# Banking services — sự cố = triệu chứng (5xx / log), không phải “replicas=0”
+# Banking services — sự cố = 503 Service Unavailable (+ log), không phải replicas=0
 
 Ns: `npd-banking`. REST: **Kong → api-producer → RabbitMQ → consumer → Redis**.
 
 ## Hiểu đúng lab
 
 `replicas: 0` chỉ **giả lập** “service không chạy”.  
-Alert gửi Telegram phải dựa trên **triệu chứng khi user gọi API**:
+Khi consumer không trả lời trong `RABBITMQ_RESPONSE_TIMEOUT` (~20s):
 
-| Service chết (giả lập scale 0) | User gọi | HTTP (api-producer) | Log (OpenSearch) | Alert Tele |
-|-------------------------------|----------|---------------------|------------------|------------|
-| **transfer-service** | `POST /api/transfer/transfer` | **504** (timeout) hoặc 502 | `producer_timeout` / `producer_error` | `BankingTransferGatewayTimeout`, `BankingTransfer5xx` |
-| **auth-service** | `POST /api/auth/login` | **504** / 5xx | `producer_timeout` | `BankingAuthGatewayTimeout`, `BankingAuth5xx` |
-| **account-service** | `GET /api/account/balance` | **504** / 5xx | `producer_timeout` | `BankingAccountGatewayTimeout`, `BankingAccount5xx` |
+| | |
+|--|--|
+| HTTP | **503** Service Unavailable |
+| Body | `Service unavailable: no response from transfer.requests within timeout` |
+| Log | `downstream_unavailable` (OpenSearch) |
+| Alert Tele | `BankingTransferUnavailable` / `Banking*5xx` |
 
-**Không** alert Tele vì `replicas=0` (đã bỏ `BankingTransferReplicasZero`). Scale=0 chỉ là cách giả lập; tín hiệu = 504 + log.
+| Service chết | User gọi | HTTP | Log | Alert |
+|--------------|----------|------|-----|-------|
+| **transfer-service** | `POST /api/transfer/transfer` | **503** | `downstream_unavailable` | `BankingTransferUnavailable` |
+| **auth-service** | `POST /api/auth/login` | **503** | `downstream_unavailable` | `BankingAuthUnavailable` |
+| **account-service** | `GET /api/account/balance` | **503** | `downstream_unavailable` | `BankingAccountUnavailable` |
 
-Code: `phase8-application-v3/producer/main.py` — `TimeoutError` → log `producer_timeout` + status **504**.
+**HTTP 000 / Empty reply @ ~60s:** Kong `read_timeout` cắt trước khi producer trả body.  
+Producer timeout phải **nhỏ hơn** Kong (20s < 30s). Log vẫn có trên pod `api-producer` (`downstream_unavailable` / image cũ: `producer_timeout`).
 
-**Không gọi API** (im traffic) → **không có 5xx** → không có alert triệu chứng. Phải gọi thử (curl / ecosystem) sau khi “làm hỏng” service.
+Code: `producer/main.py` — `TimeoutError` → **503** (không còn 504). Cần **rebuild image api-producer** rồi sync.
 
 ## Chức năng & blast radius
 
-| Service | Chức năng | User mất gì khi chết |
-|---------|-----------|----------------------|
-| api-producer | Cổng `/api/*` → queue | Mọi REST banking |
-| auth-service | login/register | Không đăng nhập |
-| account-service | me/balance/lookup | Không số dư/tra STK |
-| transfer-service | P2P CK + shop NOLI | Không chuyển tiền / shop pay |
-| notification-service | WS + list notify | Mất realtime (CK vẫn OK) |
-| shop-bridge | Kafka + confirm | Shop không `payment.completed` |
-
-## Log vs metric
-
-Cùng một sự cố timeout:
-
-```text
-log  producer_timeout  ──►  OpenSearch Discover (điều tra)
-         │
-         └── HTTP 504  ──►  http_requests_total{status="504"}  ──►  PrometheusRule  ──►  Telegram
-```
-
-Alertmanager **không đọc** OpenSearch trực tiếp; 504 trên metric = tín hiệu đã “đóng gói” từ cùng lỗi ghi log.
+| Service | User mất gì khi chết |
+|---------|----------------------|
+| api-producer | Mọi REST banking |
+| auth-service | Login/register |
+| account-service | Số dư / lookup |
+| transfer-service | CK / shop pay |
+| notification-service | WS / lịch sử notify |
+| shop-bridge | Confirm thanh toán shop |
 
 ## Test transfer “hỏng”
 
 ```bash
-# 1) Giả lập sự cố
 oc -n npd-banking scale deploy/transfer-service --replicas=0
-# (hoặc Helm replicas: 0 + sync)
 
-# 2) Tạo triệu chứng — BẮT BUỘC gọi API (vài lần)
-# login lấy session rồi:
-curl -sk -X POST https://npd-banking.co/api/transfer/transfer \
+curl -sk --max-time 30 -w "\nHTTP %{http_code}\n" \
+  -X POST https://npd-banking.co/api/transfer/transfer \
   -H "Content-Type: application/json" -H "X-Session: $SESSION" \
-  -d '{"amount":1000,"to_account_number":"STK","note":"test"}'
-# Kỳ vọng body: Gateway timeout, HTTP 504
+  -d '{"amount":1000,"to_account_number":"638607571915","note":"test"}'
+# Kỳ vọng ~20s → HTTP 503
 
-# 3) ~1–2 phút → Tele: BankingTransferGatewayTimeout / BankingTransfer5xx
-# OpenSearch: event producer_timeout
-
-# 4) Restore
+# Tele: BankingTransferUnavailable
 oc -n npd-banking scale deploy/transfer-service --replicas=1
 ```

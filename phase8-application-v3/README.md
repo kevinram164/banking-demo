@@ -108,7 +108,7 @@ Logs JSON structured, có thể trace toàn bộ luồng Kong → Producer → R
 **Env vars:**
 - `LOG_LEVEL` — INFO (default), DEBUG
 - `LOG_REQUEST_FLOW` — true (default) / false — tắt log chi tiết từng request khi cần giảm noise
-- `RABBITMQ_RESPONSE_TIMEOUT` — 60 (default) — giây chờ response từ consumer
+- `RABBITMQ_RESPONSE_TIMEOUT` — 20 (default) — giây chờ response từ consumer; quá hạn → HTTP 504
 - `USER_CACHE_TTL_SECONDS` — 300 (default) — TTL cache user lookup cho login (Redis)
 
 **Redis cache cho login:** User lookup (phone/username → user) được cache trong Redis (TTL 5 phút). User cũ login lại sẽ hit cache, giảm tải DB.

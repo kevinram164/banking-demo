@@ -23,8 +23,9 @@ data:
       - name: api-producer
         url: "http://api-producer.npd-banking.svc.cluster.local:8080"
         connect_timeout: 10000   # 10s kết nối
-        read_timeout: 60000      # 60s đọc response (upstream chờ RabbitMQ)
-        write_timeout: 60000     # 60s ghi request
+        # Phải > RABBITMQ_RESPONSE_TIMEOUT (api-producer=20s). Nếu bằng/nhỏ hơn → client HTTP 000 Empty reply.
+        read_timeout: 30000      # 30s — producer trả 503 trước khi Kong cắt
+        write_timeout: 30000
         routes:
           - name: api-route
             paths: ["/api"]

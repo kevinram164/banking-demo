@@ -1,5 +1,5 @@
 # Gốc hạ tầng — MẶC ĐỊNH TẮT gửi Tele (lab dễ ầm ĩ).
-# Triệu chứng chính = 504/5xx trong banking.yaml.
+# Triệu chứng chính = 503/5xx trong banking.yaml (consumer unavailable).
 #
 # Bật lại khi cần: bỏ annotation / đổi labels, hoặc oc apply file này.
 # Hiện: không tạo rule replicas=0 để tránh nhầm với “service lỗi”.
