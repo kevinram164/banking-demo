@@ -1,5 +1,5 @@
-# Alertmanager → Telegram (+ giữ webhook AIOps nếu đã có riêng)
-# Sửa chatID thành số thật (int). Bot token từ Secret alertmanager-telegram.
+# Alertmanager → Telegram (alerts namespace=npd-banking)
+# Đổi chatID thành số thật (int). Bot token: Secret alertmanager-telegram.
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
 metadata:
@@ -24,9 +24,6 @@ spec:
           - name: severity
             matchType: =~
             value: warning|critical
-        continue: true
-      - receiver: aiops-webhook
-        continue: false
   receivers:
     - name: telegram
       telegramConfigs:
@@ -43,7 +40,3 @@ spec:
             • {{ .Annotations.summary }}
               {{ .Annotations.description }}
             {{ end }}
-    - name: aiops-webhook
-      webhookConfigs:
-        - url: http://incident-api.aiops-core.svc.cluster.local:8080/api/v1/alerts
-          sendResolved: true

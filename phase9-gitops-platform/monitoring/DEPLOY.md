@@ -309,27 +309,34 @@ oc -n aiops-observability rollout status deploy/grafana
 
 ### 8.2 Sửa `chatID` trong YAML
 
-Mở 3 file, đổi `-1000000000000` thành chat id thật:
+Đổi **mọi** chỗ `-1000000000000` thành chat id thật (cùng channel cho lab):
 
-- `monitoring/manifests/alertmanager/telegram-banking.yaml`  
-- `…/telegram-shop.yaml`  
-- `…/telegram-platform.yaml`  
+- `telegram-banking.yaml` (`npd-banking`)
+- `telegram-shop.yaml` (`npd-shop`)
+- `telegram-platform.yaml` (`openshift-monitoring`)
+- `telegram-infra.yaml` (`postgres` / `redis` / `kafka` / `kong` / `rabbit`)
 
-Field: `chatID: -100xxxxxxxxxx` (số nguyên, **không** quote nếu CRD yêu cầu int).
+Field: `chatID: -100xxxxxxxxxx` (số nguyên, **không** quote).
+
+```bash
+# Thay nhanh trên bastion (sau khi copy file)
+CHAT='-100xxxxxxxxxx'   # id thật
+sed -i "s/chatID: -1000000000000/chatID: ${CHAT}/g" \
+  phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-*.yaml
+grep -n chatID phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-*.yaml
+```
 
 ### 8.3 Tạo Secret bot token
 
 ```bash
 export BOT='123456:AA...'   # token thật
 
-for ns in npd-banking npd-shop openshift-monitoring; do
-  oc -n "$ns" create secret generic alertmanager-telegram \
-    --from-literal=bot-token="$BOT" \
-    --dry-run=client -o yaml | oc apply -f -
-done
+# Smoke test bot + chat (phải thấy tin nhắn trên Telegram)
+curl -sS "https://api.telegram.org/bot${BOT}/sendMessage" \
+  --data-urlencode "chat_id=${CHAT}" \
+  --data-urlencode "text=NPD Alertmanager smoke OK"
 
-# (Tuỳ chọn) infra ns nếu sau này gắn AlertmanagerConfig riêng
-for ns in postgres kafka kong rabbit; do
+for ns in npd-banking npd-shop openshift-monitoring postgres redis kafka kong rabbit; do
   oc -n "$ns" create secret generic alertmanager-telegram \
     --from-literal=bot-token="$BOT" \
     --dry-run=client -o yaml | oc apply -f -
@@ -343,6 +350,7 @@ cd banking-demo
 oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-banking.yaml
 oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-shop.yaml
 oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-platform.yaml
+oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-infra.yaml
 ```
 
 ### Kiểm tra
@@ -441,13 +449,14 @@ oc apply -f phase9-gitops-platform/monitoring/manifests/prometheusrules/nodes.ya
 
 # Telegram: sửa chatID trong YAML trước, rồi:
 export BOT='YOUR_BOT_TOKEN'
-for ns in npd-banking npd-shop openshift-monitoring; do
+for ns in npd-banking npd-shop openshift-monitoring postgres redis kafka kong rabbit; do
   oc -n "$ns" create secret generic alertmanager-telegram \
     --from-literal=bot-token="$BOT" --dry-run=client -o yaml | oc apply -f -
 done
 oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-banking.yaml
 oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-shop.yaml
 oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-platform.yaml
+oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-infra.yaml
 
 # === AIOps Grafana ===
 # git push Open-Source-AIOps-Platform → Argo sync grafana → mở folder NPD
