@@ -6,6 +6,9 @@ metadata:
   labels:
     app.kubernetes.io/part-of: npd-monitoring
 spec:
+  namespaceSelector:
+    matchNames:
+      - npd-shop
   selector:
     matchExpressions:
       - key: app.kubernetes.io/component
@@ -16,11 +19,37 @@ spec:
           - catalog-service
           - order-service
           - payment-worker
+          - shop-web
+  endpoints:
+    - targetPort: 8080
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: npd-shop-services-name
+  namespace: npd-shop
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
   namespaceSelector:
     matchNames:
       - npd-shop
+  selector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - npd-shop
+          - gateway
+          - order-service
+          - catalog-service
+          - auth-service
+          - payment-worker
   endpoints:
-    - port: http
+    - targetPort: 8080
       path: /metrics
-      interval: 30s
+      interval: 15s
       scrapeTimeout: 10s
