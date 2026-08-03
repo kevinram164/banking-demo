@@ -19,15 +19,16 @@ spec:
     - name: banking.symptoms
       rules:
         # --- Transfer không hoạt động (timeout consumer) ---
+        # Dùng increase (số lần 504), không dùng rate cao — lab vài curl vẫn đủ fire.
         - alert: BankingTransferGatewayTimeout
           expr: |
-            sum(rate(http_requests_total{
+            sum(increase(http_requests_total{
               namespace="npd-banking",
               job="banking-api-producer",
               endpoint=~".*transfer.*",
               status="504"
-            }[5m])) > 0.01
-          for: 1m
+            }[5m])) >= 1
+          for: 0m
           labels:
             severity: critical
             team: banking
@@ -42,13 +43,13 @@ spec:
 
         - alert: BankingTransfer5xx
           expr: |
-            sum(rate(http_requests_total{
+            sum(increase(http_requests_total{
               namespace="npd-banking",
               job="banking-api-producer",
               endpoint=~".*transfer.*",
               status=~"5.."
-            }[5m])) > 0.02
-          for: 1m
+            }[5m])) >= 2
+          for: 0m
           labels:
             severity: critical
             team: banking
@@ -100,13 +101,13 @@ spec:
         # --- Auth không hoạt động ---
         - alert: BankingAuthGatewayTimeout
           expr: |
-            sum(rate(http_requests_total{
+            sum(increase(http_requests_total{
               namespace="npd-banking",
               job="banking-api-producer",
               endpoint=~".*auth.*",
               status="504"
-            }[5m])) > 0.01
-          for: 1m
+            }[5m])) >= 1
+          for: 0m
           labels:
             severity: critical
             team: banking
@@ -119,13 +120,13 @@ spec:
 
         - alert: BankingAuth5xx
           expr: |
-            sum(rate(http_requests_total{
+            sum(increase(http_requests_total{
               namespace="npd-banking",
               job="banking-api-producer",
               endpoint=~".*auth.*",
               status=~"5.."
-            }[5m])) > 0.02
-          for: 1m
+            }[5m])) >= 2
+          for: 0m
           labels:
             severity: critical
             team: banking
@@ -139,13 +140,13 @@ spec:
         # --- Account không hoạt động ---
         - alert: BankingAccountGatewayTimeout
           expr: |
-            sum(rate(http_requests_total{
+            sum(increase(http_requests_total{
               namespace="npd-banking",
               job="banking-api-producer",
               endpoint=~".*account.*",
               status="504"
-            }[5m])) > 0.01
-          for: 1m
+            }[5m])) >= 1
+          for: 0m
           labels:
             severity: critical
             team: banking
@@ -158,13 +159,13 @@ spec:
 
         - alert: BankingAccount5xx
           expr: |
-            sum(rate(http_requests_total{
+            sum(increase(http_requests_total{
               namespace="npd-banking",
               job="banking-api-producer",
               endpoint=~".*account.*",
               status=~"5.."
-            }[5m])) > 0.02
-          for: 1m
+            }[5m])) >= 2
+          for: 0m
           labels:
             severity: critical
             team: banking
