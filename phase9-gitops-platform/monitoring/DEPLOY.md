@@ -157,28 +157,43 @@ git pull
 
 ## 4. Bước A — Bật User Workload Monitoring
 
-### Làm gì
+Ns `openshift-user-workload-monitoring` **đã có** (Console thấy được) nhưng **trống pod** vì CM thiếu `enableUserWorkload`.
+
+`ConfigMap/cluster-monitoring-config` đang do Argo **`aiops-alertmanager-platform`** quản lý — chỉ có `alertmanagerMain`, **không** có `enableUserWorkload` → UWM không bao giờ start.
+
+### Cách nhanh (bastion) — làm ngay
 
 ```bash
-cd banking-demo
+oc -n openshift-monitoring edit cm cluster-monitoring-config
+```
+
+Đổi `data.config.yaml` thành:
+
+```yaml
+enableUserWorkload: true
+alertmanagerMain:
+  enableUserAlertmanagerConfig: true
+```
+
+Save → đợi 1–3 phút:
+
+```bash
+oc -n openshift-user-workload-monitoring get pods -w
+# prometheus-operator, prometheus-user-workload-*, thanos-ruler-user-workload-*
+```
+
+### Cách bền (tránh Argo revert)
+
+Đã sửa Git AIOps: `integrations/alertmanager/overlays/openshift-monitoring/cluster-monitoring-config.yaml`  
+→ push + sync app **`aiops-alertmanager-platform`**.
+
+**Không** `oc apply` lại file UWM từ banking-demo lên `cluster-monitoring-config` (Argo sẽ ghi đè mất `enableUserWorkload` nếu Git chưa cập nhật).
+
+Chỉ apply tinh chỉnh retention (tuỳ chọn):
+
+```bash
 oc apply -f phase9-gitops-platform/monitoring/manifests/uwm/user-workload-monitoring-config.yaml
 ```
-
-> Nếu cluster **đã có** `ConfigMap/cluster-monitoring-config` với nội dung khác, `oc apply` có thể ghi đè.  
-> An toàn hơn: `oc -n openshift-monitoring get cm cluster-monitoring-config -o yaml` → merge tay 2 dòng:
-> - `enableUserWorkload: true`
-> - dưới `alertmanagerMain:` → `enableUserAlertmanagerConfig: true`
-
-### Kiểm tra (bắt buộc)
-
-```bash
-oc -n openshift-user-workload-monitoring get pods
-# Kỳ vọng: prometheus-user-workload-*, thanos-ruler-user-workload-*  Running
-
-oc -n openshift-monitoring get cm cluster-monitoring-config -o yaml | grep -A5 enableUser
-```
-
-Đợi 1–2 phút nếu pod đang tạo. **Chưa Running → dừng, đừng apply ServiceMonitor.**
 
 ---
 

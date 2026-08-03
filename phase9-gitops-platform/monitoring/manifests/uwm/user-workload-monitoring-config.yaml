@@ -1,5 +1,14 @@
-# Bật User Workload Monitoring — scrape ServiceMonitor/PrometheusRule user ns
-# Apply vào openshift-monitoring (cần cluster-admin).
+# Bật User Workload Monitoring — scrape ServiceMonitor/PrometheusRule user ns.
+#
+# QUAN TRỌNG trên cluster NPD:
+# ConfigMap cluster-monitoring-config thuộc Argo app **aiops-alertmanager-platform**
+# (repo Open-Source-AIOps-Platform). Đừng apply đè file này từ banking-demo — Argo sẽ
+# revert. Sửa Git AIOps (đã có enableUserWorkload: true) rồi sync Argo, HOẶC patch tạm:
+#
+#   oc -n openshift-monitoring edit cm cluster-monitoring-config
+#   → thêm: enableUserWorkload: true  (cùng cấp với alertmanagerMain)
+#
+# File này chỉ còn CM tinh chỉnh UWM (ns openshift-user-workload-monitoring).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -18,20 +27,3 @@ data:
         limits:
           cpu: "1"
           memory: 2Gi
----
-# cluster-monitoring-config — merge enableUserWorkload (nếu CM đã có, merge tay / Argo SSA)
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: cluster-monitoring-config
-  namespace: openshift-monitoring
-  labels:
-    app.kubernetes.io/part-of: npd-monitoring
-    app.kubernetes.io/component: user-workload
-  annotations:
-    argocd.argoproj.io/sync-options: ServerSideApply=true
-data:
-  config.yaml: |
-    enableUserWorkload: true
-    alertmanagerMain:
-      enableUserAlertmanagerConfig: true
