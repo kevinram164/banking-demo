@@ -1,4 +1,3 @@
-# Platform / node alerts → Telegram (ns openshift-monitoring)
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
 metadata:
@@ -12,10 +11,9 @@ spec:
     receiver: telegram
     groupBy:
       - alertname
-      - severity
-    groupWait: 30s
-    groupInterval: 5m
-    repeatInterval: 2h
+    groupWait: 0s
+    groupInterval: 1m
+    repeatInterval: 30m
     routes:
       - receiver: telegram
         matchers:
@@ -31,7 +29,4 @@ spec:
           chatID: -1004489182185
           parseMode: HTML
           sendResolved: true
-          message: |
-            <b>OCP {{ .Status | toUpper }}</b> {{ .CommonLabels.alertname }}
-            {{ range .Alerts }}• {{ .Annotations.summary }} — {{ .Annotations.description }}
-            {{ end }}
+          message: '{{ .CommonLabels.alertname }} [{{ .Status }}] {{ .CommonAnnotations.summary }}'

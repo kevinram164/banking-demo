@@ -36,6 +36,42 @@ Node / cluster metrics ◄──────┤  (đã có sẵn từ openshift-
 | **Log** | OpenSearch `logs-platform…` | Không nhầm với metrics |
 | **Alert chat** | Alertmanager → Telegram | |
 
+### Cơ chế alert banking (3 tầng) — đọc kỹ
+
+```text
+Người dùng / Shop gọi CK
+        │
+        ▼
+┌───────────────────────────────────────────────────────────┐
+│ Tầng 1 — NGHIỆP VỤ (API còn sống, có HTTP metric)         │
+│  BankingTransferHighFailureRate  >20% 4xx/5xx transfer    │
+│  BankingTransferErrorsBurst      5xx transfer              │
+│  → “Chuyển tiền không thành công”                         │
+└────────────────────────────┬──────────────────────────────┘
+                             │ nếu không còn request / scrape
+                             ▼
+┌───────────────────────────────────────────────────────────┐
+│ Tầng 2 — AVAILABILITY (UWM `up` / absent)                 │
+│  BankingApiDown            api-producer scrape mất         │
+│  BankingAuth/Account/TransferServiceDown                   │
+│  → “API/dịch vụ không hoạt động — giao dịch không làm được”│
+│  (Khi API tắt hẳn: Tầng 1 KHÔNG fire vì hết HTTP metric)  │
+└────────────────────────────┬──────────────────────────────┘
+                             │ nguyên nhân kube
+                             ▼
+┌───────────────────────────────────────────────────────────┐
+│ Tầng 3 — INFRA (platform kube-state-metrics)              │
+│  BankingApiScaledToZero    deployment replicas=0          │
+│  BankingDeploymentUnavailable                             │
+└───────────────────────────────────────────────────────────┘
+```
+
+| Tình huống lab | Alert kỳ vọng | Không kỳ vọng |
+|----------------|---------------|---------------|
+| `replicas: 0` api-producer | **Tầng 2+3** (`BankingApiDown`, `BankingApiScaledToZero`) | Tầng 1 (không còn traffic) |
+| API sống, transfer 5xx nhiều | **Tầng 1** | Không cần scale pod |
+| Dashboard RPS=0 | Chỉ là panel Grafana | **Không** phải alert — xem Observe→Alerting / `ALERTS{tier=...}` |
+
 **Hai repo liên quan:**
 
 | Repo | Việc |
@@ -84,14 +120,15 @@ Nếu **label Service** trên cluster khác với manifest → scrape fail → p
 
 ### 2.3 PrometheusRule
 
-Định nghĩa điều kiện alert (PromQL + `for: 5m` …).
+| File | Tầng | Nội dung |
+|------|------|----------|
+| `prometheusrules/banking.yaml` | 1+2 | Transfer fail (status) + API/service `up` |
+| `prometheusrules/banking-kube-platform.yaml` | 3 | replicas=0 / unavailable (openshift-monitoring) |
+| `prometheusrules/shop.yaml` | shop | Shop pod/scrape |
+| `prometheusrules/infra.yaml` | infra | Postgres/Redis/Kong/Kafka/Rabbit |
+| `prometheusrules/nodes.yaml` | platform | Node CPU/mem/disk |
 
-| File | Ý nghĩa |
-|------|---------|
-| `prometheusrules/banking.yaml` | Pod banking unavailable / restart / CPU cao |
-| `prometheusrules/shop.yaml` | Tương tự shop |
-| `prometheusrules/infra.yaml` | Postgres/Redis/Kong/Kafka/Rabbit down, Kafka lag |
-| `prometheusrules/nodes.yaml` | Node NotReady, CPU/mem/disk (ns `openshift-monitoring`) |
+App metric dùng label **`status`** (không phải `code`). Path transfer = label **`endpoint`**.
 
 ### 2.4 AlertmanagerConfig + Secret Telegram
 

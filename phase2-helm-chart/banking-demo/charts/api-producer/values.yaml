@@ -6,7 +6,7 @@ api-producer:
     repository: registry.gitlab.com/kiettt164/banking-demo-payment/api-producer
     tag: 2d4c7af
     pullPolicy: Always
-  replicas: 1  # TEMP alert Tele test — đổi lại 1 sau khi nhận alert
+  replicas: 1
   service:
     port: 8080
     portName: http

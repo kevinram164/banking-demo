@@ -1,5 +1,4 @@
-# Platform Prometheus — có kube-state-metrics (UWM không có).
-# Alert label namespace=npd-banking → AlertmanagerConfig npd-telegram (ns npd-banking) nhận.
+# Tầng 3: Platform / kube (kube-state-metrics — chỉ có trên platform Prometheus)
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -13,27 +12,30 @@ spec:
   groups:
     - name: banking.kube
       rules:
-        # Scale về 0: spec_replicas==0 (unavailable>0 KHÔNG fire khi desired=0)
-        - alert: BankingApiProducerScaledToZero
+        - alert: BankingApiScaledToZero
           expr: |
             kube_deployment_spec_replicas{namespace="npd-banking", deployment="api-producer"} == 0
           for: 1m
           labels:
-            severity: warning
+            severity: critical
             team: banking
+            tier: infra
             namespace: npd-banking
           annotations:
-            summary: "api-producer replicas = 0"
-            description: "Deployment api-producer intentionally or accidentally scaled to zero."
+            summary: "api-producer replicas=0 — API bị tắt (infra)"
+            description: >-
+              Deployment scale 0. Nguyên nhân gốc thường là GitOps/Helm replicas hoặc oc scale.
+              Hậu quả nghiệp vụ = không chuyển tiền được (xem thêm BankingApiDown trên UWM).
 
-        - alert: BankingPodNotReady
+        - alert: BankingDeploymentUnavailable
           expr: |
             kube_deployment_status_replicas_unavailable{namespace="npd-banking"} > 0
-          for: 2m
+          for: 3m
           labels:
             severity: warning
             team: banking
+            tier: infra
             namespace: npd-banking
           annotations:
-            summary: "Banking deployment unavailable replicas"
-            description: "{{ $labels.deployment }} has unavailable replicas for 2m."
+            summary: "Banking deployment có pod unavailable"
+            description: "{{ $labels.deployment }} unavailable >0 trong 3m."

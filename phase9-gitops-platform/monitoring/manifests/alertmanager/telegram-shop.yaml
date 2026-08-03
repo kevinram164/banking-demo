@@ -10,11 +10,10 @@ spec:
   route:
     receiver: telegram
     groupBy:
-      - namespace
       - alertname
-    groupWait: 30s
-    groupInterval: 5m
-    repeatInterval: 2h
+    groupWait: 0s
+    groupInterval: 1m
+    repeatInterval: 30m
   receivers:
     - name: telegram
       telegramConfigs:
@@ -24,8 +23,4 @@ spec:
           chatID: -1004489182185
           parseMode: HTML
           sendResolved: true
-          message: |
-            <b>{{ .Status | toUpper }}</b> {{ .CommonLabels.alertname }}
-            ns={{ .CommonLabels.namespace }}
-            {{ range .Alerts }}• {{ .Annotations.summary }}
-            {{ end }}
+          message: '{{ .CommonLabels.alertname }} [{{ .Status }}] {{ .CommonAnnotations.summary }}'
