@@ -4,4 +4,4 @@ resources:
   - banking.yaml
   - shop.yaml
   - infra.yaml
-  # nodes.yaml apply riêng vào openshift-monitoring (cần quyền)
+  # nodes.yaml + banking-kube-platform.yaml → openshift-monitoring (apply riêng, cần quyền)

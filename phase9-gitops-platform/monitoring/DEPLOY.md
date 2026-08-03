@@ -250,6 +250,21 @@ oc get prometheusrule -A | grep npd
 
 Alert **chưa** bắn Telegram cho đến khi xong bước E (AlertmanagerConfig + bot).
 
+> **Lab scale `api-producer` → 0:** rule cũ `unavailable > 0` **không fire** (desired=0 → unavailable=0).  
+> Dùng `BankingApiProducerDown` (UWM/`up`) hoặc `BankingApiProducerScaledToZero` (platform/`kube_deployment_spec_replicas==0`).  
+> Apply thêm: `oc apply -f …/prometheusrules/banking-kube-platform.yaml`
+
+### Kiểm tra alert đang pending/firing
+
+```bash
+# UWM ruler
+oc -n openshift-user-workload-monitoring exec -c thanos-ruler \
+  $(oc -n openshift-user-workload-monitoring get pod -l app.kubernetes.io/name=thanos-ruler -o name | head -1) \
+  -- wget -qO- http://localhost:10902/api/v1/alerts 2>/dev/null | head -c 2000
+
+# Console → Observe → Alerting → lọc BankingApiProducer
+```
+
 ---
 
 ## 7. Bước D — Dashboard Grafana (repo AIOps)
@@ -374,14 +389,14 @@ Phải có `enableUserAlertmanagerConfig: true` (bước A).
 ### 9.2 Alert → Telegram
 
 ```bash
-# Cảnh báo: lab tạm scale 0
-oc -n npd-banking scale deploy/api-producer --replicas=0
+# Apply rule mới (scale-to-zero + UWM up)
+oc apply -f phase9-gitops-platform/monitoring/manifests/prometheusrules/banking.yaml
+oc apply -f phase9-gitops-platform/monitoring/manifests/prometheusrules/banking-kube-platform.yaml
 
-# Đợi ~5–10 phút (rule for: 5m + groupWait)
-# Kỳ vọng: tin nhắn Telegram BankingPodNotReady / tương tự
+# Helm values đã replicas: 0 + Argo sync → đợi ~1–3 phút
+# Kỳ vọng Tele: BankingApiProducerDown và/hoặc BankingApiProducerScaledToZero
 
-# Restore
-oc -n npd-banking scale deploy/api-producer --replicas=1
+# Restore: replicas: 1 trong charts/api-producer/values.yaml → push
 ```
 
 Xem Alertmanager:

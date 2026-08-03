@@ -10,35 +10,50 @@ spec:
   groups:
     - name: banking.apps
       rules:
-        - alert: BankingPodNotReady
+        # UWM chỉ có metric scrape app — KHÔNG có kube_deployment_* (platform).
+        # Scale replicas=0 → không còn target up → absent() fire.
+        # job thường = tên ServiceMonitor (banking-api-producer).
+        - alert: BankingApiProducerDown
           expr: |
-            kube_deployment_status_replicas_unavailable{namespace="npd-banking"} > 0
+            (
+              absent(up{namespace="npd-banking", job="banking-api-producer"}) == 1
+            )
+            or
+            (
+              up{namespace="npd-banking", job="banking-api-producer"} == 0
+            )
+          for: 1m
+          labels:
+            severity: warning
+            team: banking
+            namespace: npd-banking
+          annotations:
+            summary: "api-producer scrape down / no targets"
+            description: "UWM không thấy up=1 cho job banking-api-producer (pod scale 0 hoặc crash)."
+
+        - alert: BankingServiceDown
+          expr: |
+            up{namespace="npd-banking", job=~"banking-.*"} == 0
+          for: 2m
+          labels:
+            severity: warning
+            team: banking
+            namespace: npd-banking
+          annotations:
+            summary: "Banking scrape target down"
+            description: "job={{ $labels.job }} instance={{ $labels.instance }} up=0 for 2m."
+
+        - alert: BankingHighErrorRate
+          expr: |
+            sum(rate(http_requests_total{namespace="npd-banking",code=~"5.."}[5m]))
+              /
+            clamp_min(sum(rate(http_requests_total{namespace="npd-banking"}[5m])), 1)
+              > 0.1
           for: 5m
           labels:
             severity: warning
             team: banking
+            namespace: npd-banking
           annotations:
-            summary: "Banking deployment unavailable replicas"
-            description: "{{ $labels.deployment }} in npd-banking has unavailable replicas for 5m."
-
-        - alert: BankingPodRestarting
-          expr: |
-            increase(kube_pod_container_status_restarts_total{namespace="npd-banking"}[15m]) > 3
-          for: 5m
-          labels:
-            severity: warning
-            team: banking
-          annotations:
-            summary: "Banking pod restarting"
-            description: "Pod {{ $labels.pod }} restarted >3 times in 15m."
-
-        - alert: BankingHighCPU
-          expr: |
-            sum by (pod) (rate(container_cpu_usage_seconds_total{namespace="npd-banking",container!=""}[5m])) > 0.8
-          for: 10m
-          labels:
-            severity: warning
-            team: banking
-          annotations:
-            summary: "Banking pod high CPU"
-            description: "{{ $labels.pod }} CPU > 0.8 cores for 10m."
+            summary: "Banking HTTP 5xx > 10%"
+            description: "Error rate high in npd-banking for 5m."

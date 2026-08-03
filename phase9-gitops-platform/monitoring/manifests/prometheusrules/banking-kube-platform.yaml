@@ -1,0 +1,39 @@
+# Platform Prometheus — có kube-state-metrics (UWM không có).
+# Alert label namespace=npd-banking → AlertmanagerConfig npd-telegram (ns npd-banking) nhận.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-banking-kube-alerts
+  namespace: openshift-monitoring
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+    - name: banking.kube
+      rules:
+        # Scale về 0: spec_replicas==0 (unavailable>0 KHÔNG fire khi desired=0)
+        - alert: BankingApiProducerScaledToZero
+          expr: |
+            kube_deployment_spec_replicas{namespace="npd-banking", deployment="api-producer"} == 0
+          for: 1m
+          labels:
+            severity: warning
+            team: banking
+            namespace: npd-banking
+          annotations:
+            summary: "api-producer replicas = 0"
+            description: "Deployment api-producer intentionally or accidentally scaled to zero."
+
+        - alert: BankingPodNotReady
+          expr: |
+            kube_deployment_status_replicas_unavailable{namespace="npd-banking"} > 0
+          for: 2m
+          labels:
+            severity: warning
+            team: banking
+            namespace: npd-banking
+          annotations:
+            summary: "Banking deployment unavailable replicas"
+            description: "{{ $labels.deployment }} has unavailable replicas for 2m."
