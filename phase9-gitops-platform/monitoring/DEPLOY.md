@@ -108,16 +108,25 @@ Cần Secret tên `alertmanager-telegram` key `bot-token` trong **cùng namespac
 
 ### 2.5 Grafana dashboards (repo AIOps)
 
-Sau sync Argo app `grafana`, UI có folder **NPD**:
+Dashboard **chi tiết** port từ Phase 3 (`banking-demo/phase3-monitoring-keda/helm-monitoring/`):
 
-| Dashboard | Xem gì |
-|-----------|--------|
-| NPD Banking | Pod / CPU / RAM ns `npd-banking` |
-| NPD Shop | ns `npd-shop` |
-| NPD Infra | scrape up + Kafka lag + pod infra |
-| NPD OCP Nodes | CPU / RAM / disk mọi node |
+| Dashboard (folder **NPD**) | Nguồn Phase 3 | Metrics app |
+|----------------------------|---------------|-------------|
+| **NPD Banking Services** | `grafana-dashboard-banking-services-phase8.yaml` | RPS, p95, 5xx, transfer success |
+| **NPD Shop Services** | (clone pattern Phase 8 → ns `npd-shop`) | HTTP shop |
+| **NPD Kong Gateway** | `grafana-dashboard-kong.yaml` | Kong nginx/datastore |
+| **NPD RabbitMQ** | `grafana-dashboard-rabbitmq.yaml` | queue/consumer (cần exporter) |
+| NPD Infra | overview scrape + Kafka lag | |
+| NPD OCP Nodes | CPU/mem/disk nodes | |
 
-Datasource: **Prometheus** → Thanos (cần SA `grafana` có `cluster-monitoring-view` — chart đã thêm).
+Regenerate từ Phase 3 (sau khi sửa dashboard gốc):
+
+```bash
+cd /path/to/OCP   # workspace có banking-demo + Open-Source-AIOps-Platform
+python banking-demo/phase9-gitops-platform/monitoring/scripts/port_phase3_dashboards.py
+```
+
+Query đã gắn `namespace=npd-banking|npd-shop|…` và nới `job=~` cho ServiceMonitor OCP.
 
 ---
 
@@ -260,7 +269,7 @@ oc -n aiops-observability rollout status deploy/grafana
 1. https://grafana-aiops-observability.apps.ocp01.npd.co  
 2. Login (Vault/secret `grafana-admin`)  
 3. Menu **Dashboards** → folder **NPD**  
-4. Mở **NPD Banking** / **NPD OCP Nodes**  
+4. Ưu tiên mở **NPD Banking Services** (RPS / p95 / transfer — giống Phase 3)  
 5. Góc trên chọn datasource **Prometheus** (nếu panel hỏi)
 
 ### Kiểm tra
