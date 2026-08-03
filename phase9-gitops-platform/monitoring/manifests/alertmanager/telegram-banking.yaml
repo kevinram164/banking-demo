@@ -30,7 +30,7 @@ spec:
         - botToken:
             name: alertmanager-telegram
             key: bot-token
-          chatID: -1000000000000
+          chatID: -1004489182185
           parseMode: HTML
           sendResolved: true
           message: |
