@@ -7,8 +7,7 @@ metadata:
     app.kubernetes.io/part-of: npd-monitoring
 spec:
   namespaceSelector:
-    matchNames:
-      - npd-shop
+    matchNames: [npd-shop]
   selector:
     matchExpressions:
       - key: app.kubernetes.io/component
@@ -23,35 +22,11 @@ spec:
   endpoints:
     - targetPort: 8080
       path: /metrics
-      honorLabels: true
       interval: 15s
       scrapeTimeout: 10s
+      honorLabels: true
+      relabelings:
+        - action: labeldrop
+          regex: endpoint
 ---
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: npd-shop-services-name
-  namespace: npd-shop
-  labels:
-    app.kubernetes.io/part-of: npd-monitoring
-spec:
-  namespaceSelector:
-    matchNames:
-      - npd-shop
-  selector:
-    matchExpressions:
-      - key: app.kubernetes.io/name
-        operator: In
-        values:
-          - npd-shop
-          - gateway
-          - order-service
-          - catalog-service
-          - auth-service
-          - payment-worker
-  endpoints:
-    - targetPort: 8080
-      path: /metrics
-      honorLabels: true
-      interval: 15s
-      scrapeTimeout: 10s
+# oc -n npd-shop delete servicemonitor npd-shop-services-name --ignore-not-found

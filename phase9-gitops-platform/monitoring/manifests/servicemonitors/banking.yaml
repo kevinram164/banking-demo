@@ -1,6 +1,6 @@
-# Scrape /metrics — ns npd-banking (UWM)
-# Dùng targetPort (số) để khỏi phụ thuộc tên port Service = "http".
-# Selector: cả app.kubernetes.io/name và app: (Helm cũ).
+# Scrape /metrics — npd-banking
+# QUAN TRỌNG: Prometheus Operator gắn label target `endpoint`=<port>, đè label app
+# `endpoint`=/api/... → dashboard transfer chết. Fix: honorLabels + labeldrop endpoint.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -10,143 +10,129 @@ metadata:
     app.kubernetes.io/part-of: npd-monitoring
 spec:
   namespaceSelector:
-    matchNames:
-      - npd-banking
-  selector:
-    matchExpressions:
-      - key: app.kubernetes.io/name
-        operator: In
-        values:
-          - api-producer
-  endpoints:
-    - targetPort: 8080
-      path: /metrics
-      honorLabels: true
-      interval: 15s
-      scrapeTimeout: 10s
----
-# Fallback nếu Service chỉ có label app=api-producer
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: banking-api-producer-app
-  namespace: npd-banking
-  labels:
-    app.kubernetes.io/part-of: npd-monitoring
-spec:
-  namespaceSelector:
-    matchNames:
-      - npd-banking
+    matchNames: [npd-banking]
   selector:
     matchLabels:
-      app: api-producer
+      app.kubernetes.io/name: api-producer
   endpoints:
     - targetPort: 8080
       path: /metrics
-      honorLabels: true
       interval: 15s
       scrapeTimeout: 10s
+      honorLabels: true
+      relabelings:
+        - action: labeldrop
+          regex: endpoint
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: banking-services
+  name: banking-auth
   namespace: npd-banking
   labels:
     app.kubernetes.io/part-of: npd-monitoring
 spec:
   namespaceSelector:
-    matchNames:
-      - npd-banking
+    matchNames: [npd-banking]
   selector:
-    matchExpressions:
-      - key: app.kubernetes.io/name
-        operator: In
-        values:
-          - auth-service
-          - account-service
-          - transfer-service
-          - notification-service
-          - shop-bridge
-          - frontend
-          - api-producer
+    matchLabels:
+      app.kubernetes.io/name: auth-service
   endpoints:
-    - targetPort: 8080
-      path: /metrics
-      honorLabels: true
-      interval: 15s
-      scrapeTimeout: 10s
     - targetPort: 8001
       path: /metrics
-      honorLabels: true
       interval: 15s
-      scrapeTimeout: 10s
-    - targetPort: 8002
-      path: /metrics
       honorLabels: true
-      interval: 15s
-      scrapeTimeout: 10s
-    - targetPort: 8003
-      path: /metrics
-      honorLabels: true
-      interval: 15s
-      scrapeTimeout: 10s
-    - targetPort: 8004
-      path: /metrics
-      honorLabels: true
-      interval: 15s
-      scrapeTimeout: 10s
-    - targetPort: 8010
-      path: /metrics
-      honorLabels: true
-      interval: 15s
-      scrapeTimeout: 10s
+      relabelings:
+        - action: labeldrop
+          regex: endpoint
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: banking-services-app-label
+  name: banking-account
   namespace: npd-banking
   labels:
     app.kubernetes.io/part-of: npd-monitoring
 spec:
   namespaceSelector:
-    matchNames:
-      - npd-banking
+    matchNames: [npd-banking]
   selector:
-    matchExpressions:
-      - key: app
-        operator: In
-        values:
-          - auth-service
-          - account-service
-          - transfer-service
-          - notification-service
-          - shop-bridge
-          - frontend
-          - api-producer
+    matchLabels:
+      app.kubernetes.io/name: account-service
   endpoints:
-    - targetPort: 8080
-      path: /metrics
-      honorLabels: true
-      interval: 15s
-    - targetPort: 8001
-      path: /metrics
-      honorLabels: true
-      interval: 15s
     - targetPort: 8002
       path: /metrics
-      honorLabels: true
       interval: 15s
+      honorLabels: true
+      relabelings:
+        - action: labeldrop
+          regex: endpoint
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: banking-transfer
+  namespace: npd-banking
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  namespaceSelector:
+    matchNames: [npd-banking]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: transfer-service
+  endpoints:
     - targetPort: 8003
       path: /metrics
-      honorLabels: true
       interval: 15s
+      honorLabels: true
+      relabelings:
+        - action: labeldrop
+          regex: endpoint
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: banking-notification
+  namespace: npd-banking
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  namespaceSelector:
+    matchNames: [npd-banking]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification-service
+  endpoints:
     - targetPort: 8004
       path: /metrics
-      honorLabels: true
       interval: 15s
+      honorLabels: true
+      relabelings:
+        - action: labeldrop
+          regex: endpoint
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: banking-shop-bridge
+  namespace: npd-banking
+  labels:
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  namespaceSelector:
+    matchNames: [npd-banking]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shop-bridge
+  endpoints:
     - targetPort: 8010
       path: /metrics
-      honorLabels: true
       interval: 15s
+      honorLabels: true
+      relabelings:
+        - action: labeldrop
+          regex: endpoint
+---
+# Xóa SM cũ trùng (nếu còn) — apply tay:
+# oc -n npd-banking delete servicemonitor banking-api-producer-app banking-services banking-services-app-label --ignore-not-found
