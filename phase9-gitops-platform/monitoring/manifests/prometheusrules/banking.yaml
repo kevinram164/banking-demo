@@ -105,12 +105,12 @@ spec:
     # ── Tầng 2: Scrape up==0 (có target đang down) ─────────────────────
     - name: banking.availability
       rules:
+        # Chỉ up==0 (đang scrape nhưng fail). Scale 0 → dùng BankingApiScaledToZero (kube).
+        # Không dùng absent() — dễ fire ảo khi target tạm mất khỏi TSDB.
         - alert: BankingApiDown
           expr: |
             up{namespace="npd-banking", job="banking-api-producer"} == 0
-            or
-            absent(up{namespace="npd-banking", job="banking-api-producer"}) == 1
-          for: 1m
+          for: 2m
           labels:
             severity: critical
             team: banking
@@ -118,8 +118,8 @@ spec:
             impact: all-api
             namespace: npd-banking
           annotations:
-            summary: "api-producer DOWN — mọi API banking qua Kong fail"
-            description: "Mất login/số dư/CK/notify qua /api. Kiểm tra deploy api-producer + RabbitMQ/Redis."
+            summary: "api-producer scrape DOWN — mọi API banking qua Kong fail"
+            description: "up=0 job banking-api-producer. Scale 0 xem BankingApiScaledToZero."
 
         - alert: BankingAuthDown
           expr: up{namespace="npd-banking", job="banking-auth"} == 0
