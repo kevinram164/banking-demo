@@ -7,7 +7,7 @@ transfer-service:
     tag: 2d4c7af
     pullPolicy: Always
   imagePullSecrets: []
-  replicas: 2
+  replicas: 0
   service:
     port: 8003
     portName: http
