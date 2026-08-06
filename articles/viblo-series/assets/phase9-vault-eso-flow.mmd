@@ -1,0 +1,40 @@
+%% NPD multi-app Vault + ESO (source for phase9-vault-eso-flow.png)
+%% Apps: banking-demo, npd-shop, cinehome/movie-web, Open-Source-AIOps-Platform + shared platform
+flowchart TB
+  SEED["Admin / seed<br/>vault kv put"]
+  JENCI["Jenkins VaultClient<br/>CI read Harbor push"]
+  VAULT["HashiCorp Vault — KV v2 mount <b>secret/</b>"]
+
+  SEED --> VAULT
+  JENCI -.->|"platform/*/harbor<br/>npd-shop/harbor<br/>cinehome/harbor"| VAULT
+
+  subgraph paths["Vault path prefixes (shared cluster)"]
+    P["secret/platform/*"]
+    B["secret/banking/* + rabbitmq/*"]
+    S["secret/npd-shop/*"]
+    C["secret/cinehome/*"]
+    A["secret/aiops/*"]
+  end
+  VAULT --- paths
+
+  ESO["External Secrets Operator<br/>ClusterSecretStore <b>vault-backend</b>"]
+  VAULT -->|"token read"| ESO
+  ES["ExternalSecret CRs"]
+  ESO --> ES
+  K8S["Kubernetes Secrets"]
+  ES -->|"reconcile / sync"| K8S
+
+  subgraph apps["Consumers"]
+    direction LR
+    BANK["<b>banking-demo</b><br/>banking/db → banking-db-secret<br/>banking/rabbitmq → rabbitmq-connection-secret<br/>rabbitmq/admin → rabbitmq-secret<br/>platform/harbor-pull → harbor-pull-creds<br/>pods: envFrom / secretKeyRef"]
+    SHOP["<b>npd-shop</b><br/>npd-shop/app → npd-shop-secrets<br/>npd-shop/harbor-pull<br/>npd-shop/noli-db → postgres<br/>npd-shop/harbor → Jenkins Kaniko"]
+    MOVIE["<b>cinehome / movie-web</b><br/>cinehome/app, movie-db, minio, cloudflared<br/>cinehome/harbor-pull → npd-movie"]
+    AIOPS["<b>AIOps Platform</b><br/>aiops/app, db, grafana, openai<br/>aiops/harbor-pull<br/>ns: aiops-core / observability / automation"]
+  end
+  K8S --> BANK
+  K8S --> SHOP
+  K8S --> MOVIE
+  K8S --> AIOPS
+
+  SHARED["Shared: platform/jenkins → Jenkins · platform/github → PAT · platform/harbor-registry-ca → openshift-config"]
+  K8S --> SHARED

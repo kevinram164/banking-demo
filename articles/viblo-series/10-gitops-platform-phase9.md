@@ -456,6 +456,18 @@ helm:
 
 ## Vault + External Secrets
 
+![Vault + ESO — multi-app (banking, shop, cinehome, AIOps)](./assets/phase9-vault-eso-flow.png)
+
+Một Vault KV (`secret/`) dùng chung nhiều app trên cluster; ESO (`ClusterSecretStore vault-backend`) sync thành K8s Secret theo namespace. CI (Jenkins `VaultClient`) có thể đọc trực tiếp path Harbor push.
+
+| App / repo | Prefixe Vault (KV) | Ví dụ consumer |
+|------------|--------------------|----------------|
+| **banking-demo** | `secret/banking/*`, `secret/rabbitmq/*`, `secret/platform/harbor-pull` | `banking-db-secret`, `rabbitmq-connection-secret`, pods `envFrom` |
+| **npd-shop** | `secret/npd-shop/*` | `npd-shop-secrets`, `harbor-pull-creds`, `npd-shop-noli-db` |
+| **cinehome / movie-web** | `secret/cinehome/*` | app / movie-db / minio / cloudflared / harbor-pull (`npd-movie`) |
+| **Open-Source-AIOps-Platform** | `secret/aiops/*` | `aiops-core`, Grafana, openai, automation, `aiops-db` |
+| **Shared platform** | `secret/platform/jenkins`, `github`, `harbor`, `harbor-registry-ca` | Jenkins, PAT, OCP image config |
+
 Thay `kubectl create secret` rải rác:
 
 ```text

@@ -13,6 +13,8 @@ Upload các file PNG này lên Viblo khi đăng bài [`10-gitops-platform-phase9
 | `jenkins-shared-library-sequence.png` | Shared Library — sequence một lần build |
 | `jenkins-shared-library-*.mmd` | Nguồn Mermaid (chỉnh / export lại) |
 | `phase9-namespace-map.png` | **Bản đồ namespace** |
+| `phase9-vault-eso-flow.png` | **Vault + ESO multi-app** — banking / shop / cinehome / AIOps + platform |
+| `phase9-vault-eso-flow.mmd` | Nguồn Mermaid (chỉnh / export lại) |
 
 **Cách đăng Viblo:**
 
