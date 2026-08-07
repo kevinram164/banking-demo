@@ -15,6 +15,38 @@ SESSION_TTL = int(os.getenv("SESSION_TTL_SECONDS", "86400"))
 USER_CACHE_TTL = int(os.getenv("USER_CACHE_TTL_SECONDS", "300"))  # 5 phút
 
 
+def _sentinel_endpoints(host: str, port: int) -> list[tuple[str, int]]:
+    """
+    Bitnami ClusterIP:26379 often breaks redis-py AUTH from other namespaces.
+    Prefer headless pod DNS (same as media-worker / redis-cli probe).
+    Override: REDIS_SENTINEL_HOSTS=host1:26379,host2:26379,host3:26379
+    """
+    raw = os.getenv("REDIS_SENTINEL_HOSTS", "").strip()
+    if raw:
+        out: list[tuple[str, int]] = []
+        for part in raw.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if ":" in part:
+                h, p = part.rsplit(":", 1)
+                out.append((h, int(p)))
+            else:
+                out.append((part, port))
+        if out:
+            return out
+
+    if "redis-ha" in host and "headless" not in host:
+        return [
+            (
+                f"redis-ha-node-{i}.redis-ha-headless.redis.svc.cluster.local",
+                port,
+            )
+            for i in range(3)
+        ]
+    return [(host, port)]
+
+
 async def create_redis_client(url: str | None = None, logger: "Logger | None" = None) -> Redis:
     url = url or REDIS_URL
     if url.startswith("sentinel://"):
@@ -22,27 +54,46 @@ async def create_redis_client(url: str | None = None, logger: "Logger | None" = 
         password = unquote(parsed.password) if parsed.password else None
         host = parsed.hostname or "localhost"
         port = parsed.port or 26379
-        path_parts = parsed.path.strip("/").split("/")
-        db = int(path_parts[0]) if path_parts[0] else 0
+        path_parts = [p for p in parsed.path.strip("/").split("/") if p != ""]
+        db = int(path_parts[0]) if path_parts else 0
         service_name = path_parts[1] if len(path_parts) > 1 else "mymaster"
+        endpoints = _sentinel_endpoints(host, port)
+
+        # password-only in sentinel_kwargs (Bitnami requirepass). Do not pass
+        # username=default — that often yields MasterNotFoundError.
+        sentinel_kwargs: dict[str, Any] = {"protocol": 2}
+        master_kwargs: dict[str, Any] = {
+            "db": db,
+            "decode_responses": True,
+            "protocol": 2,
+        }
+        if password is not None:
+            sentinel_kwargs["password"] = password
+            master_kwargs["password"] = password
+
         sentinel = Sentinel(
-            [(host, port)],
-            sentinel_kwargs={"password": password},
-            password=password,
-            db=db,
-            decode_responses=True,
+            endpoints,
+            sentinel_kwargs=sentinel_kwargs,
+            socket_timeout=5.0,
+            socket_connect_timeout=5.0,
         )
-        client = sentinel.master_for(service_name)
+        client = sentinel.master_for(service_name, **master_kwargs)
     else:
         client = Redis.from_url(url, decode_responses=True)
 
     if logger:
-        from common.logging_utils import log_event
+        from common.logging_utils import log_event, log_error_event
         try:
             await client.ping()
             log_event(logger, "redis_connected")
-        except Exception:
-            pass  # Don't fail startup if ping fails
+        except Exception as exc:
+            log_error_event(
+                logger,
+                "redis_connect_failed",
+                exc,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
     return client
 
 

@@ -959,6 +959,7 @@ oc get pods -n npd-banking
 | `Name or service not known` (Postgres) | Sai host trong Vault `secret/banking/db` — OCP: `postgres-ha-postgresql-primary.postgres.svc.cluster.local` |
 | `Name or service not known` (Redis) | Sai host `REDIS_URL` — `oc get svc -n redis`; auth: `redis://:Mbfs%402025@...` |
 | `You can't write against a read only replica` / register **504** | Bitnami Sentinel: **không** dùng `redis-ha:6379` (có thể trúng replica). Dùng `sentinel://:Mbfs%402025@redis-ha.redis.svc.cluster.local:26379/0/mymaster` (app hỗ trợ trong `redis_utils.py`) rồi restart consumer pods |
+| `MasterNotFoundError: No master found for 'mymaster'` | redis-py + ClusterIP:26379 hay fail AUTH từ ns khác. App phải resolve sang **headless** `redis-ha-node-*.redis-ha-headless...:26379` (đã fix trong `phase8-application-v3/common/redis_utils.py`). Rebuild/redeploy api-producer + services. Probe: `redis-cli -h redis-ha-node-0.redis-ha-headless.redis.svc... -p 26379` |
 | `secret "banking-db-secret" not found` | ESO chưa tạo Secret — seed Vault `secret/banking/db` + `oc describe externalsecret banking-db-secret -n npd-banking` |
 | Frontend nginx `[emerg] host not found in upstream "kong"` | `nginx.conf` FQDN `kong-kong-proxy.kong.svc.cluster.local` (không short name `kong`) |
 | Frontend nginx `Permission denied` `/var/cache/nginx` hoặc `nginx.pid` No such file | OCP: `/var/run` tmpfs rỗng — pid/temp dùng `/tmp`; listen **8080**; Helm `targetPort: 8080` |
