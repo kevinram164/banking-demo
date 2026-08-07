@@ -35,10 +35,14 @@ hostnameStrict: true
 extraEnvVars:
   - name: KC_HOSTNAME
     value: "https://keycloak-platform.apps.ocp01.npd.co"
+  - name: KC_HOSTNAME_ADMIN
+    value: "https://keycloak-platform.apps.ocp01.npd.co"
   - name: KC_HOSTNAME_STRICT
     value: "true"
   - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
     value: "false"
+  - name: KC_PROXY_HEADERS
+    value: "xforwarded"
   # bitnamilegacy Keycloak 26.x bug: Incomplete line .../conf/[1,14]
   # https://github.com/bitnami/charts/issues/36298
   - name: KC_CACHE_CONFIG_FILE
