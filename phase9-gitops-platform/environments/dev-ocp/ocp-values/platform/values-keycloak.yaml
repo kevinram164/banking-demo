@@ -2,6 +2,9 @@
 # TLS terminate tại Route (edge); pod HTTP + xforwarded.
 # LAB: admin password plaintext — sau chuyển Vault/ESO.
 # Image: bitnamilegacy (Docker Hub) — cùng pattern postgres/redis.
+#
+# DB: dùng shared postgres-ha (ns postgres) — KHÔNG embed Bitnami postgresql
+# trên nfs-csi (Permission denied /bitnami/postgresql/data). Xem keycloak-db-init.
 
 fullnameOverride: keycloak
 nameOverride: keycloak
@@ -57,40 +60,16 @@ resources:
     cpu: "1"
     memory: 1536Mi
 
+# Shared postgres-ha (PVC đã OK) — tránh emptyDir / NFS permission trên subchart
 postgresql:
-  enabled: true
-  # Subchart cần adaptSecurityContext riêng
-  global:
-    compatibility:
-      openshift:
-        adaptSecurityContext: force
-  image:
-    registry: docker.io
-    repository: bitnamilegacy/postgresql
-    tag: 17.6.0-debian-12-r0
-  auth:
-    username: keycloak
-    password: "ChangeMe-Keycloak-DB"
-    database: keycloak
-  volumePermissions:
-    enabled: false
-  primary:
-    podSecurityContext:
-      enabled: false
-    containerSecurityContext:
-      enabled: false
-    # PVC bắt buộc — emptyDir mất realm/clients khi restart pod
-    persistence:
-      enabled: true
-      storageClass: nfs-csi
-      size: 8Gi
-    resources:
-      requests:
-        cpu: 50m
-        memory: 128Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
+  enabled: false
+
+externalDatabase:
+  host: postgres-ha-postgresql-primary.postgres.svc.cluster.local
+  port: 5432
+  user: keycloak
+  password: "ChangeMe-Keycloak-DB"
+  database: keycloak
 
 # Lab 1 replica — local cache; KC_CACHE_CONFIG_FILE bắt buộc với bitnamilegacy
 cache:

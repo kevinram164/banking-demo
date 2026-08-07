@@ -1,0 +1,49 @@
+# PreSync — tạo DB/user keycloak trên shared postgres-ha
+# Apply: oc apply -f ... (hoặc sync qua platform-keycloak multi-source)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-db-init
+  namespace: postgres
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/part-of: platform-keycloak
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: keycloak-db-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: postgres:16-alpine
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-ha-postgresql
+                  key: postgres-password
+            - name: POSTGRES_SVC
+              value: postgres-ha-postgresql-primary.postgres.svc.cluster.local
+            - name: KEYCLOAK_DB_PASSWORD
+              value: ChangeMe-Keycloak-DB
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              psql -h "$POSTGRES_SVC" -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='keycloak'" | grep -q 1 || \
+                psql -h "$POSTGRES_SVC" -U postgres -d postgres -c "CREATE DATABASE keycloak;"
+              psql -h "$POSTGRES_SVC" -U postgres -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname='keycloak'" | grep -q 1 || \
+                psql -h "$POSTGRES_SVC" -U postgres -d postgres -c "CREATE USER keycloak WITH PASSWORD '${KEYCLOAK_DB_PASSWORD}';"
+              psql -h "$POSTGRES_SVC" -U postgres -d postgres -c "ALTER USER keycloak WITH PASSWORD '${KEYCLOAK_DB_PASSWORD}';"
+              psql -h "$POSTGRES_SVC" -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE keycloak TO keycloak;"
+              psql -h "$POSTGRES_SVC" -U postgres -d keycloak -c "GRANT ALL ON SCHEMA public TO keycloak;"
+              psql -h "$POSTGRES_SVC" -U postgres -d keycloak -c "ALTER DATABASE keycloak OWNER TO keycloak;"
+              echo "Keycloak DB init done"

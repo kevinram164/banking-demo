@@ -3,6 +3,8 @@
 # Chart: bitnami/keycloak qua https (KHÔNG dùng OCI Docker Hub — 401 Unauthorized).
 # Sync wave 1 — sau Vault/ESO, trước Jenkins.
 #
+# DB: shared postgres-ha (Job keycloak-db-init). Không dùng postgresql subchart trên nfs-csi.
+#
 # Sau khi Ready:
 #   1. Login admin → tạo realm `platform`
 #   2. Tạo OIDC clients: argocd, jenkins, harbor, banking, ocp-console
@@ -20,6 +22,9 @@ metadata:
 spec:
   project: banking-platform
   sources:
+    - repoURL: https://github.com/kevinram164/banking-demo.git
+      targetRevision: dev-ocp
+      path: phase9-gitops-platform/gitops-platform/manifests/keycloak-prereq
     - repoURL: https://charts.bitnami.com/bitnami
       chart: keycloak
       targetRevision: 25.2.0
@@ -36,6 +41,7 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
+      - RespectNamespaceOverrides=true
     automated:
       prune: false
       selfHeal: true

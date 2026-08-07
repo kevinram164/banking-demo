@@ -141,17 +141,18 @@ URL: `https://keycloak-platform.apps.ocp01.npd.co`
 
 ### Persistence (quan trọng)
 
-Postgres kèm chart **phải** có PVC (`persistence.enabled: true`, `nfs-csi`).  
-Nếu `enabled: false` (emptyDir) → mỗi lần restart pod Keycloak = mất realm/clients, chỉ còn `master` + temporary admin.
+Keycloak **không** dùng Postgres embed trên nfs-csi (Bitnami → `Permission denied` `/bitnami/postgresql/data`).
 
-Sau khi bật PVC: Sync `platform-keycloak`, kiểm tra:
+Dùng **shared `postgres-ha`** (`externalDatabase` + Job `keycloak-db-init` tạo DB/user `keycloak`).
 
 ```bash
-oc get pvc -n keycloak
-oc get pods -n keycloak
-```
+# Một lần / sau sync: đảm bảo DB tồn tại
+oc apply -f phase9-gitops-platform/gitops-platform/manifests/keycloak-prereq/keycloak-db-init.yaml
+oc -n postgres wait --for=condition=complete job/keycloak-db-init --timeout=120s
 
-Data đã mất **không khôi phục** được từ emptyDir — tạo lại realm `platform` + clients theo checklist bên dưới.
+# Dọn STS postgres embed cũ (nếu còn)
+oc delete sts,svc,pvc -n keycloak -l app.kubernetes.io/name=postgresql --ignore-not-found
+```
 
 ## Realm / clients (thủ công lần đầu hoặc import sau)
 
@@ -173,7 +174,8 @@ Data đã mất **không khôi phục** được từ emptyDir — tạo lại r
 | File | Vai trò |
 |------|---------|
 | `gitops-platform/applications/platform/keycloak.yaml` | Argo Application |
-| `environments/dev-ocp/ocp-values/platform/values-keycloak.yaml` | Helm values (**PVC nfs-csi 8Gi** cho Postgres kèm chart — không dùng emptyDir) |
+| `environments/dev-ocp/ocp-values/platform/values-keycloak.yaml` | Helm values — `externalDatabase` → postgres-ha |
+| `gitops-platform/manifests/keycloak-prereq/` | Job tạo DB/user `keycloak` |
 | `environments/dev-ocp/ocp-values/routes/keycloak-route.yaml` | Route |
 
 | `environments/dev-ocp/scripts/argocd-oidc-keycloak.sh` | ArgoCD OIDC |
