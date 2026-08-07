@@ -79,10 +79,11 @@ postgresql:
       enabled: false
     containerSecurityContext:
       enabled: false
-    # Lab: emptyDir — NFS CSI + OpenShift SCC fsGroup → applyFSGroup permission denied
-    # Prod: persistence.enabled=true trên storage hỗ trợ fsGroup, hoặc DB ngoài (postgres ns)
+    # PVC bắt buộc — emptyDir mất realm/clients khi restart pod
     persistence:
-      enabled: false
+      enabled: true
+      storageClass: nfs-csi
+      size: 8Gi
     resources:
       requests:
         cpu: 50m

@@ -136,8 +136,22 @@ oc apply -f ... # hoặc đợi Argo tạo ns rồi:
 # Route nằm trong platform-routes-dev-ocp
 ```
 
-Admin (lab): `admin` / `ChangeMe-Keycloak-Admin`  
+Admin (lab): `admin` / `Tech@1604` (xem `values-keycloak.yaml`)  
 URL: `https://keycloak-platform.apps.ocp01.npd.co`
+
+### Persistence (quan trọng)
+
+Postgres kèm chart **phải** có PVC (`persistence.enabled: true`, `nfs-csi`).  
+Nếu `enabled: false` (emptyDir) → mỗi lần restart pod Keycloak = mất realm/clients, chỉ còn `master` + temporary admin.
+
+Sau khi bật PVC: Sync `platform-keycloak`, kiểm tra:
+
+```bash
+oc get pvc -n keycloak
+oc get pods -n keycloak
+```
+
+Data đã mất **không khôi phục** được từ emptyDir — tạo lại realm `platform` + clients theo checklist bên dưới.
 
 ## Realm / clients (thủ công lần đầu hoặc import sau)
 
@@ -159,8 +173,9 @@ URL: `https://keycloak-platform.apps.ocp01.npd.co`
 | File | Vai trò |
 |------|---------|
 | `gitops-platform/applications/platform/keycloak.yaml` | Argo Application |
-| `environments/dev-ocp/ocp-values/platform/values-keycloak.yaml` | Helm values |
+| `environments/dev-ocp/ocp-values/platform/values-keycloak.yaml` | Helm values (**PVC nfs-csi 8Gi** cho Postgres kèm chart — không dùng emptyDir) |
 | `environments/dev-ocp/ocp-values/routes/keycloak-route.yaml` | Route |
+
 | `environments/dev-ocp/scripts/argocd-oidc-keycloak.sh` | ArgoCD OIDC |
 | `environments/dev-ocp/scripts/argocd-rbac-oidc-admin-all.sh` | ArgoCD mọi SSO = admin |
 | `environments/dev-ocp/scripts/jenkins-oidc-keycloak.sh` | Secret Jenkins OIDC |
