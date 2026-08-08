@@ -45,8 +45,16 @@ def _transfer_row(t: Transfer, users: dict, viewer_id: int | None = None) -> dic
         "client_ref": getattr(t, "client_ref", None) or "",
         "status": getattr(t, "status", None) or "SUCCESS",
         "failure_code": getattr(t, "failure_code", None) or "",
-        "hold_until": (t.hold_until.isoformat() + "Z") if getattr(t, "hold_until", None) else None,
-        "created_at": t.created_at.isoformat() + "Z",
+        "hold_until": (
+            (t.hold_until.isoformat().replace("+00:00", "Z") if t.hold_until.tzinfo else t.hold_until.isoformat() + "Z")
+            if getattr(t, "hold_until", None)
+            else None
+        ),
+        "created_at": (
+            (t.created_at.isoformat().replace("+00:00", "Z") if getattr(t.created_at, "tzinfo", None) else t.created_at.isoformat() + "Z")
+            if getattr(t, "created_at", None)
+            else None
+        ),
     }
     if viewer_id is not None:
         row["direction"] = "out" if t.from_user == viewer_id else "in"
@@ -359,6 +367,8 @@ async def process_message(message: IncomingMessage):
                     result = {"status": 200, "body": {"status": "healthy", "service": "account", "database": "ok", "redis": "ok"}}
                 elif action == "me":
                     result = await handle_me(payload, headers)
+                elif "admin/transfers" in (path or ""):
+                    result = await handle_admin_transfers(payload, headers)
                 elif action == "transfers" or path.rstrip("/").endswith("/me/transfers"):
                     result = await handle_my_transfers(payload, headers)
                 elif action == "balance":
@@ -373,8 +383,6 @@ async def process_message(message: IncomingMessage):
                         result = await handle_admin_user_detail(uid, headers)
                     else:
                         result = await handle_admin_users(payload, headers)
-                elif "admin/transfers" in (path or ""):
-                    result = await handle_admin_transfers(payload, headers)
                 elif "admin/credit" in (path or "") or action == "credit":
                     result = await handle_admin_credit(payload, headers)
                 elif "admin/notifications" in (path or ""):
@@ -383,9 +391,19 @@ async def process_message(message: IncomingMessage):
                     result = {"status": 404, "body": {"detail": f"Unknown action: {action}"}}
                 await store_response(redis, correlation_id, result, logger=logger)
         except Exception as e:
-            log_error_event(logger, "consumer_error", exc=e, correlation_id=body.get("correlation_id"), service="account-service", queue="account.requests")
-            if body.get("correlation_id"):
-                await store_response(redis, body["correlation_id"], {"status": 500, "body": {"detail": str(e)}}, logger=logger)
+            from fastapi import HTTPException
+
+            if isinstance(e, HTTPException):
+                await store_response(
+                    redis,
+                    body.get("correlation_id"),
+                    {"status": e.status_code, "body": {"detail": e.detail}},
+                    logger=logger,
+                )
+            else:
+                log_error_event(logger, "consumer_error", exc=e, correlation_id=body.get("correlation_id"), service="account-service", queue="account.requests")
+                if body.get("correlation_id"):
+                    await store_response(redis, body["correlation_id"], {"status": 500, "body": {"detail": str(e)}}, logger=logger)
 
 
 async def consume():
