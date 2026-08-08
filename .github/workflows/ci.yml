@@ -463,7 +463,7 @@ jobs:
             local svc="$1"
             local file="$CHART_DIR/$svc/values.yaml"
             if [ -f "$file" ]; then
-              sed -i "s|tag: .*|tag: $TAG|" "$file"
+              sed -i "s|tag: .*|tag: \"$TAG\"|" "$file"
               echo "Updated $svc → $TAG"
             fi
           }
