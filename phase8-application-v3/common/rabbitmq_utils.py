@@ -85,7 +85,8 @@ async def publish_and_wait(
             delivery_mode=DeliveryMode.PERSISTENT,
             correlation_id=correlation_id,
             headers=headers or {},
-            expiration=str(MESSAGE_TTL_MS),
+            # aio_pika: int milliseconds (không dùng str)
+            expiration=MESSAGE_TTL_MS,
         ),
         routing_key=queue_name,
     )

@@ -16,8 +16,15 @@ function AdminLogin({ onAuth }) {
       await api.adminStats(secret);
       localStorage.setItem(SECRET_KEY, secret);
       onAuth(secret);
-    } catch {
-      setErr("Invalid admin secret");
+    } catch (ex) {
+      const msg = ex?.message || "";
+      if (/403|Forbidden/i.test(msg)) {
+        setErr("Invalid admin secret");
+      } else if (/502|503|504|unavailable|Bad Gateway|timeout/i.test(msg)) {
+        setErr(`Backend lỗi: ${msg} (kiểm tra api-producer / account-service — không phải sai secret)`);
+      } else {
+        setErr(msg || "Invalid admin secret");
+      }
     }
   };
 

@@ -28,7 +28,12 @@ async function req(path, { method = "GET", body, headers = {} } = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const code = data.error_code ? `[${data.error_code}] ` : "";
-    throw new Error(code + (data.detail || "Request failed"));
+    const detail =
+      data.detail ||
+      (typeof data.error === "string" ? data.error : "") ||
+      res.statusText ||
+      "Request failed";
+    throw new Error(`${code}${detail} (HTTP ${res.status})`.trim());
   }
   return data;
 }
