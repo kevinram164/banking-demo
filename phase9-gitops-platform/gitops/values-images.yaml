@@ -12,47 +12,47 @@ api-producer:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/api-producer
-    tag: f84f0d5
+    tag: 6f80e67
     pullPolicy: Always
 
 auth-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/auth-service
-    tag: f84f0d5
+    tag: 6f80e67
     pullPolicy: Always
 
 account-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/account-service
-    tag: f84f0d5
+    tag: 6f80e67
     pullPolicy: Always
 
 transfer-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/transfer-service
-    tag: f84f0d5
+    tag: 6f80e67
     pullPolicy: Always
 
 notification-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/notification-service
-    tag: f84f0d5
+    tag: 6f80e67
     pullPolicy: Always
 
 shop-bridge:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/shop-bridge
-    tag: f84f0d5
+    tag: 6f80e67
     pullPolicy: Always
 
 frontend:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/frontend
-    tag: f84f0d5
+    tag: 6f80e67
     pullPolicy: Always
