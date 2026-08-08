@@ -51,8 +51,8 @@ export const api = {
   myTransfers: (page = 1, size = 20) =>
     req(`/api/account/me/transfers?page=${page}&size=${size}`),
 
-  lookupAccount: (account_number) =>
-    req(`/api/account/lookup?account_number=${encodeURIComponent(account_number)}`),
+  lookupAccount: (q) =>
+    req(`/api/account/lookup?q=${encodeURIComponent(q)}`),
 
   transfer: (to_account_number, amount, note = "", extra = {}) =>
     req("/api/transfer/transfer", {

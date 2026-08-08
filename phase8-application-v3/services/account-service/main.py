@@ -128,15 +128,37 @@ async def handle_my_transfers(payload: dict, headers: dict) -> dict:
 
 
 async def handle_lookup(payload: dict, headers: dict) -> dict:
-    acct = (payload.get("account_number") or "").strip()
-    if not acct.isdigit():
-        return {"status": 400, "body": {"detail": "account_number must be digits only"}}
+    """Lookup by STK (account_number) hoặc SĐT (phone). Trả về STK + username để UI resolve transfer."""
+    raw = (
+        payload.get("q")
+        or payload.get("account_number")
+        or payload.get("phone")
+        or ""
+    )
+    q = str(raw).strip()
+    if not q:
+        return {"status": 400, "body": {"detail": "q / account_number / phone required", "error_code": "MISSING_RECIPIENT"}}
+    if not q.isdigit():
+        return {"status": 400, "body": {"detail": "must be digits only (STK or phone)", "error_code": "INVALID_ACCOUNT"}}
+
     db = SessionLocal()
     try:
-        u = db.execute(select(User).where(User.account_number == acct)).scalar_one_or_none()
+        u = db.execute(select(User).where(User.account_number == q)).scalar_one_or_none()
+        matched = "account_number"
         if not u:
-            return {"status": 404, "body": {"detail": "Account not found"}}
-        return {"status": 200, "body": {"account_number": u.account_number, "username": u.username}}
+            u = db.execute(select(User).where(User.phone == q)).scalar_one_or_none()
+            matched = "phone"
+        if not u:
+            return {"status": 404, "body": {"detail": "Account not found", "error_code": "ACCOUNT_NOT_FOUND"}}
+        return {
+            "status": 200,
+            "body": {
+                "account_number": u.account_number,
+                "username": u.username,
+                "phone": u.phone,
+                "matched_by": matched,
+            },
+        }
     finally:
         db.close()
 

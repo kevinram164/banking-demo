@@ -16,6 +16,8 @@ export default function Dashboard({ onLogout, onGoAdmin }) {
   const [transfers, setTransfers] = useState([]);
   const [toAccount, setToAccount] = useState("");
   const [toName, setToName] = useState("");
+  const [resolvedStk, setResolvedStk] = useState("");
+  const [resolvedPhone, setResolvedPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -74,7 +76,7 @@ export default function Dashboard({ onLogout, onGoAdmin }) {
     setErr(""); setMsg("");
 
     if (!toAccount || !toAccount.trim()) {
-      setErr("Please enter recipient account number");
+      setErr("Nhập SĐT hoặc số tài khoản người nhận");
       return;
     }
 
@@ -90,7 +92,15 @@ export default function Dashboard({ onLogout, onGoAdmin }) {
     }
 
     try {
-      const r = await api.transfer(toAccount.trim(), amountNum, note.trim(), {
+      let stk = resolvedStk;
+      if (!stk) {
+        const looked = await api.lookupAccount(toAccount.trim());
+        stk = looked.account_number;
+        setResolvedStk(stk);
+        setToName(looked.username || "");
+        setResolvedPhone(looked.phone || "");
+      }
+      const r = await api.transfer(stk, amountNum, note.trim(), {
         txn_type: txnType,
         purpose: purpose.trim() || undefined,
         channel: "mobile",
@@ -101,7 +111,8 @@ export default function Dashboard({ onLogout, onGoAdmin }) {
           (r.note ? ` · ${r.note}` : "") +
           (r.transfer_id ? ` · #${r.transfer_id}` : "")
       );
-      setToAccount(""); setToName(""); setAmount(""); setNote(""); setPurpose("");
+      setToAccount(""); setToName(""); setResolvedStk(""); setResolvedPhone("");
+      setAmount(""); setNote(""); setPurpose("");
       await load();
     } catch (e) {
       setErr(e.message);
@@ -137,12 +148,18 @@ export default function Dashboard({ onLogout, onGoAdmin }) {
   const lookup = async (acct) => {
     const v = (acct || "").trim();
     setToName("");
+    setResolvedStk("");
+    setResolvedPhone("");
     if (!v) return;
     try {
       const r = await api.lookupAccount(v);
       setToName(r.username || "");
+      setResolvedStk(r.account_number || "");
+      setResolvedPhone(r.phone || "");
     } catch {
       setToName("");
+      setResolvedStk("");
+      setResolvedPhone("");
     }
   };
 
@@ -212,14 +229,24 @@ export default function Dashboard({ onLogout, onGoAdmin }) {
             <div className="space-y-3">
               <input
                 className="w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Recipient account number"
+                placeholder="SĐT hoặc số tài khoản người nhận"
                 inputMode="numeric"
                 value={toAccount}
-                onChange={(e) => setToAccount(e.target.value)}
+                onChange={(e) => {
+                  setToAccount(e.target.value);
+                  setResolvedStk("");
+                  setResolvedPhone("");
+                  setToName("");
+                }}
                 onBlur={(e) => lookup(e.target.value)}
               />
               <div className={`rounded-xl border px-4 py-3 text-sm ${toName ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-slate-50 text-slate-700"}`}>
                 Receiver: <span className="font-semibold">{toName || "—"}</span>
+                {resolvedStk ? (
+                  <div className="mt-1 text-xs text-emerald-700/80">
+                    STK: {resolvedStk}{resolvedPhone ? ` · SĐT: ${resolvedPhone}` : ""}
+                  </div>
+                ) : null}
               </div>
               <select
                 className="w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"

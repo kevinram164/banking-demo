@@ -185,6 +185,7 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
         amount = 0
     to_acct = (body.get("to_account_number") or "").strip()
     to_username = (body.get("to_username") or "").strip()
+    to_phone = (body.get("to_phone") or body.get("phone") or "").strip()
     note = _normalize_note(body.get("note") or body.get("content") or "")
     instant = bool(body.get("instant"))
 
@@ -207,11 +208,11 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
             reason="amount_invalid",
             **common_extra,
         )
-    if not to_acct and not to_username:
+    if not to_acct and not to_username and not to_phone:
         return _reject(
             status=400,
             error_code="MISSING_RECIPIENT",
-            detail="Missing to_account_number/to_username",
+            detail="Missing to_account_number/to_username/to_phone",
             correlation_id=correlation_id,
             path=path,
             action=action,
@@ -227,6 +228,17 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
             path=path,
             action=action,
             reason="invalid_account_format",
+            **common_extra,
+        )
+    if to_phone and not to_phone.isdigit():
+        return _reject(
+            status=400,
+            error_code="INVALID_ACCOUNT",
+            detail="to_phone must be digits only",
+            correlation_id=correlation_id,
+            path=path,
+            action=action,
+            reason="invalid_phone_format",
             **common_extra,
         )
 
@@ -266,6 +278,15 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
             receiver = db.execute(
                 select(User).where(User.account_number == to_acct).with_for_update()
             ).scalar_one_or_none()
+            # Nhập nhầm SĐT vào field STK → fallback phone
+            if not receiver and to_phone == "" and len(to_acct) <= 11:
+                receiver = db.execute(
+                    select(User).where(User.phone == to_acct).with_for_update()
+                ).scalar_one_or_none()
+        elif to_phone:
+            receiver = db.execute(
+                select(User).where(User.phone == to_phone).with_for_update()
+            ).scalar_one_or_none()
         else:
             receiver = db.execute(
                 select(User).where(User.username == to_username).with_for_update()
@@ -281,6 +302,7 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
                 reason="receiver_not_found",
                 to_account=to_acct or None,
                 to_username=to_username or None,
+                to_phone=to_phone or None,
                 **common_extra,
             )
         if receiver.id == sender.id:
