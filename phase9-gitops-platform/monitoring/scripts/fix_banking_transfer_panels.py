@@ -1,4 +1,4 @@
-"""Fix NPD Banking dashboard transfer queries for OCP label shapes."""
+"""Fix NPD Banking dashboard transfer queries for OCP label shapes + business outcomes."""
 from __future__ import annotations
 
 import json
@@ -31,63 +31,16 @@ def clean(expr: str) -> str:
 def main() -> None:
     root = find_root()
     path = root / "Open-Source-AIOps-Platform/charts/grafana/dashboards/npd-banking.json"
-    d = json.loads(path.read_text(encoding="utf-8"))
-    ds = {"type": "prometheus", "uid": "${datasource}"}
+    # Prefer dedicated updater for outcome panels
+    from update_transfer_outcome_panels import main as update_outcomes
 
+    update_outcomes()
+
+    d = json.loads(path.read_text(encoding="utf-8"))
     for p in d.get("panels", []):
         for t in p.get("targets", []):
-            if "expr" in t:
+            if "expr" in t and "banking_transfer_outcomes_total" not in t["expr"]:
                 t["expr"] = clean(t["expr"])
-
-        title = p.get("title", "")
-        if "Tỷ lệ thành công" in title:
-            p["targets"] = [
-                {
-                    "expr": (
-                        '100 * sum(rate(http_requests_total{namespace="npd-banking",'
-                        'endpoint=~".*transfer.*",status=~"2.."}[5m])) / '
-                        'clamp_min(sum(rate(http_requests_total{namespace="npd-banking",'
-                        'endpoint=~".*transfer.*"}[5m])), 1e-9)'
-                    ),
-                    "refId": "A",
-                    "datasource": ds,
-                }
-            ]
-        elif "Tỷ lệ thất bại" in title:
-            p["targets"] = [
-                {
-                    "expr": (
-                        '100 * sum(rate(http_requests_total{namespace="npd-banking",'
-                        'endpoint=~".*transfer.*",status=~"[45].."}[5m])) / '
-                        'clamp_min(sum(rate(http_requests_total{namespace="npd-banking",'
-                        'endpoint=~".*transfer.*"}[5m])), 1e-9)'
-                    ),
-                    "refId": "A",
-                    "datasource": ds,
-                }
-            ]
-        elif "Giao dịch thành công vs thất bại" in title:
-            p["targets"] = [
-                {
-                    "expr": 'sum(rate(http_requests_total{namespace="npd-banking",endpoint=~".*transfer.*",status=~"2.."}[5m]))',
-                    "legendFormat": "OK 2xx",
-                    "refId": "A",
-                    "datasource": ds,
-                },
-                {
-                    "expr": 'sum(rate(http_requests_total{namespace="npd-banking",endpoint=~".*transfer.*",status=~"4.."}[5m]))',
-                    "legendFormat": "Client 4xx",
-                    "refId": "B",
-                    "datasource": ds,
-                },
-                {
-                    "expr": 'sum(rate(http_requests_total{namespace="npd-banking",endpoint=~".*transfer.*",status=~"5.."}[5m]))',
-                    "legendFormat": "Server 5xx",
-                    "refId": "C",
-                    "datasource": ds,
-                },
-            ]
-
     path.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print("updated", path)
 

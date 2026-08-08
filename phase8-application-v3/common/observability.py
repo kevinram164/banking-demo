@@ -12,6 +12,7 @@ from prometheus_client import Counter, Histogram, generate_latest, CollectorRegi
 _metrics_registry: CollectorRegistry | None = None
 _request_count: Counter | None = None
 _request_latency: Histogram | None = None
+_transfer_outcomes: Counter | None = None
 _heartbeat_started: set[str] = set()
 
 
@@ -107,7 +108,7 @@ def consumer_span(tracer, name: str, attributes: dict | None = None):
 
 
 def setup_metrics(service_name: str) -> None:
-    global _metrics_registry, _request_count, _request_latency
+    global _metrics_registry, _request_count, _request_latency, _transfer_outcomes
     _metrics_registry = CollectorRegistry()
     _request_count = Counter(
         "http_requests_total",
@@ -121,6 +122,26 @@ def setup_metrics(service_name: str) -> None:
         ["method", "endpoint"],
         registry=_metrics_registry,
     )
+    # Nghiệp vụ transfer (hold/pending lifecycle) — scrape từ transfer-service
+    _transfer_outcomes = Counter(
+        "banking_transfer_outcomes_total",
+        "Banking transfer business outcomes (not HTTP status)",
+        ["outcome", "txn_type"],
+        registry=_metrics_registry,
+    )
+
+
+def inc_transfer_outcome(outcome: str, txn_type: str | None = None) -> None:
+    """outcome: success | failed | pending | expired | cancelled"""
+    c = _transfer_outcomes
+    if not c:
+        return
+    o = (outcome or "failed").strip().lower()
+    tt = (txn_type or "UNKNOWN").strip().upper() or "UNKNOWN"
+    try:
+        c.labels(outcome=o, txn_type=tt).inc()
+    except Exception:
+        pass
 
 
 def get_metrics_content() -> bytes:

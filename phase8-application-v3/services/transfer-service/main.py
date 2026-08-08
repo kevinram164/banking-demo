@@ -21,7 +21,7 @@ from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, publish_notify, create_redis_client
 from common.rabbitmq_utils import store_response, declare_request_queue, is_message_stale, MAX_MESSAGE_AGE_SEC
 from common.logging_utils import get_json_logger, log_event, log_error_event, mask_amount, mask_account_number, should_log_request_flow
-from common.observability import instrument_fastapi, get_tracer, consumer_span
+from common.observability import instrument_fastapi, get_tracer, consumer_span, inc_transfer_outcome
 
 Base.metadata.create_all(bind=engine)
 ensure_schema()
@@ -95,6 +95,7 @@ def _reject(
         service="transfer-service",
         **extra,
     )
+    inc_transfer_outcome("failed", extra.get("txn_type"))
     body = {"error_code": error_code, "detail": detail, "status": "REJECTED"}
     for k in ("txn_type", "purpose", "channel", "client_ref"):
         if k in extra and extra[k] is not None:
@@ -409,6 +410,7 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
                 f"SUCCESS{purpose_bit}: nhận {amount} từ {sender.username}{note_suffix}",
             )
             _maybe_shop_notify(receiver, note, amount)
+            inc_transfer_outcome("success", biz["txn_type"])
             return {"status": 200, "body": _transfer_dict(transfer, sender, receiver)}
 
         sender.held_balance = int(sender.held_balance or 0) + amount
@@ -469,6 +471,7 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
             f"PENDING{purpose_bit}: giữ {amount} tới {receiver.username}{note_suffix}",
         )
 
+        inc_transfer_outcome("pending", biz["txn_type"])
         return {"status": 200, "body": _transfer_dict(transfer, sender, receiver)}
     except Exception:
         db.rollback()
@@ -588,6 +591,7 @@ async def _settle_transfer(
     )
 
     _maybe_shop_notify(receiver, note, amount)
+    inc_transfer_outcome("success", transfer.txn_type)
     return {"status": 200, "body": _transfer_dict(transfer, sender, receiver)}
 
 
@@ -683,7 +687,6 @@ async def handle_admin_settle_pending(payload: dict, headers: dict, trace: dict)
                 transfer.failure_code = ""
                 transfer.hold_until = None
                 db.commit()
-                settled += 1
                 log_event(
                     logger,
                     "transfer_cancelled",
@@ -693,6 +696,8 @@ async def handle_admin_settle_pending(payload: dict, headers: dict, trace: dict)
                     admin_bulk=True,
                     service="transfer-service",
                 )
+                inc_transfer_outcome("cancelled", transfer.txn_type)
+                settled += 1
             else:
                 result = await _settle_transfer(
                     db, transfer, sender, receiver, correlation_id, path, "admin_settle"
@@ -701,6 +706,7 @@ async def handle_admin_settle_pending(payload: dict, headers: dict, trace: dict)
                     settled += 1
                 else:
                     failed += 1
+                    # _settle_transfer / _reject already counts failed when applicable
         except Exception as e:
             db.rollback()
             failed += 1
@@ -910,6 +916,7 @@ async def handle_cancel(payload: dict, headers: dict, trace: dict) -> dict:
             available=_available(sender),
             service="transfer-service",
         )
+        inc_transfer_outcome("cancelled", transfer.txn_type)
         body = _transfer_dict(transfer, sender, receiver or sender)
         return {"status": 200, "body": body}
     except Exception:
@@ -967,6 +974,7 @@ def expire_holds_once() -> int:
                 business_domain="banking",
                 service="transfer-service",
             )
+            inc_transfer_outcome("expired", transfer.txn_type)
             expired += 1
         if expired:
             db.commit()
@@ -1035,6 +1043,7 @@ async def process_message(message: IncomingMessage):
                         service="transfer-service",
                         queue="transfer.requests",
                     )
+                    inc_transfer_outcome("failed", "UNKNOWN")
                     result = {
                         "status": 410,
                         "body": {
