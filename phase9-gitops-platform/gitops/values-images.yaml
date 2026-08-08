@@ -26,7 +26,7 @@ account-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/account-service
-    tag: 04225fd
+    tag: 82489e3
     pullPolicy: Always
 
 transfer-service:
