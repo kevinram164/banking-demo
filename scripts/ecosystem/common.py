@@ -291,6 +291,28 @@ def bank_cancel(
         return {"ok": False, "detail": str(e)}
 
 
+def bank_admin_settle_pending(
+    mode: str = "confirm",
+    limit: int = 500,
+    http: requests.Session | None = None,
+) -> dict:
+    """Lab: POST /api/transfer/settle-pending với X-Admin-Secret."""
+    s = http or requests.Session()
+    try:
+        r = s.post(
+            f"{bank_url()}/api/transfer/settle-pending",
+            json={"mode": mode, "limit": int(limit)},
+            headers={"X-Admin-Secret": cfg("ADMIN_SECRET", "banking-admin-2025")},
+            timeout=120,
+            verify=verify_tls(),
+        )
+        if r.status_code == 200:
+            return {"ok": True, "data": r.json()}
+        return {"ok": False, "detail": f"HTTP {r.status_code}: {r.text[:300]}"}
+    except Exception as e:
+        return {"ok": False, "detail": str(e)}
+
+
 def transfer_then_settle(
     session_token: str,
     to_account: str,

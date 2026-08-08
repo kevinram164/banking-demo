@@ -33,6 +33,7 @@ SHOP_MERCHANT_ACCOUNT = os.getenv("SHOP_MERCHANT_ACCOUNT_NUMBER", "").strip()
 SHOP_NOTE_PREFIX = os.getenv("SHOP_TRANSFER_NOTE_PREFIX", "NOLI").strip().upper() or "NOLI"
 HOLD_TTL_SECONDS = int(os.getenv("HOLD_TTL_SECONDS", "300"))
 EXPIRE_POLL_SECONDS = int(os.getenv("HOLD_EXPIRE_POLL_SECONDS", "30"))
+ADMIN_SECRET = os.getenv("ADMIN_SECRET", "banking-admin-2025")
 
 TXN_TYPES = frozenset({"P2P", "DISBURSEMENT", "REPAYMENT", "BILL_PAY", "FEE", "MERCHANT_PAY"})
 
@@ -590,6 +591,139 @@ async def _settle_transfer(
     return {"status": 200, "body": _transfer_dict(transfer, sender, receiver)}
 
 
+async def handle_admin_settle_pending(payload: dict, headers: dict, trace: dict) -> dict:
+    """Lab: settle/cancel/expire hàng loạt PENDING (X-Admin-Secret)."""
+    correlation_id = trace.get("correlation_id", "")
+    path = trace.get("path", "")
+    action = trace.get("action", "")
+    secret = headers.get("x-admin-secret") or headers.get("X-Admin-Secret") or ""
+    if secret != ADMIN_SECRET:
+        return {"status": 403, "body": {"detail": "Forbidden", "error_code": "FORBIDDEN"}}
+
+    mode = (payload.get("mode") or "confirm").strip().lower()  # confirm | cancel | expire
+    try:
+        limit = min(int(payload.get("limit", 200)), 2000)
+    except (TypeError, ValueError):
+        limit = 200
+
+    if mode == "expire":
+        # Force-expire: set hold_until in past then run expire once
+        db = SessionLocal()
+        try:
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            rows = (
+                db.execute(
+                    select(Transfer)
+                    .where(Transfer.status == "PENDING")
+                    .order_by(Transfer.id.asc())
+                    .limit(limit)
+                    .with_for_update()
+                )
+                .scalars()
+                .all()
+            )
+            for t in rows:
+                t.hold_until = now - timedelta(seconds=1)
+            db.commit()
+        finally:
+            db.close()
+        n = await asyncio.to_thread(expire_holds_once)
+        log_event(
+            logger,
+            "admin_expire_pending",
+            correlation_id=correlation_id,
+            count=n,
+            limit=limit,
+            service="transfer-service",
+        )
+        return {"status": 200, "body": {"ok": True, "mode": "expire", "expired": n}}
+
+    settled = 0
+    failed = 0
+    db = SessionLocal()
+    try:
+        rows = (
+            db.execute(
+                select(Transfer)
+                .where(Transfer.status == "PENDING")
+                .order_by(Transfer.id.asc())
+                .limit(limit)
+            )
+            .scalars()
+            .all()
+        )
+        ids = [t.id for t in rows]
+    finally:
+        db.close()
+
+    for tid in ids:
+        db = SessionLocal()
+        try:
+            transfer = db.execute(
+                select(Transfer).where(Transfer.id == tid).with_for_update()
+            ).scalar_one_or_none()
+            if not transfer or transfer.status != "PENDING":
+                continue
+            user_ids = sorted([transfer.from_user, transfer.to_user])
+            users = {
+                u.id: u
+                for u in db.execute(
+                    select(User).where(User.id.in_(user_ids)).with_for_update()
+                ).scalars().all()
+            }
+            sender = users.get(transfer.from_user)
+            receiver = users.get(transfer.to_user)
+            if not sender or not receiver:
+                failed += 1
+                continue
+            if mode == "cancel":
+                amount = transfer.amount
+                sender.held_balance = max(0, int(sender.held_balance or 0) - amount)
+                transfer.status = "CANCELLED"
+                transfer.failure_code = ""
+                transfer.hold_until = None
+                db.commit()
+                settled += 1
+                log_event(
+                    logger,
+                    "transfer_cancelled",
+                    transfer_id=transfer.id,
+                    status="CANCELLED",
+                    outcome="cancelled",
+                    admin_bulk=True,
+                    service="transfer-service",
+                )
+            else:
+                result = await _settle_transfer(
+                    db, transfer, sender, receiver, correlation_id, path, "admin_settle"
+                )
+                if result.get("status") == 200:
+                    settled += 1
+                else:
+                    failed += 1
+        except Exception as e:
+            db.rollback()
+            failed += 1
+            log_error_event(logger, "admin_settle_one_error", exc=e, transfer_id=tid, service="transfer-service")
+        finally:
+            db.close()
+
+    log_event(
+        logger,
+        "admin_settle_pending",
+        correlation_id=correlation_id,
+        mode=mode,
+        settled=settled,
+        failed=failed,
+        limit=limit,
+        service="transfer-service",
+    )
+    return {
+        "status": 200,
+        "body": {"ok": True, "mode": mode, "settled": settled, "failed": failed, "limit": limit},
+    }
+
+
 async def handle_confirm(payload: dict, headers: dict, trace: dict) -> dict:
     correlation_id = trace.get("correlation_id", "")
     path = trace.get("path", "")
@@ -917,6 +1051,8 @@ async def process_message(message: IncomingMessage):
                         result = await handle_confirm(payload, headers, trace)
                     elif action == "cancel":
                         result = await handle_cancel(payload, headers, trace)
+                    elif action in ("settle-pending", "admin-settle-pending") or "settle-pending" in (path or ""):
+                        result = await handle_admin_settle_pending(payload, headers, trace)
                     else:
                         result = {"status": 404, "body": {"detail": f"Unknown action: {action}", "error_code": "INVALID_STATE"}}
                 await store_response(redis, correlation_id, result)

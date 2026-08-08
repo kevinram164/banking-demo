@@ -11,7 +11,7 @@ RUN_USER="${ECOSYSTEM_USER:-sysadmin}"
 echo "==> Install dir: ${ROOT}"
 mkdir -p "${ROOT}/bin" "${ROOT}/data" "${ROOT}/logs"
 
-for f in common.py job_seed_users.py job_peer_transfers.py job_shop_buy.py job_ly_restock.py job_finance_flows.py; do
+for f in common.py job_seed_users.py job_peer_transfers.py job_shop_buy.py job_ly_restock.py job_finance_flows.py job_settle_pending.py; do
   cp -f "${REPO_SCRIPTS}/${f}" "${ROOT}/bin/${f}"
 done
 
@@ -44,7 +44,7 @@ cat > "${ROOT}/bin/run-job.sh" <<EOF
 set -euo pipefail
 ROOT="${ROOT}"
 export ECOSYSTEM_ENV="\${ECOSYSTEM_ENV:-\$ROOT/.env}"
-JOB="\${1:?job name: seed|peer|shop|restock|finance}"
+JOB="\${1:?job name: seed|peer|shop|restock|finance|settle}"
 LOG_DIR="\$ROOT/logs"
 mkdir -p "\$LOG_DIR"
 TS="\$(date +%Y%m%d-%H%M%S)"
@@ -54,6 +54,7 @@ case "\$JOB" in
   shop)    PY=job_shop_buy.py ;;
   restock) PY=job_ly_restock.py ;;
   finance) PY=job_finance_flows.py ;;
+  settle)  PY=job_settle_pending.py ;;
   *) echo "unknown job: \$JOB"; exit 2 ;;
 esac
 exec >>"\${LOG_DIR}/\${JOB}-\${TS}.log" 2>&1
