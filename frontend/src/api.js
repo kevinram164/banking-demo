@@ -26,7 +26,10 @@ async function req(path, { method = "GET", body, headers = {} } = {}) {
   });
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || "Request failed");
+  if (!res.ok) {
+    const code = data.error_code ? `[${data.error_code}] ` : "";
+    throw new Error(code + (data.detail || "Request failed"));
+  }
   return data;
 }
 
@@ -45,17 +48,33 @@ export const api = {
 
   me: () => req("/api/account/me"),
 
+  myTransfers: (page = 1, size = 20) =>
+    req(`/api/account/me/transfers?page=${page}&size=${size}`),
+
   lookupAccount: (account_number) =>
     req(`/api/account/lookup?account_number=${encodeURIComponent(account_number)}`),
 
-  transfer: (to_account_number, amount, note = "") =>
+  transfer: (to_account_number, amount, note = "", extra = {}) =>
     req("/api/transfer/transfer", {
       method: "POST",
       body: {
         to_account_number,
         amount: Number(amount),
         ...(note ? { note: String(note).trim() } : {}),
+        ...extra,
       },
+    }),
+
+  confirmTransfer: (transfer_id) =>
+    req("/api/transfer/confirm", {
+      method: "POST",
+      body: { transfer_id: Number(transfer_id) },
+    }),
+
+  cancelTransfer: (transfer_id) =>
+    req("/api/transfer/cancel", {
+      method: "POST",
+      body: { transfer_id: Number(transfer_id) },
     }),
 
   notifications: () => req("/api/notifications/notifications"),
@@ -83,7 +102,6 @@ export const api = {
       headers: { "X-Admin-Secret": secret },
     }),
 
-  // Health checks (no auth) — returns { status, database, redis, ... } or { error }
   async authServiceHealth() {
     try { return await req("/api/auth/health"); } catch (e) { return { error: e.message || "Unreachable" }; }
   },

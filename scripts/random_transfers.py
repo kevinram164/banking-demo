@@ -92,7 +92,7 @@ def transfer(base_url: str, session: str, to_account: str, amount: int, verify: 
         try:
             r = s.post(
                 url,
-                json={"to_account_number": to_account, "amount": amount},
+                json={"to_account_number": to_account, "amount": amount, "instant": True, "txn_type": "P2P", "purpose": "random-load"},
                 headers={"X-Session": session},
                 timeout=60,
                 verify=verify,

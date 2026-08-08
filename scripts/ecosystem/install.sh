@@ -11,7 +11,7 @@ RUN_USER="${ECOSYSTEM_USER:-sysadmin}"
 echo "==> Install dir: ${ROOT}"
 mkdir -p "${ROOT}/bin" "${ROOT}/data" "${ROOT}/logs"
 
-for f in common.py job_seed_users.py job_peer_transfers.py job_shop_buy.py job_ly_restock.py; do
+for f in common.py job_seed_users.py job_peer_transfers.py job_shop_buy.py job_ly_restock.py job_finance_flows.py; do
   cp -f "${REPO_SCRIPTS}/${f}" "${ROOT}/bin/${f}"
 done
 
@@ -44,7 +44,7 @@ cat > "${ROOT}/bin/run-job.sh" <<EOF
 set -euo pipefail
 ROOT="${ROOT}"
 export ECOSYSTEM_ENV="\${ECOSYSTEM_ENV:-\$ROOT/.env}"
-JOB="\${1:?job name: seed|peer|shop|restock}"
+JOB="\${1:?job name: seed|peer|shop|restock|finance}"
 LOG_DIR="\$ROOT/logs"
 mkdir -p "\$LOG_DIR"
 TS="\$(date +%Y%m%d-%H%M%S)"
@@ -53,6 +53,7 @@ case "\$JOB" in
   peer)    PY=job_peer_transfers.py ;;
   shop)    PY=job_shop_buy.py ;;
   restock) PY=job_ly_restock.py ;;
+  finance) PY=job_finance_flows.py ;;
   *) echo "unknown job: \$JOB"; exit 2 ;;
 esac
 exec >>"\${LOG_DIR}/\${JOB}-\${TS}.log" 2>&1
@@ -78,7 +79,7 @@ fi
 
 CRON_FILE=/etc/cron.d/npd-ecosystem
 cat > "${CRON_FILE}" <<EOF
-# NPD ecosystem — 4 kịch bản (${ROOT})
+# NPD ecosystem — kịch bản (${ROOT})
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 MAILTO=""
@@ -86,7 +87,7 @@ MAILTO=""
 # 1) Seed users — Chủ nhật 03:00
 0 3 * * 0 ${RUN_USER} ${ROOT}/bin/run-job.sh seed
 
-# 2) Peer CK — mỗi 10 phút
+# 2) Peer CK — mỗi 10 phút (PENDING→confirm)
 */10 * * * * ${RUN_USER} ${ROOT}/bin/run-job.sh peer
 
 # 3) Mua shop — mỗi 3 giờ
@@ -94,6 +95,9 @@ MAILTO=""
 
 # 4) Ly nhập hàng — 12:00 & 18:00
 0 12,18 * * * ${RUN_USER} ${ROOT}/bin/run-job.sh restock
+
+# 5) Finance flows (DISBURSEMENT/REPAYMENT/FEE) — mỗi giờ
+15 * * * * ${RUN_USER} ${ROOT}/bin/run-job.sh finance
 EOF
 chmod 644 "${CRON_FILE}"
 
@@ -102,5 +106,5 @@ echo "OK. Tiếp theo:"
 echo "  1. vi ${ROOT}/.env"
 echo "  2. ${ROOT}/bin/run-job.sh seed"
 echo "  3. Điền LY_ACCOUNT_NUMBER vào .env + GitOps merchant STK"
-echo "  4. ${ROOT}/bin/run-job.sh peer|shop|restock"
+echo "  4. ${ROOT}/bin/run-job.sh peer|shop|restock|finance"
 echo "  5. tail -f ${ROOT}/logs/*.log"

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Job 3 — Mua hàng shop (cron: mỗi 3 giờ).
 
-Khách login banking → checkout shop → CK tới STK Ly với note = payment_code (NOLI-…).
+Khách login banking → checkout shop → PENDING MERCHANT_PAY (NOLI) → confirm
+(shop-bridge chỉ nhận khi SUCCESS).
 """
 from __future__ import annotations
 
@@ -14,8 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import (  # noqa: E402
     bank_login,
-    bank_transfer,
     cfg,
+    cfg_float,
     cfg_int,
     load_env,
     load_ly,
@@ -26,6 +27,7 @@ from common import (  # noqa: E402
     setup_warnings,
     shop_checkout,
     shop_products,
+    transfer_then_settle,
 )
 
 
@@ -52,6 +54,7 @@ def main() -> int:
     count = cfg_int("SHOP_BUY_COUNT", 40)
     workers = cfg_int("SHOP_BUY_WORKERS", 8)
     password = cfg("DEFAULT_PASSWORD", "123456")
+    delay = cfg_float("SHOP_CONFIRM_DELAY", 1.5)
     merchant = ly["account_number"]
 
     def one(i: int) -> str:
@@ -77,7 +80,16 @@ def main() -> int:
         sess = bank_login(u["phone"], u.get("password") or password)
         if not sess:
             return f"#{i} login fail {u['phone']}"
-        res = bank_transfer(sess["session"], merchant, amount, note=str(pay_code))
+        res = transfer_then_settle(
+            sess["session"],
+            merchant,
+            amount,
+            note=str(pay_code),
+            txn_type="MERCHANT_PAY",
+            purpose="thanh toan don hang shop",
+            settle="confirm",
+            delay_sec=delay,
+        )
         if res.get("ok"):
             return f"#{i} OK order pay={pay_code} amount={amount} from={u['phone']}"
         return f"#{i} transfer fail: {res.get('detail')}"

@@ -201,11 +201,27 @@ def bank_transfer(
     amount: int,
     note: str = "",
     http: requests.Session | None = None,
+    txn_type: str = "P2P",
+    purpose: str = "",
+    client_ref: str = "",
+    channel: str = "batch",
+    instant: bool = False,
 ) -> dict:
     s = http or requests.Session()
-    body = {"to_account_number": to_account, "amount": int(amount)}
+    body: dict = {
+        "to_account_number": to_account,
+        "amount": int(amount),
+        "txn_type": txn_type,
+        "channel": channel,
+    }
     if note:
         body["note"] = note
+    if purpose:
+        body["purpose"] = purpose
+    if client_ref:
+        body["client_ref"] = client_ref
+    if instant:
+        body["instant"] = True
     try:
         r = s.post(
             f"{bank_url()}/api/transfer/transfer",
@@ -219,6 +235,105 @@ def bank_transfer(
         return {"ok": False, "detail": f"HTTP {r.status_code}: {r.text[:200]}"}
     except Exception as e:
         return {"ok": False, "detail": str(e)}
+
+
+def bank_confirm(
+    session_token: str,
+    transfer_id: int | None = None,
+    client_ref: str = "",
+    http: requests.Session | None = None,
+) -> dict:
+    s = http or requests.Session()
+    body: dict = {}
+    if transfer_id is not None:
+        body["transfer_id"] = int(transfer_id)
+    if client_ref:
+        body["client_ref"] = client_ref
+    try:
+        r = s.post(
+            f"{bank_url()}/api/transfer/confirm",
+            json=body,
+            headers={"X-Session": session_token},
+            timeout=60,
+            verify=verify_tls(),
+        )
+        if r.status_code == 200:
+            return {"ok": True, "data": r.json()}
+        return {"ok": False, "detail": f"HTTP {r.status_code}: {r.text[:200]}"}
+    except Exception as e:
+        return {"ok": False, "detail": str(e)}
+
+
+def bank_cancel(
+    session_token: str,
+    transfer_id: int | None = None,
+    client_ref: str = "",
+    http: requests.Session | None = None,
+) -> dict:
+    s = http or requests.Session()
+    body: dict = {}
+    if transfer_id is not None:
+        body["transfer_id"] = int(transfer_id)
+    if client_ref:
+        body["client_ref"] = client_ref
+    try:
+        r = s.post(
+            f"{bank_url()}/api/transfer/cancel",
+            json=body,
+            headers={"X-Session": session_token},
+            timeout=60,
+            verify=verify_tls(),
+        )
+        if r.status_code == 200:
+            return {"ok": True, "data": r.json()}
+        return {"ok": False, "detail": f"HTTP {r.status_code}: {r.text[:200]}"}
+    except Exception as e:
+        return {"ok": False, "detail": str(e)}
+
+
+def transfer_then_settle(
+    session_token: str,
+    to_account: str,
+    amount: int,
+    *,
+    note: str = "",
+    txn_type: str = "P2P",
+    purpose: str = "",
+    client_ref: str = "",
+    settle: str = "confirm",
+    delay_sec: float = 0,
+    http: requests.Session | None = None,
+) -> dict:
+    """Create PENDING then confirm/cancel/leave (for expire demo)."""
+    import time as _time
+    import uuid
+
+    ref = client_ref or f"ECO-{txn_type}-{uuid.uuid4().hex[:10]}"
+    created = bank_transfer(
+        session_token,
+        to_account,
+        amount,
+        note=note,
+        http=http,
+        txn_type=txn_type,
+        purpose=purpose,
+        client_ref=ref,
+    )
+    if not created.get("ok"):
+        return created
+    data = created.get("data") or {}
+    tid = data.get("transfer_id")
+    if delay_sec > 0:
+        _time.sleep(delay_sec)
+    if settle == "leave":
+        return {"ok": True, "data": data, "settled": "left_pending"}
+    if settle == "cancel":
+        done = bank_cancel(session_token, transfer_id=tid, client_ref=ref, http=http)
+        done["created"] = data
+        return done
+    done = bank_confirm(session_token, transfer_id=tid, client_ref=ref, http=http)
+    done["created"] = data
+    return done
 
 
 def shop_products() -> list[dict]:

@@ -47,6 +47,16 @@ def ensure_schema() -> None:
 
     stmts = [
         "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS note VARCHAR(64) DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS held_balance INTEGER DEFAULT 0",
+        "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS txn_type VARCHAR(32) DEFAULT 'P2P'",
+        "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS purpose VARCHAR(128) DEFAULT ''",
+        "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS channel VARCHAR(32) DEFAULT 'mobile'",
+        "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS client_ref VARCHAR(64) DEFAULT ''",
+        "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS status VARCHAR(16) DEFAULT 'SUCCESS'",
+        "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS failure_code VARCHAR(64) DEFAULT ''",
+        "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS hold_until TIMESTAMP NULL",
+        "CREATE INDEX IF NOT EXISTS ix_transfers_client_ref ON transfers (client_ref)",
+        "CREATE INDEX IF NOT EXISTS ix_transfers_status ON transfers (status)",
     ]
     with engine.begin() as conn:
         for sql in stmts:

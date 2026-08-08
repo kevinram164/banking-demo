@@ -13,14 +13,44 @@ from redis.asyncio import Redis
 from aio_pika import IncomingMessage
 from fastapi import FastAPI
 
-from common.db import SessionLocal, engine, Base, log_db_pool_status
+from common.db import SessionLocal, engine, Base, log_db_pool_status, ensure_schema
 from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, create_redis_client
-from common.rabbitmq_utils import store_response
+from common.rabbitmq_utils import store_response, declare_request_queue, is_message_stale, MAX_MESSAGE_AGE_SEC
 from common.logging_utils import get_json_logger, log_event, log_error_event, should_log_request_flow
 from common.observability import instrument_fastapi, get_tracer, consumer_span
 
 Base.metadata.create_all(bind=engine)
+ensure_schema()
+
+
+def _user_balances(u: User) -> dict:
+    held = int(getattr(u, "held_balance", 0) or 0)
+    bal = int(u.balance or 0)
+    return {"balance": bal, "held_balance": held, "available": bal - held}
+
+
+def _transfer_row(t: Transfer, users: dict, viewer_id: int | None = None) -> dict:
+    row = {
+        "id": t.id,
+        "from_user": t.from_user,
+        "from_username": users.get(t.from_user, f"#{t.from_user}"),
+        "to_user": t.to_user,
+        "to_username": users.get(t.to_user, f"#{t.to_user}"),
+        "amount": t.amount,
+        "note": getattr(t, "note", "") or "",
+        "txn_type": getattr(t, "txn_type", None) or "P2P",
+        "purpose": getattr(t, "purpose", None) or "",
+        "channel": getattr(t, "channel", None) or "mobile",
+        "client_ref": getattr(t, "client_ref", None) or "",
+        "status": getattr(t, "status", None) or "SUCCESS",
+        "failure_code": getattr(t, "failure_code", None) or "",
+        "hold_until": (t.hold_until.isoformat() + "Z") if getattr(t, "hold_until", None) else None,
+        "created_at": t.created_at.isoformat() + "Z",
+    }
+    if viewer_id is not None:
+        row["direction"] = "out" if t.from_user == viewer_id else "in"
+    return row
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
@@ -41,7 +71,16 @@ async def handle_me(payload: dict, headers: dict) -> dict:
         u = db.get(User, user_id)
         if not u:
             return {"status": 404, "body": {"detail": "User not found"}}
-        return {"status": 200, "body": {"id": u.id, "phone": u.phone, "username": u.username, "account_number": u.account_number, "balance": u.balance}}
+        return {
+            "status": 200,
+            "body": {
+                "id": u.id,
+                "phone": u.phone,
+                "username": u.username,
+                "account_number": u.account_number,
+                **_user_balances(u),
+            },
+        }
     finally:
         db.close()
 
@@ -53,7 +92,37 @@ async def handle_balance(payload: dict, headers: dict) -> dict:
         u = db.get(User, user_id)
         if not u:
             return {"status": 404, "body": {"detail": "User not found"}}
-        return {"status": 200, "body": {"balance": u.balance}}
+        return {"status": 200, "body": _user_balances(u)}
+    finally:
+        db.close()
+
+
+async def handle_my_transfers(payload: dict, headers: dict) -> dict:
+    user_id = await get_user_id_from_session(redis, headers.get("x-session") or headers.get("X-Session"))
+    page = int(payload.get("page", 1))
+    size = min(int(payload.get("size", 20)), 50)
+    db = SessionLocal()
+    try:
+        base = select(Transfer).where((Transfer.from_user == user_id) | (Transfer.to_user == user_id))
+        total = db.execute(select(func.count()).select_from(base.subquery())).scalar()
+        transfers = db.execute(
+            base.order_by(Transfer.created_at.desc()).offset((page - 1) * size).limit(size)
+        ).scalars().all()
+        user_ids = {t.from_user for t in transfers} | {t.to_user for t in transfers}
+        users = {
+            u.id: u.username
+            for u in db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()
+        } if user_ids else {}
+        return {
+            "status": 200,
+            "body": {
+                "transfers": [_transfer_row(t, users, viewer_id=user_id) for t in transfers],
+                "total": total,
+                "page": page,
+                "size": size,
+                "pages": (total + size - 1) // size if total else 0,
+            },
+        }
     finally:
         db.close()
 
@@ -101,7 +170,25 @@ async def handle_admin_users(payload: dict, headers: dict) -> dict:
             query = query.where((User.username.ilike(pattern)) | (User.phone.ilike(pattern)) | (User.account_number.ilike(pattern)))
         total = db.execute(select(func.count()).select_from(query.subquery())).scalar()
         users = db.execute(query.order_by(User.id.desc()).offset((page - 1) * size).limit(size)).scalars().all()
-        return {"status": 200, "body": {"users": [{"id": u.id, "phone": u.phone, "username": u.username, "account_number": u.account_number, "balance": u.balance} for u in users], "total": total, "page": page, "size": size, "pages": (total + size - 1) // size}}
+        return {
+            "status": 200,
+            "body": {
+                "users": [
+                    {
+                        "id": u.id,
+                        "phone": u.phone,
+                        "username": u.username,
+                        "account_number": u.account_number,
+                        **_user_balances(u),
+                    }
+                    for u in users
+                ],
+                "total": total,
+                "page": page,
+                "size": size,
+                "pages": (total + size - 1) // size,
+            },
+        }
     finally:
         db.close()
 
@@ -117,7 +204,7 @@ async def handle_admin_transfers(payload: dict, headers: dict) -> dict:
         transfers = db.execute(select(Transfer).order_by(Transfer.created_at.desc()).offset((page - 1) * size).limit(size)).scalars().all()
         user_ids = {t.from_user for t in transfers} | {t.to_user for t in transfers}
         users = {u.id: u.username for u in db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()} if user_ids else {}
-        result = [{"id": t.id, "from_user": t.from_user, "from_username": users.get(t.from_user, f"#{t.from_user}"), "to_user": t.to_user, "to_username": users.get(t.to_user, f"#{t.to_user}"), "amount": t.amount, "note": getattr(t, "note", "") or "", "created_at": t.created_at.isoformat() + "Z"} for t in transfers]
+        result = [_transfer_row(t, users) for t in transfers]
         return {"status": 200, "body": {"transfers": result, "total": total_count, "page": page, "size": size, "pages": (total_count + size - 1) // size}}
     finally:
         db.close()
@@ -147,6 +234,9 @@ async def handle_admin_credit(payload: dict, headers: dict) -> dict:
         if not u:
             return {"status": 404, "body": {"detail": "User not found"}}
         u.balance = balance
+        held = int(getattr(u, "held_balance", 0) or 0)
+        if held > balance:
+            u.held_balance = balance
         db.commit()
         return {
             "status": 200,
@@ -154,7 +244,7 @@ async def handle_admin_credit(payload: dict, headers: dict) -> dict:
                 "id": u.id,
                 "phone": u.phone,
                 "account_number": u.account_number,
-                "balance": u.balance,
+                **_user_balances(u),
             },
         }
     finally:
@@ -191,7 +281,22 @@ async def handle_admin_user_detail(user_id: int, headers: dict) -> dict:
         if not u:
             return {"status": 404, "body": {"detail": "User not found"}}
         transfers = db.execute(select(Transfer).where((Transfer.from_user == user_id) | (Transfer.to_user == user_id)).order_by(Transfer.created_at.desc()).limit(20)).scalars().all()
-        return {"status": 200, "body": {"id": u.id, "phone": u.phone, "username": u.username, "account_number": u.account_number, "balance": u.balance, "transfers": [{"id": t.id, "from_user": t.from_user, "to_user": t.to_user, "amount": t.amount, "note": getattr(t, "note", "") or "", "direction": "out" if t.from_user == user_id else "in", "created_at": t.created_at.isoformat() + "Z"} for t in transfers]}}
+        users = {u.id: u.username}
+        peer_ids = {t.from_user for t in transfers} | {t.to_user for t in transfers}
+        if peer_ids:
+            for peer in db.execute(select(User).where(User.id.in_(peer_ids))).scalars().all():
+                users[peer.id] = peer.username
+        return {
+            "status": 200,
+            "body": {
+                "id": u.id,
+                "phone": u.phone,
+                "username": u.username,
+                "account_number": u.account_number,
+                **_user_balances(u),
+                "transfers": [_transfer_row(t, users, viewer_id=user_id) for t in transfers],
+            },
+        }
     finally:
         db.close()
 
@@ -210,10 +315,30 @@ async def process_message(message: IncomingMessage):
             with consumer_span(tracer, "account.process", {"action": action, "correlation_id": str(correlation_id or "")}):
                 if should_log_request_flow():
                     log_event(logger, "rmq_message_received", queue="account.requests", correlation_id=correlation_id, action=action, path=path)
-                if action == "health":
+                if action != "health" and is_message_stale(body.get("published_at")):
+                    log_event(
+                        logger,
+                        "message_expired",
+                        correlation_id=correlation_id,
+                        path=path,
+                        action=action,
+                        failure_code="MESSAGE_EXPIRED",
+                        max_age_sec=MAX_MESSAGE_AGE_SEC,
+                        service="account-service",
+                    )
+                    result = {
+                        "status": 410,
+                        "body": {
+                            "error_code": "MESSAGE_EXPIRED",
+                            "detail": "Request message expired before processing",
+                        },
+                    }
+                elif action == "health":
                     result = {"status": 200, "body": {"status": "healthy", "service": "account", "database": "ok", "redis": "ok"}}
                 elif action == "me":
                     result = await handle_me(payload, headers)
+                elif action == "transfers" or path.rstrip("/").endswith("/me/transfers"):
+                    result = await handle_my_transfers(payload, headers)
                 elif action == "balance":
                     result = await handle_balance(payload, headers)
                 elif action == "lookup":
@@ -246,7 +371,7 @@ async def consume():
     connection = await aio_pika.connect_robust(RABBITMQ_URL)
     channel = await connection.channel()
     await channel.set_qos(prefetch_count=5)
-    queue = await channel.declare_queue("account.requests", durable=True)
+    queue = await declare_request_queue(channel, "account.requests")
     await queue.consume(process_message)
     log_event(logger, "rabbitmq_connected")
     log_event(logger, "account_consumer_started", queue="account.requests")

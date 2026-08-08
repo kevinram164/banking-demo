@@ -403,9 +403,12 @@ export default function Admin({ onBack }) {
               <thead>
                 <tr className="border-b text-left text-xs font-semibold text-slate-500">
                   <th className="px-3 py-2">ID</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Type</th>
                   <th className="px-3 py-2">From</th>
                   <th className="px-3 py-2">To</th>
                   <th className="px-3 py-2 text-right">Amount</th>
+                  <th className="px-3 py-2">Note / Purpose</th>
                   <th className="px-3 py-2">Time</th>
                 </tr>
               </thead>
@@ -413,15 +416,20 @@ export default function Admin({ onBack }) {
                 {transfers.map((t) => (
                   <tr key={t.id} className="border-b hover:bg-slate-50">
                     <td className="px-3 py-2 text-slate-500">{t.id}</td>
+                    <td className="px-3 py-2 text-xs font-semibold">{t.status || "SUCCESS"}</td>
+                    <td className="px-3 py-2 text-xs">{t.txn_type || "P2P"}</td>
                     <td className="px-3 py-2">{t.from_username} <span className="text-slate-400">#{t.from_user}</span></td>
                     <td className="px-3 py-2">{t.to_username} <span className="text-slate-400">#{t.to_user}</span></td>
                     <td className="px-3 py-2 text-right font-semibold text-emerald-700">{t.amount?.toLocaleString()} ₫</td>
+                    <td className="px-3 py-2 text-xs text-slate-600 max-w-[12rem] truncate" title={`${t.purpose || ""} ${t.note || ""}`}>
+                      {t.purpose || t.note || "—"}
+                    </td>
                     <td className="px-3 py-2 text-xs text-slate-500">{t.created_at ? new Date(t.created_at).toLocaleString() : ""}</td>
                   </tr>
                 ))}
                 {transfers.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-slate-400">No transfers yet</td>
+                    <td colSpan={8} className="px-3 py-6 text-center text-slate-400">No transfers yet</td>
                   </tr>
                 )}
               </tbody>

@@ -6,6 +6,7 @@ import os
 import time
 import uuid
 import asyncio
+from datetime import datetime, timezone
 from typing import Any, TYPE_CHECKING
 
 import aio_pika
@@ -18,6 +19,17 @@ if TYPE_CHECKING:
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
 RESPONSE_TIMEOUT = int(os.getenv("RABBITMQ_RESPONSE_TIMEOUT", "20"))
 RESPONSE_TTL = int(os.getenv("RABBITMQ_RESPONSE_TTL", "60"))
+# Message TTL (ms) — broker drop nếu consumer không lấy kịp. >= RESPONSE_TIMEOUT.
+MESSAGE_TTL_MS = int(os.getenv("RABBITMQ_MESSAGE_TTL_MS", "30000"))
+# App-level stale age (seconds)
+MAX_MESSAGE_AGE_SEC = int(os.getenv("MAX_MESSAGE_AGE_SEC", "30"))
+
+REQUEST_QUEUES = (
+    "auth.requests",
+    "account.requests",
+    "transfer.requests",
+    "notification.requests",
+)
 
 
 def path_to_queue(path: str) -> str | None:
@@ -38,6 +50,15 @@ async def create_connection():
     return await aio_pika.connect_robust(RABBITMQ_URL)
 
 
+async def declare_request_queue(channel: aio_pika.Channel, queue_name: str) -> aio_pika.abc.AbstractQueue:
+    """
+    Declare durable request queue.
+    Per-message expiration (publish) + app published_at check handle stale mess;
+    avoid x-message-ttl on declare (PRECONDITION_FAILED nếu queue lab đã tồn tại không TTL).
+    """
+    return await channel.declare_queue(queue_name, durable=True)
+
+
 async def publish_and_wait(
     redis: Redis,
     channel: aio_pika.Channel,
@@ -54,24 +75,32 @@ async def publish_and_wait(
 
     correlation_id = str(uuid.uuid4())
     body["correlation_id"] = correlation_id
+    body["published_at"] = datetime.now(timezone.utc).isoformat()
     redis_key = f"response:{correlation_id}"
 
-    # Ensure queue exists
-    queue = await channel.declare_queue(queue_name, durable=True)
+    await declare_request_queue(channel, queue_name)
     await channel.default_exchange.publish(
         Message(
             body=json.dumps(body).encode(),
             delivery_mode=DeliveryMode.PERSISTENT,
             correlation_id=correlation_id,
             headers=headers or {},
+            expiration=str(MESSAGE_TTL_MS),
         ),
         routing_key=queue_name,
     )
 
     if logger and should_log_request_flow():
-        log_event(logger, "rmq_publish", queue=queue_name, correlation_id=correlation_id, redis_key=redis_key)
+        log_event(
+            logger,
+            "rmq_publish",
+            queue=queue_name,
+            correlation_id=correlation_id,
+            redis_key=redis_key,
+            published_at=body["published_at"],
+            message_ttl_ms=MESSAGE_TTL_MS,
+        )
 
-    # Wait for response in Redis (consumer will SET with TTL)
     wait_start = time.perf_counter()
     if logger and should_log_request_flow():
         log_event(logger, "redis_wait_start", correlation_id=correlation_id, redis_key=redis_key)
@@ -105,3 +134,19 @@ async def store_response(
     await redis.setex(key, ttl, json.dumps(result))
     if logger and should_log_request_flow():
         log_event(logger, "redis_store_response", correlation_id=correlation_id, redis_key=key, status=result.get("status"), ttl=ttl)
+
+
+def is_message_stale(published_at: str | None, max_age_sec: int | None = None) -> bool:
+    """True if published_at older than MAX_MESSAGE_AGE_SEC."""
+    if not published_at:
+        return False
+    max_age = max_age_sec if max_age_sec is not None else MAX_MESSAGE_AGE_SEC
+    try:
+        raw = published_at.replace("Z", "+00:00")
+        ts = datetime.fromisoformat(raw)
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        age = (datetime.now(timezone.utc) - ts).total_seconds()
+        return age > max_age
+    except Exception:
+        return False

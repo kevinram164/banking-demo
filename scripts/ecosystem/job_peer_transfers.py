@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Job 2 — Peer CK giữa users (cron: mỗi 10 phút).
 
-Số tiền: TRANSFER_MIN–TRANSFER_MAX (mặc định 50k–500k).
+Create PENDING → confirm sau vài giây (hold/pending lifecycle).
+Một tỷ lệ nhỏ cancel / leave pending (expire).
 """
 from __future__ import annotations
 
@@ -15,13 +16,14 @@ import requests
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import (  # noqa: E402
-    bank_login,
-    bank_transfer,
     cfg,
+    cfg_float,
     cfg_int,
     load_env,
     load_users,
     setup_warnings,
+    bank_login,
+    transfer_then_settle,
 )
 
 
@@ -38,8 +40,10 @@ def main() -> int:
     rounds = cfg_int("TRANSFER_ROUNDS", 80)
     workers = cfg_int("TRANSFER_WORKERS", 20)
     password = cfg("DEFAULT_PASSWORD", "123456")
+    delay = cfg_float("TRANSFER_CONFIRM_DELAY", 2.0)
+    cancel_ratio = cfg_float("TRANSFER_CANCEL_RATIO", 0.05)
+    leave_ratio = cfg_float("TRANSFER_LEAVE_RATIO", 0.02)
 
-    # cache sessions
     sessions: dict[str, str] = {}
 
     def get_session(u: dict) -> str | None:
@@ -58,11 +62,28 @@ def main() -> int:
         if not tok:
             return f"#{i} login fail {a['phone']}"
         amount = random.randint(amin, amax)
-        note = f"ECO-PEER-{i}-{random.randint(1000,9999)}"
+        r = random.random()
+        if r < leave_ratio:
+            settle = "leave"
+        elif r < leave_ratio + cancel_ratio:
+            settle = "cancel"
+        else:
+            settle = "confirm"
         http = requests.Session()
-        res = bank_transfer(tok, b["account_number"], amount, note=note, http=http)
+        res = transfer_then_settle(
+            tok,
+            b["account_number"],
+            amount,
+            note=f"ECO-PEER-{i}-{random.randint(1000,9999)}",
+            txn_type="P2P",
+            purpose="chuyen khoan nguoi than",
+            settle=settle,
+            delay_sec=delay if settle == "confirm" else 0,
+            http=http,
+        )
         if res.get("ok"):
-            return f"#{i} OK {a['phone']}→{b['account_number']} {amount}"
+            tid = (res.get("data") or res.get("created") or {}).get("transfer_id")
+            return f"#{i} OK {settle} {a['phone']}→{b['account_number']} {amount} tid={tid}"
         return f"#{i} FAIL {res.get('detail')}"
 
     ok = fail = 0

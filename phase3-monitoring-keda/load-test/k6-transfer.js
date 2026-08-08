@@ -50,7 +50,7 @@ export default function () {
 
   const tr = http.post(
     `${BASE_URL}/api/transfer/transfer`,
-    JSON.stringify({ to_username: U2.username, amount: 1 }),
+    JSON.stringify({ to_username: U2.username, amount: 1, instant: true, txn_type: 'P2P', purpose: 'k6-load' }),
     { headers: headers({ 'X-Session': s1 }) }
   );
   check(tr, { 'transfer 1->2 ok': (r) => r.status === 200 });
@@ -58,7 +58,7 @@ export default function () {
 
   const tr2 = http.post(
     `${BASE_URL}/api/transfer/transfer`,
-    JSON.stringify({ to_username: U1.username, amount: 1 }),
+    JSON.stringify({ to_username: U1.username, amount: 1, instant: true, txn_type: 'P2P', purpose: 'k6-load' }),
     { headers: headers({ 'X-Session': s2 }) }
   );
   check(tr2, { 'transfer 2->1 ok': (r) => r.status === 200 });

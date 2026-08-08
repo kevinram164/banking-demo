@@ -1,13 +1,16 @@
-# Ecosystem cron runner — 4 kịch bản
+# Ecosystem cron runner — finance + shop traffic
 
 Server riêng gọi API `npd-banking.co` + `npd-shop.co` theo lịch.
 
 | Job | Script | Cron |
 |-----|--------|------|
 | Seed users (+ Ly) | `job_seed_users.py` | Chủ nhật 03:00 |
-| Peer CK | `job_peer_transfers.py` | mỗi 10 phút |
-| Mua shop | `job_shop_buy.py` | mỗi 3 giờ |
+| Peer CK (PENDING→confirm) | `job_peer_transfers.py` | mỗi 10 phút |
+| Mua shop (MERCHANT_PAY→confirm) | `job_shop_buy.py` | mỗi 3 giờ |
 | Ly nhập hàng | `job_ly_restock.py` | 12:00 & 18:00 |
+| Finance (DISBURSEMENT/REPAYMENT/FEE) | `job_finance_flows.py` | mỗi giờ `:15` |
+
+Transfer mặc định tạo **PENDING + hold**, rồi job **confirm** (một tỷ lệ nhỏ cancel / leave để expire).
 
 ## Tham số lab
 
@@ -18,48 +21,32 @@ Server riêng gọi API `npd-banking.co` + `npd-shop.co` theo lịch.
 | User balance | 10.000.000 |
 | Ly balance | 50.000.000 |
 | Peer amount | 50.000 – 500.000 |
+| `TRANSFER_CONFIRM_DELAY` | 2s |
 | Giá nhập | 70% `price_vnd` catalog |
+
+Ops users (finance job tự tạo): `ops-disburse` `0910000001`, `ops-fee` `0910000002`.
 
 ## Deploy server
 
 ```bash
-# từ máy có clone banking-demo
 cd banking-demo/scripts/ecosystem
 sudo bash install.sh
-# mặc định: /home/sysadmin/npd-ecosystem
 
-vi /home/sysadmin/npd-ecosystem/.env   # BANK_URL, SHOP_URL, ADMIN_SECRET
+vi /home/sysadmin/npd-ecosystem/.env
 
-# Smoke
 /home/sysadmin/npd-ecosystem/bin/run-job.sh seed
-# copy STK Ly → LY_ACCOUNT_NUMBER + GitOps SHOP_MERCHANT / BANK_ACCOUNT_NUMBER
 /home/sysadmin/npd-ecosystem/bin/run-job.sh peer
 /home/sysadmin/npd-ecosystem/bin/run-job.sh shop
+/home/sysadmin/npd-ecosystem/bin/run-job.sh finance
 /home/sysadmin/npd-ecosystem/bin/run-job.sh restock
 ```
 
-Log: `/home/sysadmin/npd-ecosystem/logs/`. Users: `/home/sysadmin/npd-ecosystem/data/users.json`.
-.env: `/home/sysadmin/npd-ecosystem/.env`.
+Rebuild/sync trước khi chạy cron:
 
-Seed mỗi tuần chỉ thêm tối đa `SEED_BATCH` (200) tới khi đủ `TARGET_CUSTOMERS` / `TARGET_SUPPLIERS`.
-
-## Prerequisite OCP
-
-**Logging trước khi chạy job** (OpenSearch): xem `phase9-gitops-platform/logging/DEPLOY.md`  
-UI: https://logs-platform.apps.ocp01.npd.co — index `npd-*` (bank / shop / kafka).
-
-Rebuild/sync trước khi chạy cron nặng:
-
-- `auth-service` — `initial_balance` + default 10tr
-- `account-service` — `POST /api/account/admin/credit`
-- `transfer-service` — `note` + matcher NOLI
-- shop `payment-worker` — lz4 nếu còn message cũ
-
-Seed Ly một lần (tương đương job seed):
-
-```bash
-python scripts/seed_huongly.py --base-url https://npd-banking.co --insecure
-```
+- `transfer-service` — hold/pending + confirm/cancel + MESSAGE_EXPIRED
+- `account-service` — available/held + `/me/transfers`
+- `api-producer` — `published_at` trên message
+- `frontend` — statement UI
 
 ## Tài nguyên gợi ý
 
