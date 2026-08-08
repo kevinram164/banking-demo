@@ -13,7 +13,7 @@ OUTCOME_RATE = (
     'sum(rate(banking_transfer_outcomes_total{namespace="npd-banking",outcome="%s"}[5m]))'
 )
 OUTCOME_INC_1H = (
-    'sum(increase(banking_transfer_outcomes_total{namespace="npd-banking",outcome="%s"}[1h]))'
+    'round(sum(increase(banking_transfer_outcomes_total{namespace="npd-banking",outcome="%s"}[1h])))'
 )
 
 

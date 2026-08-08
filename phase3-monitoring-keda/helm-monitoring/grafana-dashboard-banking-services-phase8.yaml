@@ -1,7 +1,6 @@
 # Grafana Dashboard — Banking Services (Phase 8)
 # Sidecar label: grafana_dashboard=1
 # Apply: kubectl apply -f grafana-dashboard-banking-services-phase8.yaml -n monitoring
-# (or same namespace as Grafana)
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -484,7 +483,7 @@ data:
         {
           "id": 20,
           "type": "stat",
-          "title": "Transfer — Success 1h",
+          "title": "Transfer — Success (so luong / 1h)",
           "gridPos": {
             "x": 0,
             "y": 32,
@@ -493,7 +492,7 @@ data:
           },
           "targets": [
             {
-              "expr": "sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"success\"}[1h]))",
+              "expr": "round(sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"success\"}[1h])))",
               "refId": "A",
               "datasource": {
                 "type": "prometheus",
@@ -512,7 +511,8 @@ data:
           },
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
+              "unit": "none",
+              "decimals": 0
             },
             "overrides": []
           }
@@ -520,7 +520,7 @@ data:
         {
           "id": 21,
           "type": "stat",
-          "title": "Transfer — Failed 1h",
+          "title": "Transfer — Failed (so luong / 1h)",
           "gridPos": {
             "x": 4,
             "y": 32,
@@ -529,7 +529,7 @@ data:
           },
           "targets": [
             {
-              "expr": "sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"failed\"}[1h]))",
+              "expr": "round(sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"failed\"}[1h])))",
               "refId": "A",
               "datasource": {
                 "type": "prometheus",
@@ -548,7 +548,8 @@ data:
           },
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
+              "unit": "none",
+              "decimals": 0
             },
             "overrides": []
           }
@@ -556,7 +557,7 @@ data:
         {
           "id": 22,
           "type": "stat",
-          "title": "Transfer — Pending 1h",
+          "title": "Transfer — Pending (so luong / 1h)",
           "gridPos": {
             "x": 8,
             "y": 32,
@@ -565,7 +566,7 @@ data:
           },
           "targets": [
             {
-              "expr": "sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"pending\"}[1h]))",
+              "expr": "round(sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"pending\"}[1h])))",
               "refId": "A",
               "datasource": {
                 "type": "prometheus",
@@ -584,7 +585,8 @@ data:
           },
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
+              "unit": "none",
+              "decimals": 0
             },
             "overrides": []
           }
@@ -592,7 +594,7 @@ data:
         {
           "id": 23,
           "type": "stat",
-          "title": "Transfer — Expired 1h",
+          "title": "Transfer — Expired (so luong / 1h)",
           "gridPos": {
             "x": 12,
             "y": 32,
@@ -601,7 +603,7 @@ data:
           },
           "targets": [
             {
-              "expr": "sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"expired\"}[1h]))",
+              "expr": "round(sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"expired\"}[1h])))",
               "refId": "A",
               "datasource": {
                 "type": "prometheus",
@@ -620,7 +622,8 @@ data:
           },
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
+              "unit": "none",
+              "decimals": 0
             },
             "overrides": []
           }
@@ -628,7 +631,7 @@ data:
         {
           "id": 24,
           "type": "stat",
-          "title": "Transfer — Cancelled 1h",
+          "title": "Transfer — Cancelled (so luong / 1h)",
           "gridPos": {
             "x": 16,
             "y": 32,
@@ -637,7 +640,7 @@ data:
           },
           "targets": [
             {
-              "expr": "sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"cancelled\"}[1h]))",
+              "expr": "round(sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"cancelled\"}[1h])))",
               "refId": "A",
               "datasource": {
                 "type": "prometheus",
@@ -656,7 +659,8 @@ data:
           },
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
+              "unit": "none",
+              "decimals": 0
             },
             "overrides": []
           }
