@@ -494,6 +494,7 @@ export default function Admin({ onBack }) {
                 <tr className="border-b text-left text-xs font-semibold text-slate-500">
                   <th className="px-3 py-2">ID</th>
                   <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Fail code</th>
                   <th className="px-3 py-2">Type</th>
                   <th className="px-3 py-2">From</th>
                   <th className="px-3 py-2">To</th>
@@ -507,6 +508,7 @@ export default function Admin({ onBack }) {
                   <tr key={t.id} className="border-b hover:bg-slate-50">
                     <td className="px-3 py-2 text-slate-500">{t.id}</td>
                     <td className="px-3 py-2 text-xs font-semibold">{t.status || "SUCCESS"}</td>
+                    <td className="px-3 py-2 text-xs font-mono text-red-700">{t.failure_code || "—"}</td>
                     <td className="px-3 py-2 text-xs">{t.txn_type || "P2P"}</td>
                     <td className="px-3 py-2">{t.from_username} <span className="text-slate-400">#{t.from_user}</span></td>
                     <td className="px-3 py-2">{t.to_username} <span className="text-slate-400">#{t.to_user}</span></td>
@@ -519,7 +521,7 @@ export default function Admin({ onBack }) {
                 ))}
                 {transfers.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-slate-400">No transfers match filters</td>
+                    <td colSpan={9} className="px-3 py-6 text-center text-slate-400">No transfers match filters</td>
                   </tr>
                 )}
               </tbody>

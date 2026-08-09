@@ -949,7 +949,7 @@ def expire_holds_once() -> int:
             ).scalar_one_or_none()
             if sender:
                 sender.held_balance = max(0, int(sender.held_balance or 0) - transfer.amount)
-            transfer.status = "FAILED"
+            transfer.status = "EXPIRED"
             transfer.failure_code = "HOLD_EXPIRED"
             transfer.hold_until = None
             if sender:
@@ -968,9 +968,9 @@ def expire_holds_once() -> int:
                 txn_type=transfer.txn_type,
                 purpose=transfer.purpose or None,
                 client_ref=transfer.client_ref or None,
-                status="FAILED",
+                status="EXPIRED",
                 failure_code="HOLD_EXPIRED",
-                outcome="failure",
+                outcome="expired",
                 business_domain="banking",
                 service="transfer-service",
             )

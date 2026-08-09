@@ -8,7 +8,7 @@ import asyncio
 import json
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_, or_
 from redis.asyncio import Redis
 from aio_pika import IncomingMessage
 from fastapi import FastAPI
@@ -242,12 +242,27 @@ async def handle_admin_transfers(payload: dict, headers: dict) -> dict:
             q = q.where(Transfer.id == tid)
         if status:
             if status == "SUCCESS":
-                q = q.where((Transfer.status == "SUCCESS") | (Transfer.status.is_(None)) | (Transfer.status == ""))
+                q = q.where(or_(Transfer.status == "SUCCESS", Transfer.status.is_(None), Transfer.status == ""))
+            elif status == "EXPIRED":
+                # legacy: expire từng ghi FAILED + HOLD_EXPIRED
+                q = q.where(
+                    or_(
+                        Transfer.status == "EXPIRED",
+                        and_(Transfer.status == "FAILED", Transfer.failure_code == "HOLD_EXPIRED"),
+                    )
+                )
+            elif status == "FAILED":
+                q = q.where(
+                    and_(
+                        Transfer.status == "FAILED",
+                        or_(Transfer.failure_code.is_(None), Transfer.failure_code != "HOLD_EXPIRED"),
+                    )
+                )
             else:
                 q = q.where(Transfer.status == status)
         if txn_type:
             if txn_type == "P2P":
-                q = q.where((Transfer.txn_type == "P2P") | (Transfer.txn_type.is_(None)) | (Transfer.txn_type == ""))
+                q = q.where(or_(Transfer.txn_type == "P2P", Transfer.txn_type.is_(None), Transfer.txn_type == ""))
             else:
                 q = q.where(Transfer.txn_type == txn_type)
 
