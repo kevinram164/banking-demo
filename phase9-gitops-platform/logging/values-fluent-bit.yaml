@@ -112,6 +112,8 @@ config:
         Emitter_Storage.type memory
 
   outputs: |
+    # Write_Operation index: retry không 409 (create + Generate_ID bị version_conflict)
+    # Retry_Limit hữu hạn: tránh backlog infra chặn bank/shop
     [OUTPUT]
         Name               opensearch
         Match              logs.bank
@@ -123,9 +125,10 @@ config:
         Logstash_Prefix    logs-bank
         Logstash_DateFormat %Y.%m.%d
         Replace_Dots       On
-        Retry_Limit        False
-        Trace_Error        On
         Generate_ID        On
+        Write_Operation    index
+        Retry_Limit        5
+        Trace_Error        Off
 
     [OUTPUT]
         Name               opensearch
@@ -138,9 +141,10 @@ config:
         Logstash_Prefix    logs-shop
         Logstash_DateFormat %Y.%m.%d
         Replace_Dots       On
-        Retry_Limit        False
-        Trace_Error        On
         Generate_ID        On
+        Write_Operation    index
+        Retry_Limit        5
+        Trace_Error        Off
 
     [OUTPUT]
         Name               opensearch
@@ -153,9 +157,10 @@ config:
         Logstash_Prefix    logs-movie
         Logstash_DateFormat %Y.%m.%d
         Replace_Dots       On
-        Retry_Limit        False
-        Trace_Error        On
         Generate_ID        On
+        Write_Operation    index
+        Retry_Limit        5
+        Trace_Error        Off
 
     [OUTPUT]
         Name               opensearch
@@ -168,9 +173,10 @@ config:
         Logstash_Prefix    logs-infra
         Logstash_DateFormat %Y.%m.%d
         Replace_Dots       On
-        Retry_Limit        False
-        Trace_Error        On
         Generate_ID        On
+        Write_Operation    index
+        Retry_Limit        5
+        Trace_Error        Off
 
 hotReload:
   enabled: false
