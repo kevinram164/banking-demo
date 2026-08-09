@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import select, func
 from redis.asyncio import Redis
 from aio_pika import IncomingMessage
 from fastapi import FastAPI
@@ -21,7 +21,14 @@ from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, publish_notify, create_redis_client
 from common.rabbitmq_utils import store_response, declare_request_queue, is_message_stale, MAX_MESSAGE_AGE_SEC
 from common.logging_utils import get_json_logger, log_event, log_error_event, mask_amount, mask_account_number, should_log_request_flow
-from common.observability import instrument_fastapi, get_tracer, consumer_span, inc_transfer_outcome
+from common.observability import (
+    instrument_fastapi,
+    get_tracer,
+    consumer_span,
+    inc_transfer_outcome,
+    adjust_transfers_pending,
+    set_transfers_pending,
+)
 
 Base.metadata.create_all(bind=engine)
 ensure_schema()
@@ -472,6 +479,7 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
         )
 
         inc_transfer_outcome("pending", biz["txn_type"])
+        adjust_transfers_pending(+1)
         return {"status": 200, "body": _transfer_dict(transfer, sender, receiver)}
     except Exception:
         db.rollback()
@@ -520,6 +528,7 @@ async def _settle_transfer(
         transfer.failure_code = "INSUFFICIENT_FUNDS"
         transfer.hold_until = None
         db.commit()
+        adjust_transfers_pending(-1)
         return _reject(
             status=400,
             error_code="INSUFFICIENT_FUNDS",
@@ -592,6 +601,7 @@ async def _settle_transfer(
 
     _maybe_shop_notify(receiver, note, amount)
     inc_transfer_outcome("success", transfer.txn_type)
+    adjust_transfers_pending(-1)
     return {"status": 200, "body": _transfer_dict(transfer, sender, receiver)}
 
 
@@ -697,6 +707,7 @@ async def handle_admin_settle_pending(payload: dict, headers: dict, trace: dict)
                     service="transfer-service",
                 )
                 inc_transfer_outcome("cancelled", transfer.txn_type)
+                adjust_transfers_pending(-1)
                 settled += 1
             else:
                 result = await _settle_transfer(
@@ -917,11 +928,26 @@ async def handle_cancel(payload: dict, headers: dict, trace: dict) -> dict:
             service="transfer-service",
         )
         inc_transfer_outcome("cancelled", transfer.txn_type)
+        adjust_transfers_pending(-1)
         body = _transfer_dict(transfer, sender, receiver or sender)
         return {"status": 200, "body": body}
     except Exception:
         db.rollback()
         raise
+    finally:
+        db.close()
+
+
+def sync_pending_gauge() -> int:
+    """Set gauge = COUNT(*) WHERE status=PENDING (source of truth)."""
+    db = SessionLocal()
+    try:
+        n = db.execute(select(func.count(Transfer.id)).where(Transfer.status == "PENDING")).scalar() or 0
+        set_transfers_pending(int(n))
+        return int(n)
+    except Exception as e:
+        log_error_event(logger, "pending_gauge_sync_error", exc=e, service="transfer-service")
+        return -1
     finally:
         db.close()
 
@@ -975,9 +1001,11 @@ def expire_holds_once() -> int:
                 service="transfer-service",
             )
             inc_transfer_outcome("expired", transfer.txn_type)
+            adjust_transfers_pending(-1)
             expired += 1
         if expired:
             db.commit()
+        sync_pending_gauge()
         return expired
     except Exception as e:
         db.rollback()
@@ -993,6 +1021,8 @@ async def hold_expire_loop():
             n = await asyncio.to_thread(expire_holds_once)
             if n:
                 log_event(logger, "hold_expire_batch", count=n, service="transfer-service")
+            else:
+                await asyncio.to_thread(sync_pending_gauge)
         except Exception as e:
             log_error_event(logger, "hold_expire_loop_error", exc=e, service="transfer-service")
         await asyncio.sleep(EXPIRE_POLL_SECONDS)
@@ -1113,6 +1143,7 @@ async def lifespan(app: FastAPI):
     global redis
     redis = await create_redis_client(REDIS_URL, logger=logger)
     log_db_pool_status(logger)
+    await asyncio.to_thread(sync_pending_gauge)
     consumer_task = asyncio.create_task(consume())
     expire_task = asyncio.create_task(hold_expire_loop())
     yield

@@ -12,9 +12,10 @@ DS = {"type": "prometheus", "uid": "${datasource}"}
 OUTCOME_RATE = (
     'sum(rate(banking_transfer_outcomes_total{namespace="npd-banking",outcome="%s"}[5m]))'
 )
-OUTCOME_INC_1H = (
-    'round(sum(increase(banking_transfer_outcomes_total{namespace="npd-banking",outcome="%s"}[1h])))'
+OUTCOME_TOTAL = (
+    'round(sum(banking_transfer_outcomes_total{namespace="npd-banking",outcome="%s"}))'
 )
+PENDING_OPEN = 'max(banking_transfers_pending{namespace="npd-banking"}) or vector(0)'
 
 
 def target(expr: str, legend: str, ref: str) -> dict:
@@ -85,13 +86,14 @@ def main() -> None:
     if not any(p.get("id") == 20 for p in panels):
         y = max((p.get("gridPos", {}).get("y", 0) + p.get("gridPos", {}).get("h", 0)) for p in panels)
         outcomes = [
-            ("success", "Success 1h", 20, 0),
-            ("failed", "Failed 1h", 21, 4),
-            ("pending", "Pending 1h", 22, 8),
-            ("expired", "Expired 1h", 23, 12),
-            ("cancelled", "Cancelled 1h", 24, 16),
+            ("success", "Success (total)", 20, 0),
+            ("failed", "Failed (total)", 21, 4),
+            ("pending", "Pending (open)", 22, 8),
+            ("expired", "Expired (total)", 23, 12),
+            ("cancelled", "Cancelled (total)", 24, 16),
         ]
         for outcome, title, pid, x in outcomes:
+            expr = PENDING_OPEN if outcome == "pending" else (OUTCOME_TOTAL % outcome)
             panels.append(
                 {
                     "id": pid,
@@ -100,7 +102,7 @@ def main() -> None:
                     "gridPos": {"x": x if x < 20 else 20, "y": y, "w": 4 if x < 20 else 4, "h": 4},
                     "targets": [
                         {
-                            "expr": OUTCOME_INC_1H % outcome,
+                            "expr": expr,
                             "refId": "A",
                             "datasource": DS,
                         }
@@ -110,7 +112,34 @@ def main() -> None:
                         "colorMode": "value",
                         "graphMode": "none",
                     },
-                    "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+                    "fieldConfig": {
+                        "defaults": {
+                            "unit": "none",
+                            "decimals": 0,
+                            "color": {"mode": "fixed", "fixedColor": "green"}
+                            if outcome == "success"
+                            else {"mode": "thresholds"},
+                            "thresholds": {
+                                "mode": "absolute",
+                                "steps": [
+                                    {"color": "green", "value": None},
+                                    {
+                                        "color": (
+                                            "orange"
+                                            if outcome == "pending"
+                                            else "red"
+                                            if outcome == "failed"
+                                            else "yellow"
+                                            if outcome == "expired"
+                                            else "blue"
+                                        ),
+                                        "value": 1,
+                                    },
+                                ],
+                            },
+                        },
+                        "overrides": [],
+                    },
                 }
             )
         # fix x positions properly: 0,4,8,12,16 for 5 panels of w=4

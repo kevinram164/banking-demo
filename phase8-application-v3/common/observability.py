@@ -7,12 +7,13 @@ Observability: OpenTelemetry tracing + Prometheus metrics.
 import os
 import threading
 import time
-from prometheus_client import Counter, Histogram, generate_latest, CollectorRegistry
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CollectorRegistry
 
 _metrics_registry: CollectorRegistry | None = None
 _request_count: Counter | None = None
 _request_latency: Histogram | None = None
 _transfer_outcomes: Counter | None = None
+_transfers_pending: Gauge | None = None
 _heartbeat_started: set[str] = set()
 
 
@@ -108,7 +109,7 @@ def consumer_span(tracer, name: str, attributes: dict | None = None):
 
 
 def setup_metrics(service_name: str) -> None:
-    global _metrics_registry, _request_count, _request_latency, _transfer_outcomes
+    global _metrics_registry, _request_count, _request_latency, _transfer_outcomes, _transfers_pending
     _metrics_registry = CollectorRegistry()
     _request_count = Counter(
         "http_requests_total",
@@ -129,6 +130,11 @@ def setup_metrics(service_name: str) -> None:
         ["outcome", "txn_type"],
         registry=_metrics_registry,
     )
+    _transfers_pending = Gauge(
+        "banking_transfers_pending",
+        "Current open PENDING transfers (hold chưa settle)",
+        registry=_metrics_registry,
+    )
 
 
 def inc_transfer_outcome(outcome: str, txn_type: str | None = None) -> None:
@@ -140,6 +146,27 @@ def inc_transfer_outcome(outcome: str, txn_type: str | None = None) -> None:
     tt = (txn_type or "UNKNOWN").strip().upper() or "UNKNOWN"
     try:
         c.labels(outcome=o, txn_type=tt).inc()
+    except Exception:
+        pass
+
+
+def set_transfers_pending(count: int) -> None:
+    g = _transfers_pending
+    if not g:
+        return
+    try:
+        g.set(max(0, int(count)))
+    except Exception:
+        pass
+
+
+def adjust_transfers_pending(delta: int) -> None:
+    g = _transfers_pending
+    if not g:
+        return
+    try:
+        # Gauge has no get(); use inc which supports negative
+        g.inc(int(delta))
     except Exception:
         pass
 

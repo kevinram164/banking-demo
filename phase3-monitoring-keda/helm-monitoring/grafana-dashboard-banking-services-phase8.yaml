@@ -432,7 +432,7 @@ data:
         {
           "id": 12,
           "type": "gauge",
-          "title": "Transfer — % Pending (of creates)",
+          "title": "Transfer — % Creates still open-ish (rate)",
           "gridPos": {
             "x": 18,
             "y": 24,
@@ -478,12 +478,12 @@ data:
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "pending / (pending+success+failed+expired+cancelled) rate share. High pending = create without confirm."
+          "description": "Rate share pending creates (khong phai so dang treo). Xem panel Pending (open) de biet hang treo hien tai."
         },
         {
           "id": 20,
           "type": "stat",
-          "title": "Transfer — Success (so luong / 1h)",
+          "title": "Transfer — Success (total)",
           "gridPos": {
             "x": 0,
             "y": 32,
@@ -492,7 +492,7 @@ data:
           },
           "targets": [
             {
-              "expr": "round(sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"success\"}[1h])))",
+              "expr": "round(sum(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"success\"}))",
               "refId": "A",
               "datasource": {
                 "type": "prometheus",
@@ -512,15 +512,29 @@ data:
           "fieldConfig": {
             "defaults": {
               "unit": "none",
-              "decimals": 0
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "green"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
             },
             "overrides": []
-          }
+          },
+          "description": "Tong outcome tu khi pod transfer-service start (counter banking_transfer_outcomes_total). Khong phai cua so 1h."
         },
         {
           "id": 21,
           "type": "stat",
-          "title": "Transfer — Failed (so luong / 1h)",
+          "title": "Transfer — Failed (total)",
           "gridPos": {
             "x": 4,
             "y": 32,
@@ -529,7 +543,7 @@ data:
           },
           "targets": [
             {
-              "expr": "round(sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"failed\"}[1h])))",
+              "expr": "round(sum(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"failed\"}))",
               "refId": "A",
               "datasource": {
                 "type": "prometheus",
@@ -549,15 +563,32 @@ data:
           "fieldConfig": {
             "defaults": {
               "unit": "none",
-              "decimals": 0
+              "decimals": 0,
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              }
             },
             "overrides": []
-          }
+          },
+          "description": "Tong outcome tu khi pod transfer-service start (counter banking_transfer_outcomes_total). Khong phai cua so 1h."
         },
         {
           "id": 22,
           "type": "stat",
-          "title": "Transfer — Pending (so luong / 1h)",
+          "title": "Transfer — Pending (open)",
           "gridPos": {
             "x": 8,
             "y": 32,
@@ -566,7 +597,7 @@ data:
           },
           "targets": [
             {
-              "expr": "round(sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"pending\"}[1h])))",
+              "expr": "max(banking_transfers_pending{namespace=\"npd-banking\"}) or vector(0)",
               "refId": "A",
               "datasource": {
                 "type": "prometheus",
@@ -586,15 +617,32 @@ data:
           "fieldConfig": {
             "defaults": {
               "unit": "none",
-              "decimals": 0
+              "decimals": 0,
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 1
+                  }
+                ]
+              }
             },
             "overrides": []
-          }
+          },
+          "description": "So PENDING dang mo (hold chua confirm/cancel/expire). Ve 0 khi xu ly xong. Metric: banking_transfers_pending"
         },
         {
           "id": 23,
           "type": "stat",
-          "title": "Transfer — Expired (so luong / 1h)",
+          "title": "Transfer — Expired (total)",
           "gridPos": {
             "x": 12,
             "y": 32,
@@ -603,7 +651,7 @@ data:
           },
           "targets": [
             {
-              "expr": "round(sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"expired\"}[1h])))",
+              "expr": "round(sum(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"expired\"}))",
               "refId": "A",
               "datasource": {
                 "type": "prometheus",
@@ -623,15 +671,32 @@ data:
           "fieldConfig": {
             "defaults": {
               "unit": "none",
-              "decimals": 0
+              "decimals": 0,
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 1
+                  }
+                ]
+              }
             },
             "overrides": []
-          }
+          },
+          "description": "Tong outcome tu khi pod transfer-service start (counter banking_transfer_outcomes_total). Khong phai cua so 1h."
         },
         {
           "id": 24,
           "type": "stat",
-          "title": "Transfer — Cancelled (so luong / 1h)",
+          "title": "Transfer — Cancelled (total)",
           "gridPos": {
             "x": 16,
             "y": 32,
@@ -640,7 +705,7 @@ data:
           },
           "targets": [
             {
-              "expr": "round(sum(increase(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"cancelled\"}[1h])))",
+              "expr": "round(sum(banking_transfer_outcomes_total{namespace=\"npd-banking\",outcome=\"cancelled\"}))",
               "refId": "A",
               "datasource": {
                 "type": "prometheus",
@@ -660,10 +725,27 @@ data:
           "fieldConfig": {
             "defaults": {
               "unit": "none",
-              "decimals": 0
+              "decimals": 0,
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "blue",
+                    "value": 1
+                  }
+                ]
+              }
             },
             "overrides": []
-          }
+          },
+          "description": "Tong outcome tu khi pod transfer-service start (counter banking_transfer_outcomes_total). Khong phai cua so 1h."
         }
       ],
       "refresh": "10s",
