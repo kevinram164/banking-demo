@@ -97,10 +97,15 @@ export const api = {
       headers: { "X-Admin-Secret": secret },
     }),
 
-  adminTransfers: (secret, page = 1, size = 20) =>
-    req(`/api/account/admin/transfers?page=${page}&size=${size}`, {
+  adminTransfers: (secret, page = 1, size = 20, filters = {}) => {
+    const qs = new URLSearchParams({ page: String(page), size: String(size) });
+    if (filters.status) qs.set("status", filters.status);
+    if (filters.txn_type) qs.set("txn_type", filters.txn_type);
+    if (filters.id) qs.set("id", String(filters.id));
+    return req(`/api/account/admin/transfers?${qs}`, {
       headers: { "X-Admin-Secret": secret },
-    }),
+    });
+  },
 
   adminNotifications: (secret, page = 1, size = 20, userId = "") =>
     req(`/api/account/admin/notifications?page=${page}&size=${size}${userId ? `&user_id=${userId}` : ""}`, {

@@ -226,16 +226,52 @@ async def handle_admin_users(payload: dict, headers: dict) -> dict:
 async def handle_admin_transfers(payload: dict, headers: dict) -> dict:
     if not _verify_admin(headers):
         return {"status": 403, "body": {"detail": "Forbidden"}}
-    page = int(payload.get("page", 1))
-    size = int(payload.get("size", 20))
+    page = max(1, int(payload.get("page", 1) or 1))
+    size = min(max(1, int(payload.get("size", 20) or 20)), 100)
+    status = (payload.get("status") or "").strip().upper()
+    txn_type = (payload.get("txn_type") or payload.get("type") or "").strip().upper()
+    raw_id = (payload.get("id") or payload.get("transfer_id") or "").strip()
     db = SessionLocal()
     try:
-        total_count = db.execute(select(func.count(Transfer.id))).scalar()
-        transfers = db.execute(select(Transfer).order_by(Transfer.created_at.desc()).offset((page - 1) * size).limit(size)).scalars().all()
+        q = select(Transfer)
+        if raw_id:
+            try:
+                tid = int(raw_id)
+            except (TypeError, ValueError):
+                return {"status": 400, "body": {"detail": "id must be int", "error_code": "INVALID_TRANSFER_ID"}}
+            q = q.where(Transfer.id == tid)
+        if status:
+            if status == "SUCCESS":
+                q = q.where((Transfer.status == "SUCCESS") | (Transfer.status.is_(None)) | (Transfer.status == ""))
+            else:
+                q = q.where(Transfer.status == status)
+        if txn_type:
+            if txn_type == "P2P":
+                q = q.where((Transfer.txn_type == "P2P") | (Transfer.txn_type.is_(None)) | (Transfer.txn_type == ""))
+            else:
+                q = q.where(Transfer.txn_type == txn_type)
+
+        total_count = db.execute(select(func.count()).select_from(q.subquery())).scalar() or 0
+        transfers = db.execute(
+            q.order_by(Transfer.created_at.desc()).offset((page - 1) * size).limit(size)
+        ).scalars().all()
         user_ids = {t.from_user for t in transfers} | {t.to_user for t in transfers}
-        users = {u.id: u.username for u in db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()} if user_ids else {}
+        users = {
+            u.id: u.username
+            for u in db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()
+        } if user_ids else {}
         result = [_transfer_row(t, users) for t in transfers]
-        return {"status": 200, "body": {"transfers": result, "total": total_count, "page": page, "size": size, "pages": (total_count + size - 1) // size}}
+        return {
+            "status": 200,
+            "body": {
+                "transfers": result,
+                "total": total_count,
+                "page": page,
+                "size": size,
+                "pages": (total_count + size - 1) // size if total_count else 0,
+                "filters": {"status": status or None, "txn_type": txn_type or None, "id": int(raw_id) if raw_id.isdigit() else None},
+            },
+        }
     finally:
         db.close()
 

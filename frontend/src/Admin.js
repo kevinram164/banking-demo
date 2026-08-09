@@ -185,6 +185,12 @@ export default function Admin({ onBack }) {
   const [transfersTotal, setTransfersTotal] = useState(0);
   const [transfersPages, setTransfersPages] = useState(0);
   const [transfersPage, setTransfersPage] = useState(1);
+  const [tfStatus, setTfStatus] = useState("");
+  const [tfType, setTfType] = useState("");
+  const [tfIdInput, setTfIdInput] = useState("");
+  const [tfId, setTfId] = useState("");
+  const [tfStatusDraft, setTfStatusDraft] = useState("");
+  const [tfTypeDraft, setTfTypeDraft] = useState("");
   const [notifications, setNotifications] = useState([]);
   const [notificationsTotal, setNotificationsTotal] = useState(0);
   const [notificationsPages, setNotificationsPages] = useState(0);
@@ -215,14 +221,16 @@ export default function Admin({ onBack }) {
     }
   }, []);
 
-  const loadTransfers = useCallback(async (s, p) => {
+  const loadTransfers = useCallback(async (s, p, filters = {}) => {
     try {
-      const data = await api.adminTransfers(s, p, 20);
-      setTransfers(data.transfers);
-      setTransfersTotal(data.total);
-      setTransfersPages(data.pages);
+      const data = await api.adminTransfers(s, p, 20, filters);
+      setTransfers(data.transfers || []);
+      setTransfersTotal(data.total || 0);
+      setTransfersPages(data.pages || 0);
     } catch {
       setTransfers([]);
+      setTransfersTotal(0);
+      setTransfersPages(0);
     }
   }, []);
 
@@ -264,15 +272,33 @@ export default function Admin({ onBack }) {
     }
     loadStats(secret);
     loadUsers(secret, page, search);
-    loadTransfers(secret, transfersPage);
+    loadTransfers(secret, transfersPage, { status: tfStatus, txn_type: tfType, id: tfId });
     loadNotifications(secret, notificationsPage);
     loadAllServiceHealth();
-  }, [authed, page, search, secret, transfersPage, notificationsPage, loadStats, loadUsers, loadTransfers, loadNotifications, loadAllServiceHealth]);
+  }, [authed, page, search, secret, transfersPage, tfStatus, tfType, tfId, notificationsPage, loadStats, loadUsers, loadTransfers, loadNotifications, loadAllServiceHealth]);
 
   const doSearch = (e) => {
     e.preventDefault();
     setSearch(searchInput);
     setPage(1);
+  };
+
+  const applyTransferFilters = (e) => {
+    e.preventDefault();
+    setTfStatus(tfStatusDraft);
+    setTfType(tfTypeDraft);
+    setTfId((tfIdInput || "").trim());
+    setTransfersPage(1);
+  };
+
+  const clearTransferFilters = () => {
+    setTfStatusDraft("");
+    setTfTypeDraft("");
+    setTfIdInput("");
+    setTfStatus("");
+    setTfType("");
+    setTfId("");
+    setTransfersPage(1);
   };
 
   const logout = () => {
@@ -404,7 +430,64 @@ export default function Admin({ onBack }) {
         )}
 
         {adminSubPage === "transfers" && (
-        <Card title="Transfers History" desc={`${transfersTotal} total transfers`}>
+        <Card title="Transfers History" desc={`${transfersTotal} matching transfers`}>
+          <form onSubmit={applyTransferFilters} className="mb-4 flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+              ID
+              <input
+                className="w-28 rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="e.g. 70896"
+                value={tfIdInput}
+                onChange={(e) => setTfIdInput(e.target.value.replace(/[^\d]/g, ""))}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+              Status
+              <select
+                className="rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
+                value={tfStatusDraft}
+                onChange={(e) => setTfStatusDraft(e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="PENDING">PENDING</option>
+                <option value="SUCCESS">SUCCESS</option>
+                <option value="FAILED">FAILED</option>
+                <option value="CANCELLED">CANCELLED</option>
+                <option value="EXPIRED">EXPIRED</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+              Type
+              <select
+                className="rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
+                value={tfTypeDraft}
+                onChange={(e) => setTfTypeDraft(e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="P2P">P2P</option>
+                <option value="MERCHANT_PAY">MERCHANT_PAY</option>
+                <option value="DISBURSEMENT">DISBURSEMENT</option>
+                <option value="REPAYMENT">REPAYMENT</option>
+                <option value="FEE">FEE</option>
+                <option value="BILL_PAY">BILL_PAY</option>
+              </select>
+            </label>
+            <button
+              type="submit"
+              className="rounded-xl bg-amber-600 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+            >
+              Filter
+            </button>
+            {(tfStatus || tfType || tfId) && (
+              <button
+                type="button"
+                onClick={clearTransferFilters}
+                className="rounded-xl border px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Clear
+              </button>
+            )}
+          </form>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -436,7 +519,7 @@ export default function Admin({ onBack }) {
                 ))}
                 {transfers.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-slate-400">No transfers yet</td>
+                    <td colSpan={8} className="px-3 py-6 text-center text-slate-400">No transfers match filters</td>
                   </tr>
                 )}
               </tbody>

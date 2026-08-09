@@ -9,8 +9,17 @@ Server riêng gọi API `npd-banking.co` + `npd-shop.co` theo lịch.
 | Mua shop (MERCHANT_PAY→confirm) | `job_shop_buy.py` | mỗi 3 giờ |
 | Ly nhập hàng | `job_ly_restock.py` | 12:00 & 18:00 |
 | Finance (DISBURSEMENT/REPAYMENT/FEE) | `job_finance_flows.py` | mỗi giờ `:15` |
+| Settle PENDING tồn (admin) | `job_settle_pending.py` | mỗi 15 phút |
 
 Transfer mặc định tạo **PENDING + hold**, rồi job **confirm** (một tỷ lệ nhỏ cancel / leave để expire).
+
+**Không cần chạy settle tay mỗi ngày** nếu cron đã cài. Phân vai:
+
+| Cơ chế | Việc gì |
+|--------|---------|
+| Peer/shop/finance | Confirm ngay trong job (flow chuẩn) |
+| `transfer-service` `hold_expire_loop` | Tự **EXPIRED** khi quá `hold_until` (nhả hold) |
+| Cron `settle` | Admin **confirm** hàng loạt PENDING còn treo (lab / backlog) |
 
 ## Tham số lab
 
@@ -39,6 +48,8 @@ vi /home/sysadmin/npd-ecosystem/.env
 /home/sysadmin/npd-ecosystem/bin/run-job.sh shop
 /home/sysadmin/npd-ecosystem/bin/run-job.sh finance
 /home/sysadmin/npd-ecosystem/bin/run-job.sh restock
+# dọn backlog một lần (sau đó cron */15 lo)
+SETTLE_MODE=confirm SETTLE_LIMIT=2000 /home/sysadmin/npd-ecosystem/bin/run-job.sh settle
 ```
 
 Rebuild/sync trước khi chạy cron:

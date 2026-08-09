@@ -99,6 +99,10 @@ MAILTO=""
 
 # 5) Finance flows (DISBURSEMENT/REPAYMENT/FEE) — mỗi giờ
 15 * * * * ${RUN_USER} ${ROOT}/bin/run-job.sh finance
+
+# 6) Settle PENDING tồn (admin confirm) — mỗi 15 phút
+#    Peer/shop/finance đã confirm trong job; cron này dọn backlog / leave-pending.
+*/15 * * * * ${RUN_USER} SETTLE_MODE=confirm SETTLE_LIMIT=500 ${ROOT}/bin/run-job.sh settle
 EOF
 chmod 644 "${CRON_FILE}"
 
@@ -107,5 +111,5 @@ echo "OK. Tiếp theo:"
 echo "  1. vi ${ROOT}/.env"
 echo "  2. ${ROOT}/bin/run-job.sh seed"
 echo "  3. Điền LY_ACCOUNT_NUMBER vào .env + GitOps merchant STK"
-echo "  4. ${ROOT}/bin/run-job.sh peer|shop|restock|finance"
+echo "  4. ${ROOT}/bin/run-job.sh peer|shop|restock|finance|settle"
 echo "  5. tail -f ${ROOT}/logs/*.log"
