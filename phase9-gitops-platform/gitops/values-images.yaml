@@ -27,14 +27,14 @@ account-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/account-service
-    tag: b644fe0
+    tag: f28e234
     pullPolicy: Always
 
 transfer-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/transfer-service
-    tag: b637b0e
+    tag: f28e234
     pullPolicy: Always
 
 notification-service:
@@ -55,5 +55,5 @@ frontend:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/frontend
-    tag: b644fe0
+    tag: f28e234
     pullPolicy: Always
