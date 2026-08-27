@@ -33,6 +33,7 @@ Cluster domain: **`ocp01.npd.co`** — route pattern: `<tên>.apps.ocp01.npd.co`
 | 3 | `argocd/applications/platform-app-of-apps.yaml` | Platform |
 | 3a | `argocd/applications/platform-routes-app-of-apps.yaml` | Routes |
 | 3b | `argocd/applications/observability-app-of-apps.yaml` | Observability (tùy chọn) |
+| 3c | [INSTALL-ISTIO-AMBIENT.md](./INSTALL-ISTIO-AMBIENT.md) | **Istio Ambient + zero-trust** (GitOps; sau khi gỡ Linkerd) |
 | 4 | `argocd/applications/infra-app-of-apps.yaml` | Infra |
 | 5 | Jenkins pipeline → Harbor → Git | CI/CD |
 | 6 | `argocd/applications/banking-app-of-apps.yaml` | **Banking app** |

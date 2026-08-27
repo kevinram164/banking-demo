@@ -17,6 +17,7 @@ Tài liệu liên quan (nhánh [`dev-ocp`](https://github.com/kevinram164/bankin
 - [environments/dev-ocp/README.md](https://github.com/kevinram164/banking-demo/blob/dev-ocp/phase9-gitops-platform/environments/dev-ocp/README.md) — URL và thứ tự apply
 - [INSTALL-NFS-CSI.md](https://github.com/kevinram164/banking-demo/blob/dev-ocp/phase9-gitops-platform/environments/dev-ocp/INSTALL-NFS-CSI.md) — NFS storage
 - [INSTALL-ARGOCD-UPSTREAM.md](https://github.com/kevinram164/banking-demo/blob/dev-ocp/phase9-gitops-platform/environments/dev-ocp/INSTALL-ARGOCD-UPSTREAM.md) — cài ArgoCD + SCC
+- [INSTALL-ISTIO-AMBIENT.md](https://github.com/kevinram164/banking-demo/blob/dev-ocp/phase9-gitops-platform/environments/dev-ocp/INSTALL-ISTIO-AMBIENT.md) — Istio Ambient (sidecar-less) + zero-trust GitOps
 
 ---
 
@@ -29,7 +30,8 @@ Tài liệu liên quan (nhánh [`dev-ocp`](https://github.com/kevinram164/bankin
 | **0** | NFS CSI driver + StorageClass `nfs-csi` | Không |
 | **1** | ArgoCD upstream + SCC + Route + kết nối GitHub | Không |
 | **2** | **Platform:** Harbor, Vault, ESO, Jenkins + **Routes** | Không |
-| **2b** | **Observability** (tùy chọn): Coroot, OTEL, Linkerd | Không |
+| **2b** | **Observability** (tùy chọn): Coroot, OTEL (không Linkerd) | Không |
+| **2c** | **Mesh** (tùy chọn): OSSM 3 Ambient + Kiali + policy zero-trust | Không |
 | **3** | **Infra:** Postgres, Redis, RabbitMQ, Kong + secret | Không |
 | **4** | **CI/CD:** Jenkins build → Harbor → commit `values-images.yaml` | Không |
 | **5** | **ArgoCD sync banking app** → rollout Phase 8 | **Có** |
@@ -678,7 +680,32 @@ oc get route -n observability coroot-platform
 oc get route -n linkerd-viz linkerd-viz-platform
 ```
 
-**Checkpoint Giai đoạn 2b:** `oc get pods -n observability`; `linkerd check` pass (nếu dùng mesh).
+**Checkpoint Giai đoạn 2b:** `oc get pods -n observability`; Coroot Route mở được. **Không** cài lại Linkerd.
+
+---
+
+## 6c. Giai đoạn 2c — Istio Ambient + zero-trust (tùy chọn)
+
+Thay Linkerd: **OSSM 3 Ambient** (không sidecar) + Kiali. Coroot chỉ quan sát.
+
+Runbook đầy đủ (OVN → GitOps control plane → enroll shop trước → banking / movie / AIOps → waypoint):
+
+**[INSTALL-ISTIO-AMBIENT.md](./environments/dev-ocp/INSTALL-ISTIO-AMBIENT.md)**
+
+Tóm tắt:
+
+1. OVN `routingViaHost: true` — **tay**, không GitOps.
+2. App of Apps `mesh-app-of-apps-dev-ocp` (Operator + Istio ambient + ztunnel + Kiali).
+3. Enroll **`npd-shop` trước** (graph HTTP rõ). STRICT + deny-all **sau** khi traffic ổn.
+4. `npd-banking` + `kong` → `npd-movie` (exclude cloudflared) → `aiops-core` (không `aiops-automation`).
+5. **Không** enroll `kafka` / `postgres` / `redis` / `rabbit` / `minio`.
+
+```bash
+# Chỉ sau khi đã commit cây mesh/ theo runbook
+oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/mesh-app-of-apps.yaml -n argocd
+```
+
+**Checkpoint Giai đoạn 2c:** `oc get istio,istiocni,ztunnel`; ztunnel DaemonSet Running; Kiali Route mở được; shop UI vẫn vào được **trước** khi bật STRICT.
 
 > **coroot-cluster-agent OOMKilled:** Values mặc định `256Mi` quá thấp trên OCP — đã tăng lên `1Gi` trong `observability/values-coroot-ce-k3d.yaml`. Sync `observability-coroot-ce` hoặc `oc rollout restart deploy/coroot-cluster-agent -n observability`.
 >
