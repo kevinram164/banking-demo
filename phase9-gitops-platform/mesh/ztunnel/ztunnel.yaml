@@ -4,6 +4,5 @@ metadata:
   name: default
 spec:
   namespace: ztunnel
-  profile: ambient
-  # Không set spec.values.resources — CRD Sail không khai báo field đó (Argo SSA diff fail).
-  # Hạ CPU ztunnel (nếu cần): oc set resources ds/ztunnel -n ztunnel --requests=cpu=50m,memory=128Mi
+  # Không set spec.profile: CRD v1 (conversion) không có field đó
+  # → Argo SSA: ".spec.profile: field not declared in schema"

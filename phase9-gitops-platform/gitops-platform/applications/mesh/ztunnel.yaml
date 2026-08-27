@@ -21,7 +21,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - SkipDryRunOnMissingResource=true
-      - ServerSideApply=true
+      # SSA prune field spec.profile không có trên schema v1
     automated:
       prune: false
       selfHeal: true

@@ -4,4 +4,4 @@ metadata:
   name: default
 spec:
   namespace: istio-cni
-  profile: ambient
+  # profile: ambient nằm trên Istio CR; IstioCNI v1 schema không luôn có spec.profile

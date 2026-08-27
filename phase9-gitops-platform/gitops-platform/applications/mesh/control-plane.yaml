@@ -21,7 +21,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - SkipDryRunOnMissingResource=true
-      - ServerSideApply=true
+      # Không SSA: Sail conversion v1 không luôn khai báo spec.profile / values.*
     automated:
       prune: false
       selfHeal: true
