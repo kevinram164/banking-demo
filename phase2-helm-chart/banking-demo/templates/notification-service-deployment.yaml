@@ -26,7 +26,7 @@ spec:
       {{- if $svc.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml $svc.imagePullSecrets | nindent 8 }}
-      {- end }
+      {{- end }}
       serviceAccountName: notification-service
       containers:
         - name: notification-service
