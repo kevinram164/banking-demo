@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - kiali.yaml
   - route.yaml
+  - rbac.yaml

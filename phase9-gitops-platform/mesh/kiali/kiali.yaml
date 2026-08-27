@@ -12,16 +12,16 @@ spec:
       - "**"
   external_services:
     prometheus:
-      url: "https://thanos-querier.openshift-monitoring.svc.cluster.local:9091"
+      url: "https://thanos-querier.openshift-monitoring.svc:9091"
       auth:
         type: bearer
         use_kiali_token: true
+        insecure_skip_verify: true
       thanos_proxy:
         enabled: true
-      query_scope: {}
+        url: "https://thanos-querier.openshift-monitoring.svc:9091"
+        thanos_health_check_url: "https://thanos-querier.openshift-monitoring.svc:9091/api/v1/query?query=up"
     grafana:
-      enabled: true
-      in_cluster_url: "http://grafana.aiops-observability.svc:80"
-      url: "https://grafana-aiops-observability.apps.ocp01.npd.co"
-# SA Kiali cần cluster-monitoring-view (một lần):
-#   oc adm policy add-cluster-role-to-user cluster-monitoring-view -z kiali-service-account -n kiali
+      enabled: false
+    tracing:
+      enabled: false

@@ -1,0 +1,18 @@
+# Thanos querier (OCP) yêu cầu cluster-monitoring-view
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kiali-cluster-monitoring-view
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-monitoring-view
+subjects:
+  - kind: ServiceAccount
+    name: kiali-service-account
+    namespace: kiali
+  - kind: ServiceAccount
+    name: kiali
+    namespace: kiali
