@@ -22,6 +22,7 @@ spec:
     syncOptions:
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
+      - RespectNamespaceOverrides=true
     automated:
       prune: false
       selfHeal: true
