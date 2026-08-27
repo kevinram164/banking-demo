@@ -6,8 +6,21 @@ spec:
   namespace: istio-system
   profile: ambient
   values:
+    # Lab: default 500m/2Gi không schedule trên worker (Insufficient cpu)
+    global:
+      defaultPodDisruptionBudget:
+        enabled: false
     pilot:
       trustedZtunnelNamespace: ztunnel
+      replicaCount: 1
+      autoscaleEnabled: false
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
     meshConfig:
       discoverySelectors:
         - matchLabels:
