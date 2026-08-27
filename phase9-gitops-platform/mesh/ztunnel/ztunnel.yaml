@@ -5,11 +5,5 @@ metadata:
 spec:
   namespace: ztunnel
   profile: ambient
-  values:
-    resources:
-      requests:
-        cpu: 50m
-        memory: 128Mi
-      limits:
-        cpu: 200m
-        memory: 256Mi
+  # Không set spec.values.resources — CRD Sail không khai báo field đó (Argo SSA diff fail).
+  # Hạ CPU ztunnel (nếu cần): oc set resources ds/ztunnel -n ztunnel --requests=cpu=50m,memory=128Mi
