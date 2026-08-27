@@ -10,3 +10,18 @@ spec:
   deployment:
     accessible_namespaces:
       - "**"
+  external_services:
+    prometheus:
+      url: "https://thanos-querier.openshift-monitoring.svc.cluster.local:9091"
+      auth:
+        type: bearer
+        use_kiali_token: true
+      thanos_proxy:
+        enabled: true
+      query_scope: {}
+    grafana:
+      enabled: true
+      in_cluster_url: "http://grafana.aiops-observability.svc:80"
+      url: "https://grafana-aiops-observability.apps.ocp01.npd.co"
+# SA Kiali cần cluster-monitoring-view (một lần):
+#   oc adm policy add-cluster-role-to-user cluster-monitoring-view -z kiali-service-account -n kiali
