@@ -43,6 +43,10 @@ Browser / Cloudflare Tunnel
 
 **Một** Istio Ambient cho cả cluster. Zero-trust = **allow-list riêng từng namespace**, không phải “mọi service trong mesh nói chuyện được với nhau”.
 
+![Istio Ambient trên OCP lab](./assets/ocp-istio-ambient-architecture.png)
+
+*Pod app không sidecar. Traffic xuống ztunnel (L4, HBONE). L7 (retry / HTTPRoute) qua waypoint Envoy dùng chung namespace. Coroot chỉ quan sát. `kafka` / `postgres` / `redis` / `rabbit` / `minio` không enroll.*
+
 HTTP xuyên product **gần như không có**:
 
 | Luồng | Cách thật trên lab | Mesh? |
@@ -548,6 +552,10 @@ curl -sk https://npd-shop.co/api/health
 
 Chỉ khi checkpoint C xanh.
 
+![Zero-trust + mTLS — identity ServiceAccount](./assets/ocp-istio-ambient-zerotrust-mtls.png)
+
+*mTLS do ztunnel; identity = ServiceAccount (SPIFFE), không phải IP. East-west shop: STRICT. OpenShift Route vào shop-web/Kong: PERMISSIVE. Deny-all rồi ALLOW theo SA. Shop không HTTP sang banking — chỉ Kafka.*
+
 ### 5.1. ServiceAccount từng workload (bắt buộc)
 
 Helm `charts/shop` hiện dễ dùng SA `default`. Thêm SA + `serviceAccountName` trên từng Deployment:
@@ -757,6 +765,10 @@ Egress RCA → Prometheus / Coroot / K8s API: đích không mesh, plaintext OK.
 ## 9. Đợt H — Waypoint, retry, blue-green (sau zero-trust L4)
 
 Chỉ khi cần L7. Lab: waypoint ns `npd-shop` cho `order-service` **hoặc** `npd-banking` `api-producer` — không waypoint cả cluster.
+
+![Blue-green + retry trên waypoint L7](./assets/ocp-istio-ambient-bluegreen.png)
+
+*Cắt traffic 0/100 bằng HTTPRoute weight trên waypoint — không phải rolling Deployment. Retry 5xx cùng lớp L7. ztunnel vẫn làm mTLS. Kiali/Coroot xem golden signals sau cutover; chúng không cắt traffic.*
 
 OCP 4.19+ đã có Gateway API CRD.
 

@@ -692,6 +692,8 @@ Runbook đầy đủ (OVN → GitOps control plane → enroll shop trước → 
 
 **[INSTALL-ISTIO-AMBIENT.md](./environments/dev-ocp/INSTALL-ISTIO-AMBIENT.md)**
 
+![Istio Ambient trên OCP](./environments/dev-ocp/assets/ocp-istio-ambient-architecture.png)
+
 Tóm tắt:
 
 1. OVN `routingViaHost: true` — **tay**, không GitOps.
