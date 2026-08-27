@@ -688,19 +688,20 @@ oc get route -n linkerd-viz linkerd-viz-platform
 
 Thay Linkerd: **OSSM 3 Ambient** (không sidecar) + Kiali. Coroot chỉ quan sát.
 
-Runbook đầy đủ (OVN → GitOps control plane → enroll shop trước → banking / movie / AIOps → waypoint):
+Runbook: OVN → GitOps control plane → enroll **banking + shop + movie + AIOps** (policy từng repo) → waypoint tùy chọn.
 
 **[INSTALL-ISTIO-AMBIENT.md](./environments/dev-ocp/INSTALL-ISTIO-AMBIENT.md)**
 
 ![Istio Ambient trên OCP](./environments/dev-ocp/assets/ocp-istio-ambient-architecture.png)
 
+![Bốn product một mesh](./environments/dev-ocp/assets/ocp-istio-ambient-four-products.png)
+
 Tóm tắt:
 
 1. OVN `routingViaHost: true` — **tay**, không GitOps.
 2. App of Apps `mesh-app-of-apps-dev-ocp` (Operator + Istio ambient + ztunnel + Kiali).
-3. Enroll **`npd-shop` trước** (graph HTTP rõ). STRICT + deny-all **sau** khi traffic ổn.
-4. `npd-banking` + `kong` → `npd-movie` (exclude cloudflared) → `aiops-core` (không `aiops-automation`).
-5. **Không** enroll `kafka` / `postgres` / `redis` / `rabbit` / `minio`.
+3. Enroll **cả bốn product** (policy trong repo từng app, không chỉ shop): `npd-shop`, `npd-banking`+`kong`, `npd-movie` (exclude cloudflared), `aiops-core`. STRICT + deny-all **sau** khi Kiali thấy traffic.
+4. **Không** enroll `kafka` / `postgres` / `redis` / `rabbit` / `minio` / `aiops-automation`.
 
 ```bash
 # Chỉ sau khi đã commit cây mesh/ theo runbook

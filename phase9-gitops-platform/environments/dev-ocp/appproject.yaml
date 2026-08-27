@@ -61,6 +61,16 @@ spec:
     # Harbor registry CA (ESO → Secret; Image Config đọc ConfigMap cùng ns)
     - namespace: openshift-config
       server: https://kubernetes.default.svc
+    - namespace: istio-system
+      server: https://kubernetes.default.svc
+    - namespace: istio-cni
+      server: https://kubernetes.default.svc
+    - namespace: ztunnel
+      server: https://kubernetes.default.svc
+    - namespace: kiali
+      server: https://kubernetes.default.svc
+    - namespace: npd-shop
+      server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
@@ -83,6 +93,22 @@ spec:
       kind: SecurityContextConstraints
     - group: coroot.com
       kind: "*"
+    - group: operators.coreos.com
+      kind: Subscription
+    - group: operators.coreos.com
+      kind: OperatorGroup
+    - group: sailoperator.io
+      kind: "*"
+    - group: kiali.io
+      kind: "*"
+    - group: networking.istio.io
+      kind: "*"
+    - group: security.istio.io
+      kind: "*"
+    - group: gateway.networking.k8s.io
+      kind: "*"
+    - group: route.openshift.io
+      kind: Route
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"

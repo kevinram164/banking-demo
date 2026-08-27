@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mesh-kiali
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: mesh
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/mesh/kiali
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kiali
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - SkipDryRunOnMissingResource=true
+    automated:
+      prune: false
+      selfHeal: true

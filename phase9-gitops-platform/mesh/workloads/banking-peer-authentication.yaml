@@ -1,0 +1,21 @@
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: npd-banking
+spec:
+  mtls:
+    mode: STRICT
+---
+# OpenShift Route → frontend (không có SPIFFE)
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: route-frontend
+  namespace: npd-banking
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  mtls:
+    mode: PERMISSIVE

@@ -1,0 +1,14 @@
+# Kong nhận OpenShift Route — không deny-all (router không có SPIFFE).
+# East-west mTLS PERMISSIVE; zero-trust siết ở npd-banking (ai được gọi api-producer).
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-observability-scrape
+  namespace: kong
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces: ["observability", "openshift-monitoring", "kong"]

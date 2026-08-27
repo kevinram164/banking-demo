@@ -1,0 +1,32 @@
+# Đợt B wave 0 — OLM Subscriptions (chờ CSV Succeeded trước khi sync Istio CR)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mesh-operator
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: mesh
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/mesh/operator
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-operators
+  ignoreDifferences:
+    - group: operators.coreos.com
+      kind: Subscription
+      jsonPointers:
+        - /status
+        - /spec/startingCSV
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+    automated:
+      prune: false
+      selfHeal: true

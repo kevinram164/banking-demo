@@ -1,0 +1,7 @@
+# Đợt H — không auto-sync (mesh-app-of-apps exclude waypoint.yaml).
+# Sync tay khi L4 ổn: argocd app sync mesh-waypoint
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - banking-api-producer.yaml
+  - shop-order-service.yaml

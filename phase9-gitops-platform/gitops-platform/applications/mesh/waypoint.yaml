@@ -1,0 +1,22 @@
+# Đợt H — không nằm trong auto exclude của mesh-app-of-apps.
+# oc apply -f .../mesh/waypoint.yaml rồi sync khi sẵn sàng L7.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mesh-waypoint
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: mesh
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/mesh/waypoint
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: npd-banking
+  syncPolicy:
+    syncOptions:
+      - SkipDryRunOnMissingResource=true

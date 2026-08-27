@@ -26,7 +26,8 @@ spec:
       {{- if $svc.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml $svc.imagePullSecrets | nindent 8 }}
-      {{- end }}
+      {- end }
+      serviceAccountName: auth-service
       containers:
         - name: auth-service
           image: "{{ $svc.image.repository }}:{{ $svc.image.tag }}"

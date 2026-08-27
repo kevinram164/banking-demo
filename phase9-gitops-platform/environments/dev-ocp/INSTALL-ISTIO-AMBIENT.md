@@ -18,7 +18,7 @@ Tài liệu liên quan:
 - [README.md](./README.md) — thứ tự apply env `dev-ocp`
 - OSSM 3 Ambient (Red Hat): [Installing Istio ambient mode](https://docs.redhat.com/en/documentation/red_hat_openshift_service_mesh/3.4/html/installing/ossm-istio-ambient-mode)
 
-> **Trạng thái repo:** Đây là **runbook**. Cây `mesh/` và Application `mesh-app-of-apps-dev-ocp` **chưa** commit — copy YAML trong từng mục vào Git rồi mới `oc apply`. Trên cluster: xác nhận GVK (`oc api-resources | grep -iE 'istio|ztunnel|sail'`), vì bản OSSM 3.x có thể lệch `sailoperator.io` vs field `trustedZtunnelNamespace`.
+> **Manifest đã có trong Git** (đợt B–G). Control plane: `phase9-gitops-platform/mesh/` + `mesh-app-of-apps.yaml`. Policy từng app: banking `mesh/workloads/`, shop `npd-shop/deploy/mesh/`, movie `movie-web/deploy/mesh/`, AIOps `Open-Source-AIOps-Platform/gitops/mesh/`. Chi tiết path: [`mesh/README.md`](../../mesh/README.md). Trên cluster vẫn xác nhận GVK (`oc api-resources | grep -iE 'istio|ztunnel|sail'`).
 
 ---
 
@@ -46,6 +46,10 @@ Browser / Cloudflare Tunnel
 ![Istio Ambient trên OCP lab](./assets/ocp-istio-ambient-architecture.png)
 
 *Pod app không sidecar. Traffic xuống ztunnel (L4, HBONE). L7 (retry / HTTPRoute) qua waypoint Envoy dùng chung namespace. Coroot chỉ quan sát. `kafka` / `postgres` / `redis` / `rabbit` / `minio` không enroll.*
+
+![Bốn product cùng một control plane](./assets/ocp-istio-ambient-four-products.png)
+
+*Bốn cột ngang nhau: banking+kong, shop, movie (exclude cloudflared), aiops-core (không automation). Shop↔bank chỉ Kafka. AIOps không gọi API app.*
 
 HTTP xuyên product **gần như không có**:
 
@@ -180,7 +184,16 @@ Ghi chú vào runbook lab: lệnh patch đã chạy ngày nào. Không commit pa
 
 Cùng pattern `observability-app-of-apps-dev-ocp`. Mesh **tách** khỏi Coroot/OTEL.
 
-### 3.1. Cây thư mục cần tạo
+### 3.1. Cây đã có trong repo (không copy tay)
+
+Apply:
+
+```bash
+oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n argocd
+oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/mesh-app-of-apps.yaml -n argocd
+```
+
+Shop / movie / AIOps: push repo tương ứng — App of Apps product sẽ nhận `*-mesh.yaml`.
 
 ```text
 phase9-gitops-platform/

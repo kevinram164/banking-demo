@@ -1,0 +1,31 @@
+# Giai đoạn 2c — Istio Ambient control plane + policy banking/kong
+# Apply: oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/mesh-app-of-apps.yaml
+# Shop / movie / AIOps: Application mesh trong repo từng product (xem INSTALL-ISTIO-AMBIENT.md)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mesh-app-of-apps-dev-ocp
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    banking-demo/environment: dev-ocp
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/gitops-platform/applications/mesh
+    directory:
+      recurse: false
+      exclude: "waypoint.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    automated:
+      prune: false
+      selfHeal: true

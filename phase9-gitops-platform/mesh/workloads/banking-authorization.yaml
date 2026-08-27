@@ -1,0 +1,76 @@
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: npd-banking
+spec: {}
+---
+# Public UI (OpenShift Route, không SPIFFE)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-route-to-frontend
+  namespace: npd-banking
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            ports: ["80", "8080"]
+---
+# Kong → api-producer (HTTP API Phase 8)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-kong-to-api-producer
+  namespace: npd-banking
+spec:
+  selector:
+    matchLabels:
+      app: api-producer
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces: ["kong"]
+      to:
+        - operation:
+            ports: ["8080"]
+---
+# Kong → notification-service (/ws)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-kong-to-notification
+  namespace: npd-banking
+spec:
+  selector:
+    matchLabels:
+      app: notification-service
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces: ["kong"]
+      to:
+        - operation:
+            ports: ["8004"]
+---
+# Coroot / Prometheus scrape (lab)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-observability-scrape
+  namespace: npd-banking
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces: ["observability", "openshift-monitoring"]
+---
+# Không ALLOW npd-shop → banking HTTP. Shop↔bank = Kafka (ns kafka không enroll).
+# auth/account/transfer: không nhận HTTP từ Kong (Phase 8 = Rabbit).

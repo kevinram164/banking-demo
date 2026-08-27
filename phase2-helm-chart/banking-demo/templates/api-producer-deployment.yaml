@@ -19,6 +19,7 @@ spec:
         app: {{ include "banking-demo.api-producer.fullname" . }}
         {{- include "banking-demo.api-producer.selectorLabels" . | nindent 8 }}
     spec:
+      serviceAccountName: api-producer
       containers:
         - name: api-producer
           image: "{{ $svc.image.repository }}:{{ $svc.image.tag }}"

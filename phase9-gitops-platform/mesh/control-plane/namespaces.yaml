@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system
+  labels:
+    istio-discovery: enabled
+    pod-security.kubernetes.io/enforce: privileged
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-cni
+  labels:
+    istio-discovery: enabled
+    pod-security.kubernetes.io/enforce: privileged
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ztunnel
+  labels:
+    istio-discovery: enabled
+    pod-security.kubernetes.io/enforce: privileged
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kiali
+  labels:
+    istio-discovery: enabled

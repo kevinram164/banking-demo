@@ -1,0 +1,17 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: kiali-platform
+  namespace: kiali
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+spec:
+  host: kiali-platform.apps.ocp01.npd.co
+  to:
+    kind: Service
+    name: kiali
+  port:
+    targetPort: 20001
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

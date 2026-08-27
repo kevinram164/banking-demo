@@ -1,0 +1,27 @@
+# Đợt C+D+E — enroll + policy npd-banking + kong (shop/movie/aiops ở repo riêng)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mesh-workloads-banking
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: mesh
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/mesh/workloads
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: npd-banking
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+    automated:
+      prune: false
+      selfHeal: true

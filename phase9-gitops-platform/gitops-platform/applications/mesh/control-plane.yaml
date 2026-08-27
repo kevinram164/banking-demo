@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mesh-control-plane
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: phase9-gitops
+    app.kubernetes.io/component: mesh
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: banking-platform
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-ocp
+    path: phase9-gitops-platform/mesh/control-plane
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: istio-system
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - SkipDryRunOnMissingResource=true
+      - ServerSideApply=true
+    automated:
+      prune: false
+      selfHeal: true
