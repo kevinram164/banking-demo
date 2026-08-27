@@ -3,5 +3,5 @@ kind: Namespace
 metadata:
   name: kong
   labels:
-    istio-discovery: enabled
-    istio.io/dataplane-mode: ambient
+    # Kong nhận Route — không Ambient
+    istio-discovery: disabled

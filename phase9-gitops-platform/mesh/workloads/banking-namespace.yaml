@@ -4,4 +4,4 @@ metadata:
   name: npd-banking
   labels:
     istio-discovery: enabled
-    istio.io/dataplane-mode: ambient
+    # Ambient theo pod (Helm), không cả ns — Route/scrape không qua ztunnel

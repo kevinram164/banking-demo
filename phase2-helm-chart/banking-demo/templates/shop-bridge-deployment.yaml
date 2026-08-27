@@ -18,6 +18,7 @@ spec:
       labels:
         app: {{ include "banking-demo.shop-bridge.fullname" . }}
         {{- include "banking-demo.shop-bridge.selectorLabels" . | nindent 8 }}
+        istio.io/dataplane-mode: ambient
     spec:
       {{- with $svc.securityContext.pod }}
       securityContext:

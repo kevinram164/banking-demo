@@ -22,6 +22,15 @@ oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n argoc
 oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/mesh-app-of-apps.yaml
 ```
 
+**Không enroll cả ns.** Ambient **theo pod**:
+
+| | Ambient | `dataplane-mode=none` (Route / scrape) |
+|--|---------|----------------------------------------|
+| Banking | auth, account, transfer, notification, api-producer, shop-bridge | frontend, kong-proxy-bridge |
+| Shop | gateway, auth, catalog, order, payment | shop-web |
+| Movie | movie-api, media-worker | movie-web, cloudflared |
+| Kong / AIOps | — | cả ns; không gắn dataplane ns |
+
 **Không enroll:** `kafka`, `postgres`, `redis`, `rabbit`, `minio`, `aiops-automation`, `openshift-*`.
 
 ## Đợt C–G — từng app (đồng cấp, không chỉ shop)

@@ -17,6 +17,7 @@ spec:
       labels:
         app: {{ include "banking-demo.frontend.fullname" . }}
         {{- include "banking-demo.frontend.selectorLabels" . | nindent 8 }}
+        istio.io/dataplane-mode: none
     spec:
       {{- with .Values.frontend.securityContext.pod }}
       securityContext:

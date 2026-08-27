@@ -18,6 +18,7 @@ spec:
       labels:
         app: {{ include "banking-demo.api-producer.fullname" . }}
         {{- include "banking-demo.api-producer.selectorLabels" . | nindent 8 }}
+        istio.io/dataplane-mode: ambient
     spec:
       serviceAccountName: api-producer
       containers:
