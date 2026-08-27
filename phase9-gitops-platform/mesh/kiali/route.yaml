@@ -13,5 +13,6 @@ spec:
   port:
     targetPort: 20001
   tls:
-    termination: edge
+    # Kiali listen TLS :20001 — edge sẽ HTTP→HTTPS → "Client sent an HTTP request to an HTTPS server"
+    termination: reencrypt
     insecureEdgeTerminationPolicy: Redirect
