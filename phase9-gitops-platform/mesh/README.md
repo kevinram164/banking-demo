@@ -11,8 +11,9 @@ Runbook: [`environments/dev-ocp/INSTALL-ISTIO-AMBIENT.md`](../environments/dev-o
 | Path | Việc |
 |------|--------|
 | `mesh/operator/` | Subscription OSSM 3 + Kiali |
-| `mesh/control-plane/` | Namespace + `Istio` ambient + `IstioCNI` + **Telemetry + ServiceMonitor istiod** |
-| `mesh/ztunnel/` | `ZTunnel` + **PodMonitor ztunnel** |
+| `mesh/control-plane/` | Namespace + `Istio` ambient + Telemetry/ServiceMonitor (**không** IstioCNI — xem `mesh/bootstrap/`) |
+| `mesh/ztunnel/` | PodMonitor ztunnel (**không** ZTunnel CR — bootstrap tay) |
+| `mesh/bootstrap/` | **Apply tay:** `IstioCNI` + `ZTunnel` `profile: ambient` |
 | `mesh/kiali/` | Kiali CR + Route (**Prometheus = UWM**, không phải platform Thanos) |
 | `environments/dev-ocp/argocd/applications/mesh-app-of-apps.yaml` | App of Apps |
 

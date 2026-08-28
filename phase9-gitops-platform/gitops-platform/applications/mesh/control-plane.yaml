@@ -8,6 +8,8 @@ metadata:
     app.kubernetes.io/component: mesh
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    # IstioCNI không trong Git (bootstrap tay) — tránh compare schema Sail v1
+    argocd.argoproj.io/compare-options: ServerSideDiff=false
 spec:
   project: banking-platform
   source:

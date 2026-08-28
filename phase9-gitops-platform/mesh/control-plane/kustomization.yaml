@@ -3,6 +3,6 @@ kind: Kustomization
 resources:
   - namespaces.yaml
   - istio.yaml
-  - istiocni.yaml
+  # IstioCNI: mesh/bootstrap/ — apply tay (Argo không sync spec.profile)
   - telemetry.yaml
   - istiod-servicemonitor.yaml

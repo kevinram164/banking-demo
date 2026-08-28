@@ -853,45 +853,38 @@ Log ztunnel:
 failed to connect to the Istio CNI node agent over "/var/run/ztunnel/ztunnel.sock" ... NotFound
 ```
 
-**Nguyên nhân:** `IstioCNI` CR không có `profile: ambient` → node agent **không** tạo socket in-pod. Thường gặp sau khi gỡ `spec.profile` để né Argo SSA.
+**Nguyên nhân:** `IstioCNI` CR không có `profile: ambient` → node agent **không** tạo socket in-pod. Thường gặp khi Argo **SyncError** (schema Sail v1 không có `spec.profile`) → CR trên cluster thiếu profile.
 
-**Sửa ngay trên bastion** (không chờ Git):
+**Argo:** `IstioCNI` + `ZTunnel` **không** nằm trong Argo — dùng `mesh/bootstrap/` (apply tay). Sync `mesh-control-plane` / `mesh-ztunnel` sẽ **không còn** lỗi schema.
+
+**Sửa ngay trên bastion:**
 
 ```bash
-oc patch istiocni default --type merge -p '{
-  "spec": {
-    "profile": "ambient",
-    "values": {
-      "cni": { "ambient": { "reconcileIptablesOnStartup": true } },
-      "global": { "nativeNftables": true }
-    }
-  }
-}'
+# Cách 1 — script (khuyến nghị)
+bash phase9-gitops-platform/mesh/bootstrap/apply-ambient-cr.sh
 
-oc patch ztunnel default --type merge -p '{
-  "spec": {
-    "profile": "ambient",
-    "values": { "seLinuxOptions": { "type": "spc_t" } }
-  }
-}'
+# Cách 2 — apply manifest
+oc apply -f phase9-gitops-platform/mesh/bootstrap/
 
-oc wait --for=condition=Ready istiocni/default --timeout=5m
-oc wait --for=condition=Ready ztunnel/default --timeout=5m
-
-oc rollout restart ds/istio-cni-node -n istio-cni
-oc rollout restart ds/ztunnel -n ztunnel
-oc rollout status ds/istio-cni-node -n istio-cni --timeout=5m
-oc rollout status ds/ztunnel -n ztunnel --timeout=5m
+# Xác nhận profile (phải in: ambient)
+oc get istiocni default -o jsonpath='IstioCNI profile={.spec.profile}{"\n"}'
+oc get ztunnel default -o jsonpath='ZTunnel profile={.spec.profile}{"\n"}'
 ```
 
-Xác nhận socket trên worker (thay tên node):
+Xác nhận socket trên **đúng node** (log ztunnel có `localNode:` — ví dụ `etcd-2`):
 
 ```bash
-NODE=npd-ocp-worker03.ocp01.npd.co
+NODE=etcd-2.ocp01.npd.co   # khớp localNode trong log ztunnel
 CNI=$(oc get pod -n istio-cni -l k8s-app=istio-cni-node \
   --field-selector spec.nodeName=$NODE -o jsonpath='{.items[0].metadata.name}')
+oc get pod -n istio-cni -l k8s-app=istio-cni-node --field-selector spec.nodeName=$NODE
 oc exec -n istio-cni $CNI -- ls -la /var/run/ztunnel/
+oc logs -n istio-cni $CNI --tail=40 | grep -iE 'ambient|ztunnel|error' || true
+```
 
+Nếu `istio-cni-node` **không** có trên node đó → DS chưa schedule đủ; `oc get ds -n istio-cni`.
+
+```bash
 # Workload ambient phải HBONE (sau rollout pod app)
 oc exec -n istio-system deploy/istiod -- istioctl ztunnel-config workloads 2>/dev/null | grep npd-shop
 ```

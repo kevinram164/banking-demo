@@ -1,0 +1,15 @@
+# APPLY TAY — KHÔNG qua Argo (schema Sail v1 không có spec.profile → SyncError).
+# oc apply -f phase9-gitops-platform/mesh/bootstrap/
+apiVersion: sailoperator.io/v1
+kind: IstioCNI
+metadata:
+  name: default
+spec:
+  namespace: istio-cni
+  profile: ambient
+  values:
+    cni:
+      ambient:
+        reconcileIptablesOnStartup: true
+    global:
+      nativeNftables: true

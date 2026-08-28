@@ -8,6 +8,8 @@ metadata:
     app.kubernetes.io/component: mesh
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+    # ZTunnel CR không trong Git (bootstrap tay)
+    argocd.argoproj.io/compare-options: ServerSideDiff=false
 spec:
   project: banking-platform
   source:

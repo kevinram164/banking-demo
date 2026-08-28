@@ -1,5 +1,4 @@
-# profile: ambient bắt buộc (cùng IstioCNI). OpenShift: seLinuxOptions spc_t.
-# Argo mesh-ztunnel: không dùng SSA (schema v1 không khai báo mọi field).
+# APPLY TAY — KHÔNG qua Argo (schema v1 không khai báo spec.profile).
 apiVersion: sailoperator.io/v1alpha1
 kind: ZTunnel
 metadata:
