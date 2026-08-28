@@ -7,7 +7,7 @@ Server riêng gọi API `npd-banking.co` + `npd-shop.co` theo lịch.
 | Seed users (+ Ly) | `job_seed_users.py` | Chủ nhật 03:00 |
 | Peer CK (PENDING→confirm) | `job_peer_transfers.py` | mỗi 10 phút |
 | Mua shop (MERCHANT_PAY→confirm) | `job_shop_buy.py` | mỗi 3 giờ |
-| Ly nhập hàng | `job_ly_restock.py` | 12:00 & 18:00 |
+| Ly nhập hàng | `job_ly_restock.py` | 12:00 & 18:00 — CK supplier **+** cộng stock catalog |
 | Finance (DISBURSEMENT/REPAYMENT/FEE) | `job_finance_flows.py` | mỗi giờ `:15` |
 | Settle PENDING tồn (admin) | `job_settle_pending.py` | mỗi 15 phút |
 

@@ -569,6 +569,10 @@ curl -sk https://npd-shop.co/api/health
 
 **Checkpoint C:** Shop UI + API OK; Kiali thấy gateway → auth/catalog/order/payment; Coroot không báo error mới.
 
+![Kiali Graph — traffic TCP shop (npd-shop)](./assets/kiali-topology-demo.gif)
+
+*Demo lab: Graph → namespace `npd-shop`, **Display → Tcp**, time range ~15m. Edge có tên giữa gateway ↔ auth/catalog/order/payment; node `unknown` = ingress `shop-web` (none) hoặc egress Postgres/Kafka (ngoài mesh). Chi tiết: [`mesh/README.md`](../../mesh/README.md).*
+
 ---
 
 ## 5. Đợt D — Zero-trust shop
@@ -694,17 +698,17 @@ Shop UI login / browse / checkout (không cần bank) vẫn OK.
 
 ## 6. Đợt E — Banking + Kong
 
-Repo `banking-demo`, nhánh `dev-ocp`. Application `banking-mesh` (Kustomize ns `npd-banking` + `kong`), **không** copy YAML shop.
+Repo `banking-demo`, nhánh `dev-ocp`. Application **`mesh-workloads-banking`** (`phase9-gitops-platform/mesh/workloads/`), sync-wave **5**.
 
-### 6.1. Label
+### 6.1. Label / discovery
 
-```yaml
-# npd-banking + kong
-istio-discovery: enabled
-istio.io/dataplane-mode: ambient
-```
+| Phạm vi | GitOps |
+|---------|--------|
+| Pod banking (Helm) | `istio.io/dataplane-mode: ambient` trên auth, account, transfer, notification, api-producer, shop-bridge |
+| Pod banking edge | `frontend`, `kong-proxy-bridge`: `dataplane-mode: none` |
+| Namespace `kong` | `mesh/workloads/kong-namespace.yaml` → `istio-discovery: enabled` (**không** ambient trên pod Kong) |
 
-### 6.2. SA (Helm `phase2-helm-chart` đang thiếu `serviceAccountName`)
+### 6.2. SA (Helm `phase2-helm-chart`)
 
 | Workload | SA |
 |----------|-----|
@@ -717,30 +721,28 @@ istio.io/dataplane-mode: ambient
 | shop-bridge | `shop-bridge` |
 | Kong (chart ns `kong`) | SA chart có sẵn — ghi tên thật: `oc -n kong get sa` |
 
-### 6.3. mTLS + policy
+### 6.3. mTLS + policy (Git: `mesh/workloads/`)
 
-- STRICT mặc định `npd-banking`.
-- PERMISSIVE: `frontend` và Kong proxy (Route `npd-banking.co` / `kong.apps.ocp01.npd.co`).
-- ALLOW:
+- STRICT mặc định `npd-banking` (`banking-peer-authentication.yaml`).
+- PERMISSIVE: `frontend`, **`api-producer`**, **`notification-service`** (Kong / Route không SPIFFE).
+- Authz (`banking-authorization.yaml`): deny-all + ALLOW:
 
 | Đích | Port | Source |
 |------|------|--------|
-| `api-producer` | 8080 | `cluster.local/ns/kong/sa/<kong-sa>` |
-| `notification-service` | 8004 | cùng Kong SA (`/ws`) |
+| `api-producer` | 8080 | ns `kong` + ALLOW L4 port (Kong chưa ambient) |
+| `notification-service` | 8004 | ns `kong` + ALLOW L4 port (`/ws`) |
 | auth/account/transfer HTTP | — | **không** ALLOW từ Kong (Phase 8 = Rabbit) |
 
-`shop-bridge` → Kafka: đích **không** mesh. NetworkPolicy trên ns `kafka` (nếu có) giữ nguyên. **Không** allow `npd-shop/sa/gateway` → `api-producer`.
+`shop-bridge` → Kafka: đích **không** mesh. **Không** allow `npd-shop` → `api-producer` HTTP (shop↔bank = Kafka).
+
+**Triển khai:** push `dev-ocp` → Argo sync **`mesh-workloads-banking`** (không patch tay manifest trên cluster).
 
 ### 6.4. Smoke
 
-```bash
-curl -skI https://npd-banking.co/
-curl -sk https://npd-banking.co/api/health
-# Checkout shop → Kafka → shop-bridge (nếu đang nối)
-oc -n npd-banking logs deploy/shop-bridge --tail=30
-```
+- `https://npd-banking.co/` — frontend
+- `/api/auth/health` — Kong → api-producer → Rabbit → auth
 
-**Checkpoint E:** Banking UI/API/WS OK; shop checkout vẫn qua Kafka; Kiali ns `npd-banking` + `kong`.
+**Checkpoint E:** Banking UI/API/WS OK; shop checkout vẫn qua Kafka; Kiali ns `npd-banking`. Mesh OK khi Kong không còn `"invalid response from upstream"` (404 `/api/health` là bình thường — Phase 8 không có path đó).
 
 ---
 
@@ -842,7 +844,7 @@ Coroot: so sánh golden signals **sau** khi cắt traffic — Coroot không cắ
 | Authz không phân biệt service | Vẫn SA `default` — làm mục 5.1 |
 | Probe fail | CNI rewrite; `oc describe pod`; log ztunnel |
 | ztunnel log `ztunnel.sock` **NotFound** lặp 15s | **IstioCNI/ZTunnel thiếu `profile: ambient`** — xem 10.1 |
-| Kiali có node, không có traffic | PodMonitor ztunnel + Kiali trỏ UWM Prometheus — `mesh/README.md` |
+| Kiali có node, không có traffic | PodMonitor ztunnel + Kiali trỏ Thanos UWM — `mesh/README.md`; khi OK xem mục **4.3** / GIF topology |
 | `linkerd-init` xuất hiện lại | Argo sync nhầm app Linkerd — xóa Application |
 
 ### 10.1. `ztunnel.sock` NotFound (CNI chưa ambient)

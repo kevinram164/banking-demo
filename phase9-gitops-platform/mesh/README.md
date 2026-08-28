@@ -30,7 +30,8 @@ oc apply -f phase9-gitops-platform/environments/dev-ocp/argocd/applications/mesh
 | Banking | auth, account, transfer, notification, api-producer, shop-bridge | frontend, kong-proxy-bridge |
 | Shop | gateway, auth, catalog, order, payment | shop-web |
 | Movie | movie-api, media-worker | movie-web, cloudflared |
-| Kong / AIOps | — | cả ns; không gắn dataplane ns |
+| Kong | — | ns `kong`: `istio-discovery: enabled` (không ambient) — xem `mesh/workloads/kong-namespace.yaml` |
+| AIOps | — | không gắn dataplane ns |
 
 **Không enroll:** `kafka`, `postgres`, `redis`, `rabbit`, `minio`, `aiops-automation`, `openshift-*`.
 
@@ -104,57 +105,32 @@ Prometheus (UWM) đã xác nhận trên lab:
 
 Git: `npd-shop/deploy/mesh/service-entries.yaml`, `banking-demo/mesh/workloads/banking-service-entries.yaml`. **Không enroll** postgres/redis/kafka vào ambient.
 
-## Đợt D — Zero-trust shop (`npd-shop-mesh`)
+## Đợt D — Zero-trust shop
 
-Chỉ sau checkpoint C (Kiali thấy gateway → 4 backend). Chi tiết: INSTALL mục **5**.
+**Git:** repo `npd-shop`, path `deploy/mesh/`. **Argo:** Application `npd-shop-mesh` (sync-wave **4**, sau `npd-shop` wave 3).
 
-```bash
-# 1) SA riêng (Helm wave 3 phải sync trước mesh wave 4)
-oc -n npd-shop get deploy -o custom-columns=NAME:.metadata.name,SA:.spec.template.spec.serviceAccountName
-# Kỳ vọng: shop-web, gateway, auth-service, catalog-service, order-service, payment-worker
+| File | Nội dung |
+|------|----------|
+| `peer-authentication.yaml` | STRICT + PERMISSIVE `shop-web`, `gateway` |
+| `authorization.yaml` | deny-all + ALLOW theo SA |
+| `service-entries.yaml` | Postgres/Kafka (routing; Kiali L4 vẫn có thể `unknown`) |
 
-# 2) Application mesh (một lần nếu chưa có)
-oc apply -f deploy/argocd/npd-shop-mesh.yaml -n argocd   # trên repo npd-shop
+**Checkpoint:** UI/API shop OK; exec từ pod `catalog-service` → `auth-service:8001` bị deny; từ `gateway` → `200`. Chi tiết: INSTALL mục **5**.
 
-# 3) Sync policy
-oc -n argocd patch application npd-shop-mesh --type merge -p '{"operation":{"initiatedBy":{"username":"admin"},"sync":{}}}' 2>/dev/null \
-  || argocd app sync npd-shop-mesh --grpc-web
+## Đợt E — Banking + Kong
 
-oc get peerauthentication,authorizationpolicy -n npd-shop
+**Git:** repo `banking-demo` `dev-ocp`, path `phase9-gitops-platform/mesh/workloads/`. **Argo:** Application `mesh-workloads-banking` (sync-wave **5**).
 
-# 4) Smoke
-curl -skI https://npd-shop.co/
-curl -sk https://npd-shop.co/api/health
+| File | Nội dung |
+|------|----------|
+| `kong-namespace.yaml` | `istio-discovery: enabled` (Kong **không** ambient — istiod biết pod ns `kong`) |
+| `banking-peer-authentication.yaml` | STRICT; PERMISSIVE `frontend`, `api-producer`, `notification-service` |
+| `banking-authorization.yaml` | deny-all; ALLOW Kong → `api-producer:8080`, `notification-service:8004` |
+| `banking-service-entries.yaml` | Postgres, Redis, Kafka, Kong proxy |
 
-# 5) Test deny — catalog không được gọi auth
-oc -n npd-shop run curl-deny --rm -i --restart=Never \
-  --overrides='{"spec":{"serviceAccountName":"catalog-service"}}' \
-  --image=curlimages/curl:8.11.0 -- \
-  curl -sS -o /dev/null -w "%{http_code}\n" --connect-timeout 5 http://auth-service:8001/health
-# Kỳ vọng: 000 / timeout / refused — không 200
-```
+Luồng `/api`: Route → `kong-proxy-bridge` (none) → Kong → `api-producer` (ambient). Kong gửi HTTP thường → cần PERMISSIVE trên `api-producer`/`notification-service`. Authz cần ns `kong` trong discovery + ALLOW L4 port (manifest đã có).
 
-Nếu checkout fail sau deny-all: xem INSTALL mục 10 (probe) hoặc thêm ALLOW egress PG/Kafka theo ServiceEntry host.
-
-## Đợt E — Banking `/api/health` lỗi upstream
-
-Luồng: Route `/api` → `kong-proxy-bridge` (none) → Kong (ns `kong`, không ambient) → `api-producer` (ambient, STRICT).
-
-| Triệu chứng | Nguyên nhân | Fix |
-|-------------|-------------|-----|
-| Kong `"invalid response from upstream"` | `api-producer` **STRICT** — Kong không gửi mTLS | PA **PERMISSIVE** cho `api-producer` + `notification-service` (`banking-peer-authentication.yaml`) |
-| Vẫn fail sau PERMISSIVE | Authz chặn | ns `kong` phải `istio-discovery: enabled` (không ambient). Rule ALLOW port 8080/8004 trên api-producer / notification |
-
-```bash
-# Hotfix trên cluster (hoặc sync mesh-workloads-banking)
-oc apply -f phase9-gitops-platform/mesh/workloads/banking-peer-authentication.yaml
-
-curl -sk https://npd-banking.co/api/health
-
-KONG=$(oc -n kong get pod -l app.kubernetes.io/name=kong -o jsonpath='{.items[0].metadata.name}')
-oc -n kong exec "$KONG" -c proxy -- curl -sS -m 5 http://api-producer.npd-banking.svc.cluster.local:8080/health
-```
-
+**Checkpoint:** `https://npd-banking.co/` + `/api/auth/health` OK. Chi tiết: INSTALL mục **6**.
 ## Đợt C–G — từng app (đồng cấp, không chỉ shop)
 
 | Product | Namespace | Repo / path | Identity (SA) | Zero-trust |

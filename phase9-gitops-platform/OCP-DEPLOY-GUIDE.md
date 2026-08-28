@@ -883,7 +883,7 @@ Verify:
 
 ```bash
 curl -sk https://npd-banking.co/ | head
-curl -sk https://npd-banking.co/api/health
+curl -sk https://npd-banking.co/api/auth/health
 ```
 
 ### 9.4 (Tùy chọn) Root App of Apps

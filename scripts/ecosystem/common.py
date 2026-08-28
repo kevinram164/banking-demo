@@ -415,3 +415,44 @@ def order_pay_fields(order: dict) -> tuple[str, int]:
         or 0
     )
     return str(ref), amount
+
+
+def shop_admin_login(session: requests.Session | None = None) -> str | None:
+    """JWT admin shop — dùng cho restock catalog từ ecosystem runner."""
+    s = session or requests.Session()
+    email = cfg("SHOP_ADMIN_EMAIL", "admin@noli.shop")
+    password = cfg("SHOP_ADMIN_PASSWORD", "admin123")
+    try:
+        r = s.post(
+            f"{shop_url()}/api/auth/login",
+            json={"email": email, "password": password},
+            timeout=30,
+            verify=verify_tls(),
+        )
+        if r.status_code == 200:
+            return r.json().get("access_token")
+    except Exception:
+        pass
+    return None
+
+
+def shop_restock(
+    product_id: int,
+    quantity: int,
+    token: str,
+    session: requests.Session | None = None,
+) -> dict:
+    s = session or requests.Session()
+    try:
+        r = s.post(
+            f"{shop_url()}/api/admin/catalog/restock",
+            json={"items": [{"product_id": int(product_id), "quantity": int(quantity)}]},
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30,
+            verify=verify_tls(),
+        )
+        if r.status_code == 200:
+            return {"ok": True, "data": r.json()}
+        return {"ok": False, "detail": f"HTTP {r.status_code}: {r.text[:200]}"}
+    except Exception as e:
+        return {"ok": False, "detail": str(e)}
