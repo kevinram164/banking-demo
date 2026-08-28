@@ -143,7 +143,7 @@ Luồng: Route `/api` → `kong-proxy-bridge` (none) → Kong (ns `kong`, không
 | Triệu chứng | Nguyên nhân | Fix |
 |-------------|-------------|-----|
 | Kong `"invalid response from upstream"` | `api-producer` **STRICT** — Kong không gửi mTLS | PA **PERMISSIVE** cho `api-producer` + `notification-service` (`banking-peer-authentication.yaml`) |
-| Vẫn fail sau PERMISSIVE | Authz chặn | `allow-kong-to-api-producer` cần `source.namespaces: [kong]` — verify từ pod Kong |
+| Vẫn fail sau PERMISSIVE | Authz chặn | ns `kong` phải `istio-discovery: enabled` (không ambient). Rule ALLOW port 8080/8004 trên api-producer / notification |
 
 ```bash
 # Hotfix trên cluster (hoặc sync mesh-workloads-banking)

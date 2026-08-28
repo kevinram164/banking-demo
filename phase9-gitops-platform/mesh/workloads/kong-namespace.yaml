@@ -3,5 +3,5 @@ kind: Namespace
 metadata:
   name: kong
   labels:
-    # Kong nhận Route — không Ambient
-    istio-discovery: disabled
+    # Không enroll Ambient — chỉ đăng ký pod với istiod để authz nhận source ns `kong`
+    istio-discovery: enabled

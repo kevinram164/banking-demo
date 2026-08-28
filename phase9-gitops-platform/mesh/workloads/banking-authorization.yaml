@@ -22,6 +22,7 @@ spec:
             ports: ["80", "8080"]
 ---
 # Kong → api-producer (HTTP API Phase 8)
+# Cần ns kong `istio-discovery: enabled` (không ambient) — nếu disabled, ztunnel không gán ns → deny.
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
@@ -37,6 +38,10 @@ spec:
         - source:
             namespaces: ["kong"]
       to:
+        - operation:
+            ports: ["8080"]
+    # Fallback: client ngoài mesh chưa có SPIFFE (Kong proxy) — L4 port-only
+    - to:
         - operation:
             ports: ["8080"]
 ---
@@ -56,6 +61,9 @@ spec:
         - source:
             namespaces: ["kong"]
       to:
+        - operation:
+            ports: ["8004"]
+    - to:
         - operation:
             ports: ["8004"]
 ---
