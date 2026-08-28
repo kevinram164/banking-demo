@@ -58,6 +58,16 @@ curl -sk https://npd-shop.co/ >/dev/null
 
 Chưa có waypoint → chỉ **L4/TCP** trên graph (đủ thấy gateway → auth/catalog/order). HTTP status/latency cần đợt H (waypoint).
 
+## Kiali — Prometheus disabled / 404 `/-/healthy`
+
+UWM không có `/-/healthy`. Kiali CR cần:
+
+```yaml
+health_check_url: "https://prometheus-user-workload.openshift-user-workload-monitoring.svc:9092/api/v1/query?query=up"
+```
+
+Patch tay: `oc apply -f mesh/kiali/kiali.yaml` rồi `oc rollout restart deploy -n kiali -l app.kubernetes.io/name=kiali`.
+
 ## ztunnel.sock NotFound
 
 Xem [`INSTALL-ISTIO-AMBIENT.md`](../environments/dev-ocp/INSTALL-ISTIO-AMBIENT.md) mục **10.1** — `IstioCNI` + `ZTunnel` phải có `profile: ambient`.

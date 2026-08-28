@@ -12,12 +12,15 @@ spec:
       - "**"
   external_services:
     prometheus:
-      # Istio metrics (ztunnel istio_tcp_*) nằm trong UWM — không phải openshift-monitoring.
+      # Istio metrics (ztunnel istio_tcp_*) trong UWM — không dùng openshift-monitoring Thanos.
       url: "https://prometheus-user-workload.openshift-user-workload-monitoring.svc:9092"
+      # UWM không trả 2xx cho /-/healthy → Kiali báo "prometheus disabled"
+      health_check_url: "https://prometheus-user-workload.openshift-user-workload-monitoring.svc:9092/api/v1/query?query=up"
       auth:
         type: bearer
         use_kiali_token: true
         insecure_skip_verify: true
+      is_core: true
       thanos_proxy:
         enabled: false
     grafana:
