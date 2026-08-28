@@ -84,18 +84,76 @@ oc run promtest --rm -i --restart=Never --image=curlimages/curl -n kiali -- \
 
 Xem [`INSTALL-ISTIO-AMBIENT.md`](../environments/dev-ocp/INSTALL-ISTIO-AMBIENT.md) mục **10.1** — `IstioCNI` + `ZTunnel` phải có `profile: ambient`.
 
-## Graph — thấy Redis / Postgres / Kafka / Kong (không chỉ `unknown`)
+## Graph — `unknown` vs dependency thật
 
-| Lớp | Công cụ | Thấy gì |
-|-----|---------|---------|
-| **L4 + tên host** | `ServiceEntry` + Kiali (Tcp) | `auth-service` → `postgres-platform`, `payment-worker` → `kafka-platform` |
-| **HTTP giữa app** | **Waypoint** (đợt H) | gateway→auth, status code, latency |
-| **Chi tiết DB/query** | **OTEL trace** (Grafana/Coroot) | `SELECT`, `kafka produce`, từng span |
-| **Ingress** | `shop-web` = `none` | Route→shop-web vẫn có thể là `unknown` (cố ý) |
+Prometheus (UWM) đã xác nhận trên lab:
 
-Git: `npd-shop/deploy/mesh/service-entries.yaml`, `banking-demo/mesh/workloads/banking-service-entries.yaml`. Sync `npd-shop-mesh` / `mesh-workloads-banking`, tạo traffic, F5 Kiali (Tcp, 15m).
+| `source_workload` | `destination_service` | Ý nghĩa |
+|-------------------|----------------------|---------|
+| `gateway` | `auth-service`, `catalog-service`, … | East-west mesh — **có tên** |
+| `auth-service`, `order-service`, … | `unknown` | Egress **Postgres / Kafka** (ngoài mesh) |
+| `shop-web` | `gateway...` | Ingress `none` → BFF |
 
-**Không enroll** postgres/redis/kafka vào ambient — chỉ ServiceEntry.
+**ServiceEntry** (`postgres-platform`, `kafka-platform`) đăng ký host cho Istio routing — **không** đổi label `destination_service` trên metric TCP ztunnel (Ambient L4). Node `unknown` bên phải graph = PG/Kafka là bình thường.
+
+| Muốn thấy | Công cụ |
+|-----------|---------|
+| HTTP status/latency giữa service | **Waypoint** (đợt H) |
+| `SELECT`, `kafka produce` | **OTEL** (Grafana/Coroot) |
+| Ingress từ Route | `shop-web` = `none` — có thể vẫn `unknown` (cố ý) |
+
+Git: `npd-shop/deploy/mesh/service-entries.yaml`, `banking-demo/mesh/workloads/banking-service-entries.yaml`. **Không enroll** postgres/redis/kafka vào ambient.
+
+## Đợt D — Zero-trust shop (`npd-shop-mesh`)
+
+Chỉ sau checkpoint C (Kiali thấy gateway → 4 backend). Chi tiết: INSTALL mục **5**.
+
+```bash
+# 1) SA riêng (Helm wave 3 phải sync trước mesh wave 4)
+oc -n npd-shop get deploy -o custom-columns=NAME:.metadata.name,SA:.spec.template.spec.serviceAccountName
+# Kỳ vọng: shop-web, gateway, auth-service, catalog-service, order-service, payment-worker
+
+# 2) Application mesh (một lần nếu chưa có)
+oc apply -f deploy/argocd/npd-shop-mesh.yaml -n argocd   # trên repo npd-shop
+
+# 3) Sync policy
+oc -n argocd patch application npd-shop-mesh --type merge -p '{"operation":{"initiatedBy":{"username":"admin"},"sync":{}}}' 2>/dev/null \
+  || argocd app sync npd-shop-mesh --grpc-web
+
+oc get peerauthentication,authorizationpolicy -n npd-shop
+
+# 4) Smoke
+curl -skI https://npd-shop.co/
+curl -sk https://npd-shop.co/api/health
+
+# 5) Test deny — catalog không được gọi auth
+oc -n npd-shop run curl-deny --rm -i --restart=Never \
+  --overrides='{"spec":{"serviceAccountName":"catalog-service"}}' \
+  --image=curlimages/curl:8.11.0 -- \
+  curl -sS -o /dev/null -w "%{http_code}\n" --connect-timeout 5 http://auth-service:8001/health
+# Kỳ vọng: 000 / timeout / refused — không 200
+```
+
+Nếu checkout fail sau deny-all: xem INSTALL mục 10 (probe) hoặc thêm ALLOW egress PG/Kafka theo ServiceEntry host.
+
+## Đợt E — Banking `/api/health` lỗi upstream
+
+Luồng: Route `/api` → `kong-proxy-bridge` (none) → Kong (ns `kong`, không ambient) → `api-producer` (ambient, STRICT).
+
+| Triệu chứng | Nguyên nhân | Fix |
+|-------------|-------------|-----|
+| Kong `"invalid response from upstream"` | `api-producer` **STRICT** — Kong không gửi mTLS | PA **PERMISSIVE** cho `api-producer` + `notification-service` (`banking-peer-authentication.yaml`) |
+| Vẫn fail sau PERMISSIVE | Authz chặn | `allow-kong-to-api-producer` cần `source.namespaces: [kong]` — verify từ pod Kong |
+
+```bash
+# Hotfix trên cluster (hoặc sync mesh-workloads-banking)
+oc apply -f phase9-gitops-platform/mesh/workloads/banking-peer-authentication.yaml
+
+curl -sk https://npd-banking.co/api/health
+
+KONG=$(oc -n kong get pod -l app.kubernetes.io/name=kong -o jsonpath='{.items[0].metadata.name}')
+oc -n kong exec "$KONG" -c proxy -- curl -sS -m 5 http://api-producer.npd-banking.svc.cluster.local:8080/health
+```
 
 ## Đợt C–G — từng app (đồng cấp, không chỉ shop)
 
