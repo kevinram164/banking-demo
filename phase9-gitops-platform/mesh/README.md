@@ -57,6 +57,10 @@ curl -sk https://npd-shop.co/ >/dev/null
 
 Chưa có waypoint → chỉ **L4/TCP** trên graph (đủ thấy gateway → auth/catalog/order). HTTP status/latency cần đợt H (waypoint).
 
+## ztunnel.sock NotFound
+
+Xem [`INSTALL-ISTIO-AMBIENT.md`](../environments/dev-ocp/INSTALL-ISTIO-AMBIENT.md) mục **10.1** — `IstioCNI` + `ZTunnel` phải có `profile: ambient`.
+
 ## Đợt C–G — từng app (đồng cấp, không chỉ shop)
 
 | Product | Namespace | Repo / path | Identity (SA) | Zero-trust |

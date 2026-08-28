@@ -377,10 +377,15 @@ metadata:
 spec:
   namespace: istio-cni
   profile: ambient
+  values:
+    cni:
+      ambient:
+        reconcileIptablesOnStartup: true
+    global:
+      nativeNftables: true
 ```
 
 ```yaml
-# Xác nhận GVK trên cluster: oc api-resources | grep -i ztunnel
 apiVersion: sailoperator.io/v1alpha1
 kind: ZTunnel
 metadata:
@@ -388,7 +393,12 @@ metadata:
 spec:
   namespace: ztunnel
   profile: ambient
+  values:
+    seLinuxOptions:
+      type: spc_t
 ```
+
+> **Argo SSA:** `mesh-control-plane` / `mesh-ztunnel` **không** dùng `ServerSideApply` — nếu sync lỗi schema, patch tay (mục 10.1) rồi sync lại.
 
 ### 3.6. App of Apps
 
@@ -831,7 +841,66 @@ Coroot: so sánh golden signals **sau** khi cắt traffic — Coroot không cắ
 | Kafka shop↔bank đứt | **Không** enroll `kafka`; kiểm tra NetworkPolicy chứ không Authz mesh |
 | Authz không phân biệt service | Vẫn SA `default` — làm mục 5.1 |
 | Probe fail | CNI rewrite; `oc describe pod`; log ztunnel |
+| ztunnel log `ztunnel.sock` **NotFound** lặp 15s | **IstioCNI/ZTunnel thiếu `profile: ambient`** — xem 10.1 |
+| Kiali có node, không có traffic | PodMonitor ztunnel + Kiali trỏ UWM Prometheus — `mesh/README.md` |
 | `linkerd-init` xuất hiện lại | Argo sync nhầm app Linkerd — xóa Application |
+
+### 10.1. `ztunnel.sock` NotFound (CNI chưa ambient)
+
+Log ztunnel:
+
+```text
+failed to connect to the Istio CNI node agent over "/var/run/ztunnel/ztunnel.sock" ... NotFound
+```
+
+**Nguyên nhân:** `IstioCNI` CR không có `profile: ambient` → node agent **không** tạo socket in-pod. Thường gặp sau khi gỡ `spec.profile` để né Argo SSA.
+
+**Sửa ngay trên bastion** (không chờ Git):
+
+```bash
+oc patch istiocni default --type merge -p '{
+  "spec": {
+    "profile": "ambient",
+    "values": {
+      "cni": { "ambient": { "reconcileIptablesOnStartup": true } },
+      "global": { "nativeNftables": true }
+    }
+  }
+}'
+
+oc patch ztunnel default --type merge -p '{
+  "spec": {
+    "profile": "ambient",
+    "values": { "seLinuxOptions": { "type": "spc_t" } }
+  }
+}'
+
+oc wait --for=condition=Ready istiocni/default --timeout=5m
+oc wait --for=condition=Ready ztunnel/default --timeout=5m
+
+oc rollout restart ds/istio-cni-node -n istio-cni
+oc rollout restart ds/ztunnel -n ztunnel
+oc rollout status ds/istio-cni-node -n istio-cni --timeout=5m
+oc rollout status ds/ztunnel -n ztunnel --timeout=5m
+```
+
+Xác nhận socket trên worker (thay tên node):
+
+```bash
+NODE=npd-ocp-worker03.ocp01.npd.co
+CNI=$(oc get pod -n istio-cni -l k8s-app=istio-cni-node \
+  --field-selector spec.nodeName=$NODE -o jsonpath='{.items[0].metadata.name}')
+oc exec -n istio-cni $CNI -- ls -la /var/run/ztunnel/
+
+# Workload ambient phải HBONE (sau rollout pod app)
+oc exec -n istio-system deploy/istiod -- istioctl ztunnel-config workloads 2>/dev/null | grep npd-shop
+```
+
+Sau CNI ổn: **rollout lại** Deployment ambient (gateway, auth, …) để CNI gắn redirect in-pod:
+
+```bash
+oc rollout restart deploy -n npd-shop gateway auth-service catalog-service order-service payment-worker
+```
 
 ```bash
 oc logs -n ztunnel -l app=ztunnel --tail=50

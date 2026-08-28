@@ -1,8 +1,12 @@
+# profile: ambient bắt buộc (cùng IstioCNI). OpenShift: seLinuxOptions spc_t.
+# Argo mesh-ztunnel: không dùng SSA (schema v1 không khai báo mọi field).
 apiVersion: sailoperator.io/v1alpha1
 kind: ZTunnel
 metadata:
   name: default
 spec:
   namespace: ztunnel
-  # Không set spec.profile: CRD v1 (conversion) không có field đó
-  # → Argo SSA: ".spec.profile: field not declared in schema"
+  profile: ambient
+  values:
+    seLinuxOptions:
+      type: spc_t
