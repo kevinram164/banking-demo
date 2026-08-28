@@ -40,7 +40,7 @@ Topology có node nhưng **không có mũi tên** = Prometheus **chưa có** `is
 
 1. UWM bật (`enableUserWorkload: true` — xem `monitoring/DEPLOY.md`).
 2. Sync `mesh-control-plane` (Telemetry + istiod ServiceMonitor) và `mesh-ztunnel` (PodMonitor).
-3. Kiali trỏ **UWM**: `prometheus-user-workload.openshift-user-workload-monitoring.svc:9092` (đã trong `mesh/kiali/kiali.yaml`).
+3. Kiali trỏ **Thanos Querier** (`openshift-monitoring:9091`) — gộp UWM, không trỏ thẳng `prometheus-user-workload:9092`.
 4. RBAC (một lần): `oc adm policy add-cluster-role-to-user cluster-monitoring-view -z kiali-service-account -n kiali`
 5. Verify trên bastion:
 
@@ -58,15 +58,27 @@ curl -sk https://npd-shop.co/ >/dev/null
 
 Chưa có waypoint → chỉ **L4/TCP** trên graph (đủ thấy gateway → auth/catalog/order). HTTP status/latency cần đợt H (waypoint).
 
-## Kiali — Prometheus disabled / 404 `/-/healthy`
+## Kiali — Prometheus disabled / 404
 
-UWM không có `/-/healthy`. Kiali CR cần:
+**Không** dùng `prometheus-user-workload:9092` trực tiếp (kube-rbac-proxy → 404). Dùng **Thanos Querier**:
 
 ```yaml
-health_check_url: "https://prometheus-user-workload.openshift-user-workload-monitoring.svc:9092/api/v1/query?query=up"
+url: "https://thanos-querier.openshift-monitoring.svc:9091"
+health_check_url: "https://thanos-querier.openshift-monitoring.svc:9091/-/healthy"
+thanos_proxy:
+  enabled: true
 ```
 
-Patch tay: `oc apply -f mesh/kiali/kiali.yaml` rồi `oc rollout restart deploy -n kiali -l app.kubernetes.io/name=kiali`.
+RBAC: `cluster-monitoring-view` cho SA `kiali-service-account` + `kiali` trong ns `kiali`.
+
+Verify từ cluster:
+
+```bash
+TOKEN=$(oc create token kiali-service-account -n kiali)
+oc run promtest --rm -i --restart=Never --image=curlimages/curl -n kiali -- \
+  curl -sk -H "Authorization: Bearer $TOKEN" \
+  "https://thanos-querier.openshift-monitoring.svc:9091/api/v1/query?query=istio_tcp_received_bytes_total{source_workload_namespace=\"npd-shop\"}" | head -c 400
+```
 
 ## ztunnel.sock NotFound
 

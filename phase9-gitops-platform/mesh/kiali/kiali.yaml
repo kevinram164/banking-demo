@@ -12,17 +12,19 @@ spec:
       - "**"
   external_services:
     prometheus:
-      # Istio metrics (ztunnel istio_tcp_*) trong UWM — không dùng openshift-monitoring Thanos.
-      url: "https://prometheus-user-workload.openshift-user-workload-monitoring.svc:9092"
-      # UWM không trả 2xx cho /-/healthy → Kiali báo "prometheus disabled"
-      health_check_url: "https://prometheus-user-workload.openshift-user-workload-monitoring.svc:9092/api/v1/query?query=up"
+      # OCP: Thanos Querier gộp platform + UWM (istio_tcp_* từ PodMonitor ztunnel).
+      # KHÔNG trỏ thẳng prometheus-user-workload:9092 — kube-rbac-proxy trả 404 cho Kiali health.
+      url: "https://thanos-querier.openshift-monitoring.svc:9091"
+      health_check_url: "https://thanos-querier.openshift-monitoring.svc:9091/-/healthy"
       auth:
         type: bearer
         use_kiali_token: true
         insecure_skip_verify: true
       is_core: true
       thanos_proxy:
-        enabled: false
+        enabled: true
+        url: "https://thanos-querier.openshift-monitoring.svc:9091"
+        thanos_health_check_url: "https://thanos-querier.openshift-monitoring.svc:9091/-/healthy"
     grafana:
       enabled: false
     tracing:
