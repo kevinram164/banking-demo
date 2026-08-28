@@ -1,4 +1,4 @@
-# Thanos querier (OCP) yêu cầu cluster-monitoring-view
+# UWM Prometheus + platform Thanos đều cần cluster-monitoring-view cho SA Kiali.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:

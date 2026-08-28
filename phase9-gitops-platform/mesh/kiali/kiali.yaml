@@ -12,15 +12,14 @@ spec:
       - "**"
   external_services:
     prometheus:
-      url: "https://thanos-querier.openshift-monitoring.svc:9091"
+      # Istio metrics (ztunnel istio_tcp_*) nằm trong UWM — không phải openshift-monitoring.
+      url: "https://prometheus-user-workload.openshift-user-workload-monitoring.svc:9092"
       auth:
         type: bearer
         use_kiali_token: true
         insecure_skip_verify: true
       thanos_proxy:
-        enabled: true
-        url: "https://thanos-querier.openshift-monitoring.svc:9091"
-        thanos_health_check_url: "https://thanos-querier.openshift-monitoring.svc:9091/api/v1/query?query=up"
+        enabled: false
     grafana:
       enabled: false
     tracing:

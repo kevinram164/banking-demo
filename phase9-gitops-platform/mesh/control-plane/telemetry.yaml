@@ -1,0 +1,11 @@
+# Bật export metrics Istio → Prometheus (UWM). Bắt buộc cho Kiali graph Ambient.
+# https://docs.redhat.com/en/documentation/red_hat_openshift_service_mesh/3.2/html/observability/metrics-and-service-mesh
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: enable-prometheus-metrics
+  namespace: istio-system
+spec:
+  metrics:
+    - providers:
+        - name: prometheus

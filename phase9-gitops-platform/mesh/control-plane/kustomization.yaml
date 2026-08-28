@@ -4,3 +4,5 @@ resources:
   - namespaces.yaml
   - istio.yaml
   - istiocni.yaml
+  - telemetry.yaml
+  - istiod-servicemonitor.yaml
