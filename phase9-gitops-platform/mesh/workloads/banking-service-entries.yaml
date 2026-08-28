@@ -1,0 +1,67 @@
+# Banking — dependency ngoài mesh (Kiali đặt tên thay vì unknown).
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: postgres-platform
+  namespace: npd-banking
+spec:
+  hosts:
+    - postgres-postgresql-primary.postgres.svc.cluster.local
+  ports:
+    - number: 5432
+      name: tcp-postgres
+      protocol: TCP
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: redis-platform
+  namespace: npd-banking
+spec:
+  hosts:
+    - redis.redis.svc.cluster.local
+  ports:
+    - number: 6379
+      name: tcp-redis
+      protocol: TCP
+    - number: 26379
+      name: tcp-sentinel
+      protocol: TCP
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: kafka-platform
+  namespace: npd-banking
+spec:
+  hosts:
+    - npd-kafka-kafka-bootstrap.kafka.svc.cluster.local
+  ports:
+    - number: 9093
+      name: tcp-kafka-tls
+      protocol: TCP
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: kong-proxy
+  namespace: npd-banking
+spec:
+  hosts:
+    - kong-kong-proxy.kong.svc.cluster.local
+  ports:
+    - number: 80
+      name: http-kong
+      protocol: HTTP
+    - number: 443
+      name: https-kong
+      protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS

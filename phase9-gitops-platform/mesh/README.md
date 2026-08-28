@@ -84,6 +84,19 @@ oc run promtest --rm -i --restart=Never --image=curlimages/curl -n kiali -- \
 
 Xem [`INSTALL-ISTIO-AMBIENT.md`](../environments/dev-ocp/INSTALL-ISTIO-AMBIENT.md) mục **10.1** — `IstioCNI` + `ZTunnel` phải có `profile: ambient`.
 
+## Graph — thấy Redis / Postgres / Kafka / Kong (không chỉ `unknown`)
+
+| Lớp | Công cụ | Thấy gì |
+|-----|---------|---------|
+| **L4 + tên host** | `ServiceEntry` + Kiali (Tcp) | `auth-service` → `postgres-platform`, `payment-worker` → `kafka-platform` |
+| **HTTP giữa app** | **Waypoint** (đợt H) | gateway→auth, status code, latency |
+| **Chi tiết DB/query** | **OTEL trace** (Grafana/Coroot) | `SELECT`, `kafka produce`, từng span |
+| **Ingress** | `shop-web` = `none` | Route→shop-web vẫn có thể là `unknown` (cố ý) |
+
+Git: `npd-shop/deploy/mesh/service-entries.yaml`, `banking-demo/mesh/workloads/banking-service-entries.yaml`. Sync `npd-shop-mesh` / `mesh-workloads-banking`, tạo traffic, F5 Kiali (Tcp, 15m).
+
+**Không enroll** postgres/redis/kafka vào ambient — chỉ ServiceEntry.
+
 ## Đợt C–G — từng app (đồng cấp, không chỉ shop)
 
 | Product | Namespace | Repo / path | Identity (SA) | Zero-trust |

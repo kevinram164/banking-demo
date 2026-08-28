@@ -5,5 +5,6 @@ resources:
   - kong-namespace.yaml
   - banking-peer-authentication.yaml
   - banking-authorization.yaml
+  - banking-service-entries.yaml
   - kong-peer-authentication.yaml
   - kong-authorization.yaml
