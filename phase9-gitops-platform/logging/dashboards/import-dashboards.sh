@@ -29,3 +29,4 @@ curl -sS "${CURL_EXTRA[@]}" -X POST \
   --form "file=@${NDJSON}" | head -c 4000
 echo ""
 echo "Done. Open Dashboards → Dashboard → 'NPD — Banking & Shop (logs)'"
+echo "Nếu 422 migration version: kiểm tra OSD — saved-objects.ndjson dùng migration 7.6.0 / 7.9.3"

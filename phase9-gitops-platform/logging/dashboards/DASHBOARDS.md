@@ -56,6 +56,8 @@ bash import-dashboards.sh
 
 Vào **Dashboards** → mở **NPD — Banking & Shop (logs)**.
 
+`saved-objects.ndjson` dùng **migrationVersion 7.6.0** (khớp OpenSearch Dashboards 2.x lab). Lỗi `422` / `8.0.0` → pull file mới từ Git.
+
 Import tay: Management → **Saved objects** → **Import** → chọn `saved-objects.ndjson`.
 
 ---
