@@ -54,7 +54,9 @@ bash import-dashboards.sh
 # Prod có CA hợp lệ: VERIFY_TLS=1 bash import-dashboards.sh
 ```
 
-Vào **Dashboards** → mở **NPD — Banking & Shop (logs)**.
+Script import **tự refresh** field list cho `logs-bank-*` / `logs-shop-*` (bắt buộc sau khi bật JSON parser — thiếu bước này mọi panel trống dù curl OpenSearch có data).
+
+Vào **Dashboards** → mở **NPD — Banking & Shop (logs)** (mặc định **Last 24 hours**).
 
 `saved-objects.ndjson` dùng **migrationVersion 7.6.0** (khớp OpenSearch Dashboards 2.x lab). Lỗi `422` / `8.0.0` → pull file mới từ Git.
 
@@ -182,9 +184,11 @@ Tạo traffic: ecosystem shop-buy hoặc checkout tay → refresh Dashboard.
 
 | Triệu chứng | Xử lý |
 |-------------|--------|
-| Không có field `event` | Sync Fluent Bit parser; log phải là JSON (`LOG_TRANSFER_JSON` / `LOG_BUSINESS_JSON`) |
-| Dashboard trống | Kiểm tra time picker (Last 24 hours); index `logs-bank-YYYY.MM.DD` tồn tại |
+| **Mọi panel “No results”** (curl OS có data) | Chạy lại `bash import-dashboards.sh` (refresh fields). Hoặc UI: **Management → Index patterns → logs-bank-\*** → **Refresh field list** (cả `logs-shop-*`). Đặt time **Last 24 hours**. |
+| Không có field `event` trong Discover | Refresh index pattern; log JSON pure (không prefix `INFO:...`); shop `business_log.py` rebuild |
+| Transfer có trong 24h nhưng panel trống | Discover → index `logs-bank-*` → query Lucene: `event:transfer_success OR log:*transfer_success*` |
+| Shop order có trong curl nhưng panel trống | Index `logs-shop-*` → `event:order_created OR log:*order_created*` |
 | Chỉ thấy GET /health | Rebuild image có `silence_http_probe_logs`; bật JSON business logs |
-| shop-bridge không log | Rebuild shop-bridge; có traffic Kafka `orders.events` |
+| shop-bridge | Query `event:shop_order_seen` trên **logs-bank-\***, không search field `log` cho `NOLI-*` (JSON đã parse sang `transfer_ref`) |
 
 Chi tiết stack logging: [`../DEPLOY.md`](../DEPLOY.md).

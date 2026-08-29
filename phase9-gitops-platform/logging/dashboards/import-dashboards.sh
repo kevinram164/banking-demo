@@ -28,5 +28,67 @@ curl -sS "${CURL_EXTRA[@]}" -X POST \
   -H "securitytenant: global" \
   --form "file=@${NDJSON}" | head -c 4000
 echo ""
+
+# Refresh index pattern field list (event, kubernetes.*, …) — thiếu bước này KQL/Lucene trả 0 hit.
+refresh_index_pattern() {
+  local id="$1"
+  local pattern="$2"
+  echo "Refreshing index pattern fields: ${id} (${pattern}) ..."
+  OS_DASHBOARDS_URL="$OS_DASHBOARDS_URL" VERIFY_TLS="$VERIFY_TLS" \
+    python3 - "$id" "$pattern" <<'PY'
+import json
+import os
+import ssl
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
+pattern_id, pattern_title = sys.argv[1], sys.argv[2]
+base = os.environ["OS_DASHBOARDS_URL"].rstrip("/")
+verify = os.environ.get("VERIFY_TLS", "0").lower() not in ("0", "false", "no", "off")
+ctx = ssl.create_default_context() if verify else ssl._create_unverified_context()
+
+def req(method, path, body=None):
+    url = f"{base}{path}"
+    data = json.dumps(body).encode() if body is not None else None
+    r = urllib.request.Request(
+        url,
+        data=data,
+        method=method,
+        headers={
+            "osd-xsrf": "true",
+            "securitytenant": "global",
+            "Content-Type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(r, context=ctx, timeout=120) as resp:
+        return json.loads(resp.read().decode())
+
+q = urllib.parse.urlencode(
+    {
+        "pattern": pattern_title,
+        "meta_fields": ["_source", "_id", "_index", "_score"],
+    },
+    doseq=True,
+)
+fields_resp = req("GET", f"/api/index_patterns/_fields_for_wildcard?{q}")
+fields = fields_resp.get("fields") or []
+put_body = {
+    "attributes": {
+        "title": pattern_title,
+        "timeFieldName": "@timestamp",
+        "fields": json.dumps(fields),
+    }
+}
+req("PUT", f"/api/saved_objects/index-pattern/{pattern_id}?overwrite=true", put_body)
+print(f"  OK — {len(fields)} fields")
+PY
+}
+
+refresh_index_pattern "logs-bank-pattern" "logs-bank-*"
+refresh_index_pattern "logs-shop-pattern" "logs-shop-*"
+
+echo ""
 echo "Done. Open Dashboards → Dashboard → 'NPD — Banking & Shop (logs)'"
-echo "Nếu 422 migration version: kiểm tra OSD — saved-objects.ndjson dùng migration 7.6.0 / 7.9.3"
+echo "Time range mặc định: Last 24 hours. Nếu vẫn trống → Discover test query: event:transfer_success"
