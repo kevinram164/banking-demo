@@ -48,9 +48,10 @@ Trên máy có `curl` + route OpenSearch Dashboards:
 ```bash
 cd banking-demo/phase9-gitops-platform/logging/dashboards
 
-# Mặc định: https://logs-platform.apps.ocp01.npd.co
 export OS_DASHBOARDS_URL="https://logs-platform.apps.ocp01.npd.co"
+# Lab OCP: Route cert self-signed — script mặc định curl -k (VERIFY_TLS=0)
 bash import-dashboards.sh
+# Prod có CA hợp lệ: VERIFY_TLS=1 bash import-dashboards.sh
 ```
 
 Vào **Dashboards** → mở **NPD — Banking & Shop (logs)**.
