@@ -33,4 +33,4 @@ COPY --from=builder /app /app
 RUN chmod -R a+rX /app/venv && test -x /app/venv/bin/uvicorn
 
 EXPOSE 8004
-CMD ["/app/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8004"]
+CMD ["/app/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8004", "--no-access-log"]

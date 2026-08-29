@@ -1,6 +1,9 @@
 # Phase 9 — OpenTelemetry (merge vào banking Helm apps trên dev-ocp)
 # App → OTEL Collector → dual Coroot + Instana agent
 # k8s.namespace.name giúp Instana Application Perspective filter Dest Namespace
+#
+# Lab: tắt uvicorn GET /health,/metrics log (SILENCE_PROBE_ACCESS_LOGS).
+# OTEL heartbeat 60p; transfer log one-liner.
 
 global:
   observability:
@@ -14,8 +17,10 @@ api-producer:
     OTEL_SERVICE_NAME: "api-producer"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
     OTEL_HEARTBEAT: "1"
-    OTEL_HEARTBEAT_SECONDS: "30"
-    # Consumer chết → client nhận 504 sau ~20s (trước đây default 60s quá lâu)
+    OTEL_HEARTBEAT_SECONDS: "3600"
+    LOG_REQUEST_FLOW: "false"
+    SILENCE_PROBE_ACCESS_LOGS: "true"
+    UVICORN_ACCESS_LOG: "off"
     RABBITMQ_RESPONSE_TIMEOUT: "20"
 
 auth-service:
@@ -25,7 +30,10 @@ auth-service:
     OTEL_SERVICE_NAME: "auth-service"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
     OTEL_HEARTBEAT: "1"
-    OTEL_HEARTBEAT_SECONDS: "30"
+    OTEL_HEARTBEAT_SECONDS: "3600"
+    LOG_REQUEST_FLOW: "false"
+    SILENCE_PROBE_ACCESS_LOGS: "true"
+    UVICORN_ACCESS_LOG: "off"
 
 account-service:
   extraEnv:
@@ -34,7 +42,10 @@ account-service:
     OTEL_SERVICE_NAME: "account-service"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
     OTEL_HEARTBEAT: "1"
-    OTEL_HEARTBEAT_SECONDS: "30"
+    OTEL_HEARTBEAT_SECONDS: "3600"
+    LOG_REQUEST_FLOW: "false"
+    SILENCE_PROBE_ACCESS_LOGS: "true"
+    UVICORN_ACCESS_LOG: "off"
 
 transfer-service:
   extraEnv:
@@ -43,7 +54,12 @@ transfer-service:
     OTEL_SERVICE_NAME: "transfer-service"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
     OTEL_HEARTBEAT: "1"
-    OTEL_HEARTBEAT_SECONDS: "30"
+    OTEL_HEARTBEAT_SECONDS: "3600"
+    LOG_REQUEST_FLOW: "false"
+    SILENCE_PROBE_ACCESS_LOGS: "true"
+    UVICORN_ACCESS_LOG: "off"
+    LOG_TRANSFER_PRETTY: "true"
+    LOG_TRANSFER_JSON: "false"
 
 notification-service:
   extraEnv:
@@ -52,4 +68,14 @@ notification-service:
     OTEL_SERVICE_NAME: "notification-service"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
     OTEL_HEARTBEAT: "1"
-    OTEL_HEARTBEAT_SECONDS: "30"
+    OTEL_HEARTBEAT_SECONDS: "3600"
+    LOG_REQUEST_FLOW: "false"
+    SILENCE_PROBE_ACCESS_LOGS: "true"
+    UVICORN_ACCESS_LOG: "off"
+
+shop-bridge:
+  extraEnv:
+    OTEL_HEARTBEAT: "1"
+    OTEL_HEARTBEAT_SECONDS: "3600"
+    SILENCE_PROBE_ACCESS_LOGS: "true"
+    UVICORN_ACCESS_LOG: "off"

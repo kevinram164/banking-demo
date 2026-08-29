@@ -178,12 +178,19 @@ def get_metrics_content() -> bytes:
 
 
 def instrument_fastapi(app, service_name: str) -> None:
+    from common.logging_utils import silence_http_probe_logs
+
+    silence_http_probe_logs()
     init_tracing(service_name)
     setup_metrics(service_name)
     start_heartbeat(service_name)
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-        FastAPIInstrumentor.instrument_app(app)
+
+        FastAPIInstrumentor.instrument_app(
+            app,
+            excluded_urls="/health,/metrics,/docs,/openapi.json,/redoc",
+        )
     except Exception:
         pass
 

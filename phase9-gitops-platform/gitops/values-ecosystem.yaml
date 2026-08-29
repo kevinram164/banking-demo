@@ -20,7 +20,7 @@ shop-bridge:
     OTEL_SERVICE_NAME: "shop-bridge"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
     OTEL_HEARTBEAT: "1"
-    OTEL_HEARTBEAT_SECONDS: "30"
+    OTEL_HEARTBEAT_SECONDS: "3600"
 
 transfer-service:
   extraEnv:
@@ -33,4 +33,4 @@ transfer-service:
     OTEL_SERVICE_NAME: "transfer-service"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev-ocp,k8s.namespace.name=npd-banking,k8s.cluster.name=ocp01"
     OTEL_HEARTBEAT: "1"
-    OTEL_HEARTBEAT_SECONDS: "30"
+    OTEL_HEARTBEAT_SECONDS: "3600"

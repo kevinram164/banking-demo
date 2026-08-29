@@ -20,7 +20,16 @@ from common.db import SessionLocal, engine, Base, log_db_pool_status, ensure_sch
 from common.models import User, Transfer, Notification
 from common.redis_utils import get_user_id_from_session, publish_notify, create_redis_client
 from common.rabbitmq_utils import store_response, declare_request_queue, is_message_stale, MAX_MESSAGE_AGE_SEC
-from common.logging_utils import get_json_logger, log_event, log_error_event, mask_amount, mask_account_number, should_log_request_flow
+from common.logging_utils import (
+    get_json_logger,
+    log_event,
+    log_error_event,
+    log_transfer,
+    mask_amount,
+    mask_account_number,
+    should_log_request_flow,
+    should_log_transfer_json,
+)
 from common.observability import (
     instrument_fastapi,
     get_tracer,
@@ -77,6 +86,11 @@ def _biz_fields(body: dict) -> dict:
     return {"txn_type": txn_type, "purpose": purpose, "channel": channel, "client_ref": client_ref}
 
 
+def _log_transfer_json(event: str, **fields) -> None:
+    if should_log_transfer_json():
+        log_event(logger, event, service="transfer-service", **fields)
+
+
 def _reject(
     *,
     status: int,
@@ -88,8 +102,16 @@ def _reject(
     reason: str,
     **extra,
 ) -> dict:
-    log_event(
+    txn_type = extra.get("txn_type") or "P2P"
+    log_transfer(
         logger,
+        outcome="REJECTED",
+        txn_type=txn_type,
+        amount=extra.get("amount"),
+        error_code=error_code,
+        detail=detail,
+    )
+    _log_transfer_json(
         "transfer_rejected",
         correlation_id=correlation_id,
         path=path,
@@ -99,10 +121,9 @@ def _reject(
         outcome="failure",
         business_domain="banking",
         detail=detail,
-        service="transfer-service",
         **extra,
     )
-    inc_transfer_outcome("failed", extra.get("txn_type"))
+    inc_transfer_outcome("failed", txn_type)
     body = {"error_code": error_code, "detail": detail, "status": "REJECTED"}
     for k in ("txn_type", "purpose", "channel", "client_ref"):
         if k in extra and extra[k] is not None:
@@ -141,29 +162,35 @@ async def _notify_shop_bridge(transfer_ref: str, amount_vnd: int) -> None:
                 json={"transfer_ref": transfer_ref, "amount_vnd": int(amount_vnd)},
             )
             if resp.status_code >= 400:
-                log_event(
-                    logger,
+                logger.warning(
+                    "[transfer] shop-bridge FAIL ref=%s HTTP %s %s",
+                    transfer_ref,
+                    resp.status_code,
+                    resp.text[:120],
+                )
+                _log_transfer_json(
                     "shop_bridge_confirm_failed",
                     status=resp.status_code,
                     detail=resp.text[:200],
                     transfer_ref=transfer_ref,
-                    service="transfer-service",
                 )
             else:
-                log_event(
-                    logger,
+                logger.info(
+                    "[transfer] shop-bridge OK ref=%s amount=%sđ",
+                    transfer_ref,
+                    f"{int(amount_vnd):,}".replace(",", "."),
+                )
+                _log_transfer_json(
                     "shop_bridge_confirm_ok",
                     transfer_ref=transfer_ref,
                     amount_vnd=amount_vnd,
-                    service="transfer-service",
                 )
     except Exception as exc:
-        log_event(
-            logger,
+        logger.warning("[transfer] shop-bridge ERROR ref=%s %s", transfer_ref, str(exc)[:120])
+        _log_transfer_json(
             "shop_bridge_confirm_error",
             error=str(exc)[:200],
             transfer_ref=transfer_ref,
-            service="transfer-service",
         )
 
 
@@ -383,8 +410,18 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
             )
             db.commit()
             db.refresh(transfer)
-            log_event(
+            log_transfer(
                 logger,
+                outcome="SUCCESS",
+                transfer_id=transfer.id,
+                txn_type=biz["txn_type"],
+                amount=amount,
+                sender=sender.username,
+                receiver=receiver.username,
+                note=note or None,
+                extra="instant",
+            )
+            _log_transfer_json(
                 "transfer_success",
                 correlation_id=correlation_id,
                 path=path,
@@ -408,7 +445,6 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
                 instant=True,
                 held_balance=sender.held_balance,
                 available=_available(sender),
-                service="transfer-service",
                 queue="transfer.requests",
             )
             await publish_notify(
@@ -443,8 +479,17 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
         db.commit()
         db.refresh(transfer)
 
-        log_event(
+        log_transfer(
             logger,
+            outcome="PENDING",
+            transfer_id=transfer.id,
+            txn_type=biz["txn_type"],
+            amount=amount,
+            sender=sender.username,
+            receiver=receiver.username,
+            note=note or None,
+        )
+        _log_transfer_json(
             "transfer_pending",
             correlation_id=correlation_id,
             path=path,
@@ -468,7 +513,6 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
             held_balance=sender.held_balance,
             available=_available(sender),
             hold_until=hold_until.isoformat(),
-            service="transfer-service",
             queue="transfer.requests",
         )
 
@@ -571,8 +615,17 @@ async def _settle_transfer(
         f"SUCCESS{purpose_bit}: nhận {amount} từ {sender.username}{note_suffix}",
     )
 
-    log_event(
+    log_transfer(
         logger,
+        outcome="SUCCESS",
+        transfer_id=transfer.id,
+        txn_type=transfer.txn_type,
+        amount=amount,
+        sender=sender.username,
+        receiver=receiver.username,
+        note=note or None,
+    )
+    _log_transfer_json(
         "transfer_success",
         correlation_id=correlation_id,
         path=path,
@@ -595,7 +648,6 @@ async def _settle_transfer(
         business_domain="banking",
         held_balance=sender.held_balance,
         available=_available(sender),
-        service="transfer-service",
         queue="transfer.requests",
     )
 
@@ -908,8 +960,18 @@ async def handle_cancel(payload: dict, headers: dict, trace: dict) -> dict:
         )
         db.commit()
 
-        log_event(
+        receiver_name = receiver.username if receiver else "?"
+        log_transfer(
             logger,
+            outcome="CANCELLED",
+            transfer_id=transfer.id,
+            txn_type=transfer.txn_type,
+            amount=amount,
+            sender=sender.username,
+            receiver=receiver_name,
+            note=transfer.note or None,
+        )
+        _log_transfer_json(
             "transfer_cancelled",
             correlation_id=correlation_id,
             path=path,
@@ -925,7 +987,6 @@ async def handle_cancel(payload: dict, headers: dict, trace: dict) -> dict:
             business_domain="banking",
             held_balance=sender.held_balance,
             available=_available(sender),
-            service="transfer-service",
         )
         inc_transfer_outcome("cancelled", transfer.txn_type)
         adjust_transfers_pending(-1)
@@ -985,8 +1046,16 @@ def expire_holds_once() -> int:
                         message=f"EXPIRED [{transfer.txn_type}]: hết hạn giữ {transfer.amount}",
                     )
                 )
-            log_event(
+            log_transfer(
                 logger,
+                outcome="EXPIRED",
+                transfer_id=transfer.id,
+                txn_type=transfer.txn_type,
+                amount=transfer.amount,
+                note=transfer.note or None,
+                error_code="HOLD_EXPIRED",
+            )
+            _log_transfer_json(
                 "transfer_expired",
                 transfer_id=transfer.id,
                 from_user_id=transfer.from_user,
@@ -998,7 +1067,6 @@ def expire_holds_once() -> int:
                 failure_code="HOLD_EXPIRED",
                 outcome="expired",
                 business_domain="banking",
-                service="transfer-service",
             )
             inc_transfer_outcome("expired", transfer.txn_type)
             adjust_transfers_pending(-1)
@@ -1042,7 +1110,7 @@ async def process_message(message: IncomingMessage):
 
             tracer = get_tracer("transfer-service")
             with consumer_span(tracer, "transfer.process", {"action": action, "correlation_id": str(correlation_id or "")}):
-                if should_log_request_flow():
+                if should_log_request_flow() and action != "health":
                     log_event(
                         logger,
                         "rmq_message_received",
