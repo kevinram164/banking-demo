@@ -125,7 +125,7 @@ Git: `npd-shop/deploy/mesh/service-entries.yaml`, `banking-demo/mesh/workloads/b
 |------|----------|
 | `kong-namespace.yaml` | `istio-discovery: enabled` (Kong **không** ambient — istiod biết pod ns `kong`) |
 | `banking-peer-authentication.yaml` | STRICT; PERMISSIVE `frontend`, `api-producer`, `notification-service` |
-| `banking-authorization.yaml` | deny-all; ALLOW Kong → `api-producer:8080`, `notification-service:8004` |
+| `banking-authorization.yaml` | deny-all; ALLOW Kong → `api-producer:8080`, `notification-service:8004`; **transfer-service → shop-bridge:8010** (CK NOLI matcher) |
 | `banking-service-entries.yaml` | Postgres, Redis, Kafka, Kong proxy |
 
 Luồng `/api`: Route → `kong-proxy-bridge` (none) → Kong → `api-producer` (ambient). Kong gửi HTTP thường → cần PERMISSIVE trên `api-producer`/`notification-service`. Authz cần ns `kong` trong discovery + ALLOW L4 port (manifest đã có).

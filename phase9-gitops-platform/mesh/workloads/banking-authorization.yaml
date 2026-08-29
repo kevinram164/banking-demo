@@ -80,5 +80,24 @@ spec:
         - source:
             namespaces: ["observability", "openshift-monitoring"]
 ---
+# transfer-service → shop-bridge (matcher CK NOLI-* sau SUCCESS)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-transfer-to-shop-bridge
+  namespace: npd-banking
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shop-bridge
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/npd-banking/sa/transfer-service"]
+      to:
+        - operation:
+            ports: ["8010"]
+---
 # Không ALLOW npd-shop → banking HTTP. Shop↔bank = Kafka (ns kafka không enroll).
 # auth/account/transfer: không nhận HTTP từ Kong (Phase 8 = Rabbit).
