@@ -59,7 +59,7 @@ transfer-service:
     SILENCE_PROBE_ACCESS_LOGS: "true"
     UVICORN_ACCESS_LOG: "off"
     LOG_TRANSFER_PRETTY: "true"
-    LOG_TRANSFER_JSON: "false"
+    LOG_TRANSFER_JSON: "true"
 
 notification-service:
   extraEnv:

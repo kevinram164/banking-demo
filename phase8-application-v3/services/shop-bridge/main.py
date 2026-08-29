@@ -21,9 +21,11 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from common.kafka_bus import publish_json
+from common.logging_utils import log_event, get_json_logger
 
 SERVICE = "shop-bridge"
 log = logging.getLogger(SERVICE)
+logger = get_json_logger(SERVICE)
 logging.basicConfig(level=logging.INFO)
 
 # In-memory pending shop orders (transfer_ref → payload). Lab scale only.
@@ -45,7 +47,18 @@ def _emit_payment(transfer_ref: str, amount_vnd: int, order_code: str | None = N
         "order_code": order_code,
         "source": SERVICE,
     }
-    return publish_json(topic, payload, key=payload["transfer_ref"])
+    ok = publish_json(topic, payload, key=payload["transfer_ref"])
+    log_event(
+        logger,
+        "payment_emitted",
+        transfer_ref=payload["transfer_ref"],
+        amount_vnd=payload["amount_vnd"],
+        order_code=order_code,
+        kafka_ok=ok,
+        business_domain="banking",
+        domain="shop-bridge",
+    )
+    return ok
 
 
 def _auto_confirm(transfer_ref: str, amount_vnd: int, order_code: str | None) -> None:
@@ -75,11 +88,15 @@ def _handle_order_created(data: dict[str, Any]) -> None:
             "amount_vnd": amount,
             "status": data.get("status"),
         }
-    log.info(
-        "shop order seen order_code=%s transfer_ref=%s amount=%s",
-        order_code,
-        transfer_ref,
-        amount,
+    log_event(
+        logger,
+        "shop_order_seen",
+        order_code=order_code,
+        transfer_ref=transfer_ref,
+        amount_vnd=amount,
+        status=data.get("status"),
+        business_domain="banking",
+        domain="shop-bridge",
     )
     if _env_bool("SHOP_BRIDGE_AUTO_CONFIRM", False):
         threading.Thread(
