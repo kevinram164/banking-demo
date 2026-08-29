@@ -91,23 +91,6 @@ config:
         Annotations         Off
         Buffer_Size         1MB
 
-    # JSON business logs (event, outcome, txn_type…) → field riêng trên OpenSearch
-    [FILTER]
-        Name          parser
-        Match         logs.bank
-        Key_Name      log
-        Parser        json
-        Reserve_Data  On
-        Condition     Key log regex ^\{
-
-    [FILTER]
-        Name          parser
-        Match         logs.shop
-        Key_Name      log
-        Parser        json
-        Reserve_Data  On
-        Condition     Key log regex ^\{
-
     [FILTER]
         Name    grep
         Match   kube.*
@@ -127,6 +110,21 @@ config:
         Rule          $kubernetes['namespace_name'] ^(kafka|platform|observability|logging|argocd|kong|vault|postgres|redis|rabbit|minio|external-secrets)$ logs.infra false
         Emitter_Name  re_emitted
         Emitter_Storage.type memory
+
+    # JSON business logs → field event, outcome, … (dòng không phải JSON giữ nguyên log)
+    [FILTER]
+        Name          parser
+        Match         logs.bank
+        Key_Name      log
+        Parser        json
+        Reserve_Data  On
+
+    [FILTER]
+        Name          parser
+        Match         logs.shop
+        Key_Name      log
+        Parser        json
+        Reserve_Data  On
 
   outputs: |
     # Write_Operation index: retry không 409 (create + Generate_ID bị version_conflict)

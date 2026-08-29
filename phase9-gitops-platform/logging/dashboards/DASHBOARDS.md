@@ -15,7 +15,7 @@ Theo dõi **giao dịch banking**, **đơn hàng / thanh toán shop**, **luồng
 
 ### Fluent Bit JSON parser
 
-File `logging/values-fluent-bit.yaml` đã parse dòng log bắt đầu bằng `{` → field **`event`**, **`outcome`**, **`status`**, **`txn_type`**, …
+File `logging/values-fluent-bit.yaml`: parser JSON **sau** `rewrite_tag` (tag `logs.bank` / `logs.shop`). Fluent Bit 3.2 **không** hỗ trợ `Condition` trên filter parser — dòng không phải JSON vẫn giữ field `log`.
 
 Sync Argo `logging-fluent-bit` sau khi push Git.
 
