@@ -48,7 +48,7 @@ shop-bridge:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: harbor-platform.apps.ocp01.npd.co/banking-demo/shop-bridge
-    tag: 9b04db8
+    tag: b5e9465
     pullPolicy: Always
 
 frontend:
