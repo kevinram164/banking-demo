@@ -1,17 +1,17 @@
-# Blue-Green banking FE — dual Deploy + frontend-edge
-# Code tách folder:
-#   blue  → banking-demo/frontend/           → image .../frontend
-#   green → banking-demo/frontend-green/     → image .../frontend-green
+# Blue-Green banking FE — dual Deploy + frontend-edge (sticky cookie)
 #
-# Tag image: chỉ bump trong values-images.yaml (Jenkins).
-#   frontend.image.tag       → Deploy frontend-blue
-#   frontend-green.image.tag → Deploy frontend-green
-# KHÔNG pin tag ở đây — sẽ khóa blue mãi ở bản cũ (mất variant.txt).
+# Weight trình duyệt: frontend.blueGreen.weight (edge nginx split + cookie fe_bg)
+#   — BẮT BUỘC sticky: HTML + /static/* cùng version (tránh trang trần).
+# HTTPRoute mesh/waypoint: giữ đồng bộ % để mesh-internal / Kiali (tuỳ chọn).
 #
-# Jenkins BUILD_TARGET=frontend | frontend-green | auto
+# Tag image: values-images.yaml (Jenkins). Không pin tag ở đây.
 frontend:
   blueGreen:
     enabled: true
     replicas: 1
+    # B1 lab — đổi khi sang B2/B3/B4 (và sửa HTTPRoute cho khớp)
+    weight:
+      blue: 70
+      green: 30
     edge:
       replicas: 1

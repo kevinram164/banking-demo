@@ -5,7 +5,10 @@
 {{- $pullPolicy := .Values.frontend.image.pullPolicy }}
 {{- $pull := .Values.frontend.imagePullSecrets }}
 {{- $replicas := (((.Values.frontend.blueGreen).edge).replicas) | default 1 }}
-{{- $upstream := printf "frontend.%s.svc.cluster.local" $ns }}
+{{- $wBlue := ((.Values.frontend.blueGreen).weight).blue | default 70 }}
+{{- $wGreen := ((.Values.frontend.blueGreen).weight).green | default 30 }}
+{{- $blueHost := printf "frontend-blue.%s.svc.cluster.local" $ns }}
+{{- $greenHost := printf "frontend-green.%s.svc.cluster.local" $ns }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -13,6 +16,8 @@ metadata:
   name: frontend-edge
   namespace: {{ $ns }}
 ---
+# SPA blue/green: PHẢI sticky — nếu HTML blue mà /static/* sang green → CSS/JS hash lệch → trang trần.
+# Cookie fe_bg giữ cùng version trong phiên; weight chỉ khi chưa có cookie.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -21,8 +26,26 @@ metadata:
   labels:
     app: frontend-edge
     app.kubernetes.io/component: frontend-edge
+    banking-demo/traffic-step: "{{ $wBlue }}-{{ $wGreen }}"
 data:
   default.conf: |
+    # Weight lab: blue {{ $wBlue }}% / green {{ $wGreen }}% (đổi values-frontend-bluegreen.yaml)
+    split_clients "${remote_addr}${http_user_agent}${date_gmt}" $fe_rand {
+        {{ $wBlue }}%  "blue";
+        *              "green";
+    }
+
+    map $cookie_fe_bg $fe_pick {
+        blue     "blue";
+        green    "green";
+        default  $fe_rand;
+    }
+
+    map $fe_pick $fe_upstream {
+        blue   {{ $blueHost }};
+        green  {{ $greenHost }};
+    }
+
     server {
         listen 8080;
         server_name _;
@@ -33,15 +56,17 @@ data:
             return 200 "ok\n";
         }
 
-        # Proxy toàn bộ vào VIP frontend → waypoint HTTPRoute (blue/green).
         location / {
-            proxy_pass http://{{ $upstream }}:{{ .Values.frontend.service.port }};
+            proxy_pass http://$fe_upstream:{{ .Values.frontend.service.port }};
             proxy_http_version 1.1;
-            proxy_set_header Host $host;
+            proxy_set_header Host $fe_upstream;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
             proxy_set_header Connection "";
+            # Sticky: HTML + /static/* cùng một version
+            add_header Set-Cookie "fe_bg=$fe_pick; Path=/; Max-Age=86400; SameSite=Lax" always;
+            add_header X-FE-Version $fe_pick always;
         }
     }
 ---
@@ -66,6 +91,9 @@ spec:
         app.kubernetes.io/name: frontend-edge
         app.kubernetes.io/component: frontend-edge
         istio.io/dataplane-mode: ambient
+      annotations:
+        # Đổi weight → đổi ConfigMap → restart edge để nginx load conf mới
+        checksum/config: {{ printf "%v-%v" $wBlue $wGreen | sha256sum }}
     spec:
       {{- with .Values.frontend.securityContext.pod }}
       securityContext:

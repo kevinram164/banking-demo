@@ -256,7 +256,19 @@ Thiếu file → Jenkins `BUILD_TARGET=frontend` (và `frontend-green`) rồi sy
 
 ## 5. Tăng dần weight (demo)
 
-Snippet copy-paste: [`waypoint/FRONTEND-WEIGHT-STEPS.md`](waypoint/FRONTEND-WEIGHT-STEPS.md).
+### SPA sticky (quan trọng)
+
+CRA build mỗi version một hash `/static/js/main.xxxx.js`. Nếu **không sticky**:
+HTML blue + CSS/JS green → file không tồn tại → nginx trả HTML → **trang trần / mất style** (không phải “UI V2 xấu”).
+
+**Edge** dùng cookie `fe_bg=blue|green` + `split_clients` theo `frontend.blueGreen.weight`. Đổi % = sửa **cả hai**:
+
+1. `gitops/values-frontend-bluegreen.yaml` → `weight.blue` / `weight.green`
+2. `mesh/waypoint/banking-frontend-bluegreen.yaml` → HTTPRoute weights (khớp)
+3. `argocd app sync banking-frontend` (rollout edge) + `argocd app sync mesh-waypoint`
+4. Browser: **xóa cookie `fe_bg`** hoặc cửa sổ ẩn danh khi đo lại %
+
+Snippet HTTPRoute: [`waypoint/FRONTEND-WEIGHT-STEPS.md`](waypoint/FRONTEND-WEIGHT-STEPS.md).
 
 ### Cách đổi (mỗi bước)
 
@@ -361,6 +373,7 @@ oc -n npd-banking scale deploy/frontend-blue --replicas=0
 | `ImagePullBackOff` green | Tag Harbor ≠ values; pull secret; đúng repo `frontend-green` |
 | Blue mãi `9b04db8` dù values-images đã bump | Pin tag trong `values-frontend-bluegreen.yaml` — **đã bỏ pin**; sync `banking-frontend` |
 | `/variant.txt` ra HTML | Blue thiếu file (image cũ). Green có file nhưng B0 = 100% blue → vẫn HTML. Rebuild/sync blue. |
+| **UI trần / mất CSS** (Sign in thô) | HTML một version, `/static/*` version kia. Sync edge sticky mới; xóa cookie `fe_bg`; hard refresh |
 | Route 503 | `frontend-edge` Ready? PA PERMISSIVE edge? Authz `allow-route-to-frontend-edge`? |
 | Luôn blue dù weight green > 0 | HTTPRoute đã sync? `use-waypoint` trên svc/frontend? Waypoint pod Ready? |
 | 403 / empty từ edge | Authz cho SA `frontend-edge` + `waypoint` → blue/green |

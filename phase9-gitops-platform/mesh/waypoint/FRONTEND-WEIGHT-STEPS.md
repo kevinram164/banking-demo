@@ -1,4 +1,9 @@
-# HTTPRoute weight snippets — copy vào banking-frontend-bluegreen.yaml rồi sync mesh-waypoint
+# HTTPRoute weight snippets — đồng bộ với gitops/values-frontend-bluegreen.yaml
+#   frontend.blueGreen.weight  (edge sticky — bắt buộc cho SPA)
+#   + file này (HTTPRoute) rồi:
+#     argocd app sync banking-frontend
+#     argocd app sync mesh-waypoint
+# Clear cookie fe_bg (hoặc cửa sổ ẩn danh) khi đổi % để session mới.
 
 ## B0 — baseline 100/0
 ```yaml

@@ -13,6 +13,10 @@ frontend:
   blueGreen:
     enabled: false
     replicas: 1
+    # Edge sticky split (khi enabled) — đồng bộ với HTTPRoute weights
+    weight:
+      blue: 100
+      green: 0
     blue:
       image:
         tag: "" # default = frontend.image.tag (repo = frontend.image.repository)
