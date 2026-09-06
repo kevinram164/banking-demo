@@ -1,211 +1,378 @@
-# Blue-Green Banking Frontend (Đợt H-FE)
+# Hướng dẫn triển khai Blue-Green Banking Frontend (Đợt H-FE)
 
-Runbook **tách riêng** — không thay INSTALL Ambient chung. Retry / blue-green `api-producer` = plan khác.
-
-## Kiến trúc
-
-```
-Browser → OCP Route (npd-banking.co)
-       → Service frontend-edge (nginx, ambient, PERMISSIVE)
-       → http://frontend.npd-banking.svc:80  (VIP, use-waypoint)
-       → Waypoint (L7)
-       → HTTPRoute weights → frontend-blue | frontend-green
-```
-
-OpenShift Router **không** qua waypoint. Edge hop in-mesh buộc mọi request UI đi L7 split — Kiali thấy `frontend-blue` vs `frontend-green`.
-
-| Workload | Mesh | mTLS inbound |
-|----------|------|----------------|
-| `frontend-edge` | ambient | PERMISSIVE (Route) |
-| `frontend-blue` / `frontend-green` | ambient | STRICT (default ns) |
-| Service `frontend` | VIP + `istio.io/use-waypoint=waypoint` | — |
-
-## File GitOps
-
-| Path | Vai trò |
-|------|---------|
-| [`gitops/values-frontend-bluegreen.yaml`](../gitops/values-frontend-bluegreen.yaml) | `blueGreen.enabled: true` + image tags |
-| Helm `templates/frontend-bluegreen.yaml` | Deploy/Svc blue + green + VIP `frontend` |
-| Helm `templates/frontend-edge.yaml` | Edge nginx + SA |
-| [`routes/banking-route-frontend.yaml`](../environments/dev-ocp/ocp-values/routes/banking-route-frontend.yaml) | Route → `frontend-edge` |
-| [`workloads/banking-*.yaml`](workloads/) | PA + Authz edge/waypoint → blue/green |
-| [`waypoint/banking-frontend-bluegreen.yaml`](waypoint/banking-frontend-bluegreen.yaml) | HTTPRoute weights (sync tay `mesh-waypoint`) |
-| [`frontend/`](../../frontend/) | FE **blue** (ổn định) — image `.../frontend` |
-| [`frontend-green/`](../../frontend-green/) | FE **green** (mới) — image `.../frontend-green` — **folder + pipeline riêng** |
+Runbook **tách riêng** — không thay INSTALL Ambient. Mục tiêu lab: hai bản UI (cũ/mới), Istio chia traffic 70/30 → 0/100, Kiali thấy rõ.
 
 ---
 
-## Phase 0 — Baseline
+## 0. Thuật ngữ (đọc trước)
 
-1. `curl -sk https://npd-banking.co/ | head -c 200` và `/api/auth/health` OK.
-2. Screenshot Kiali ns `npd-banking` (trước FE ambient dual).
-3. `argocd app get mesh-waypoint` — **không** automated.
+| Tên | Là gì | Có phải UI? |
+|-----|--------|-------------|
+| `frontend/` | Code **bản cũ** (blue) | Có — source |
+| `frontend-green/` | Code **bản mới** (green, nền emerald) | Có — source |
+| Image `.../frontend` | Image build từ `frontend/` | Deploy vào `frontend-blue` |
+| Image `.../frontend-green` | Image build từ `frontend-green/` | Deploy vào `frontend-green` |
+| `frontend-edge` | Nginx **lễ tân** — nhận Route, chuyển vào mesh | **Không** |
+| Service `frontend` | VIP ảo (không pod UI) — Istio gắn waypoint | **Không** |
+| `frontend-bluegreen` | **HTTPRoute** = bảng % blue/green | **Không** |
+| Waypoint | Trạm L7 Istio — đọc HTTPRoute, chọn blue hoặc green | **Không** |
+
+Luồng request:
+
+```
+Browser
+  → OpenShift Route (npd-banking.co)
+  → frontend-edge (ambient, PERMISSIVE)
+  → VIP frontend + waypoint
+  → frontend-blue  HOẶC  frontend-green   (theo %)
+```
 
 ---
 
-## Phase 1–2 — Build images (trước khi sync Helm blue-green)
+## 1. Điều kiện trước khi làm
 
-Hai folder / hai image / **hai target Jenkins**:
+Trên bastion, mọi lệnh dưới đây phải **OK**:
 
 ```bash
-# Jenkins job banking-demo — param BUILD_TARGET
-#   frontend       → context frontend/
-#   frontend-green → context frontend-green/
-#   auto           → build khi git diff chạm watchPath tương ứng
+# Banking đang chạy
+curl -sk -o /dev/null -w "%{http_code}\n" https://npd-banking.co/
+curl -sk https://npd-banking.co/api/auth/health
 
-# Tay (tương đương Kaniko):
+# Ambient banking ổn
+oc -n npd-banking get pods
+oc get application -n argocd | grep -E 'banking-frontend|mesh-workloads|mesh-waypoint|platform-routes'
+
+# Harbor pull được (đã có secret harbor-pull-creds trong ns)
+oc -n npd-banking get secret harbor-pull-creds
+```
+
+| App Argo | Vai trò |
+|----------|---------|
+| `banking-frontend` | Helm FE (blue/green/edge khi bật) |
+| `mesh-workloads-banking` | PA + Authz |
+| `platform-routes-dev-ocp` (hoặc app route con) | Route → Service |
+| `mesh-waypoint` | Gateway + HTTPRoute — **không auto-sync** |
+
+**Repo cần push (đúng nhánh):**
+
+1. `jenkins-shared-library` → `main` (có service `frontend-green` trong `Projects.groovy`)
+2. `banking-demo` → `dev-ocp` (code + GitOps trong doc này)
+
+---
+
+## 2. Push Git + Jenkins build image
+
+### 2.1. Shared library (một lần)
+
+```bash
+cd /path/to/jenkins-shared-library
+git status   # phải có frontend-green trong src/com/platform/Projects.groovy
+git push origin main
+```
+
+Jenkins → Manage Jenkins → System → Global Pipeline Libraries → `platform` → **Scan** / đợi load bản mới.
+
+### 2.2. Push banking-demo
+
+```bash
+cd /path/to/banking-demo
+git checkout dev-ocp
+git add frontend frontend-green \
+  phase2-helm-chart/banking-demo/templates/frontend-*.yaml \
+  phase2-helm-chart/banking-demo/charts/frontend/values.yaml \
+  phase9-gitops-platform/gitops/values-images.yaml \
+  phase9-gitops-platform/gitops/values-frontend-bluegreen.yaml \
+  phase9-gitops-platform/mesh/ \
+  phase9-gitops-platform/environments/dev-ocp/
+git commit -m "feat(mesh): blue-green banking frontend (edge + waypoint weights)"
+git push origin dev-ocp
+```
+
+### 2.3. Build image trên Jenkins
+
+Job banking-demo (in-cluster), param:
+
+| Lần chạy | `BUILD_TARGET` | Kết quả |
+|----------|----------------|---------|
+| 1 | `frontend-green` | Push `harbor-platform.../banking-demo/frontend-green:<sha>` + bump `values-images.yaml` |
+| 2 (nếu cần image blue mới) | `frontend` | Push `.../frontend:<sha>` |
+
+Hoặc `BUILD_TARGET=all` (lâu hơn).
+
+**Verify Harbor** (UI Harbor hoặc):
+
+```bash
+# Sau CI, đọc tag mới trong Git
+git -C /path/to/banking-demo pull
+grep -A5 '^frontend:' phase9-gitops-platform/gitops/values-images.yaml
+grep -A5 '^frontend-green:' phase9-gitops-platform/gitops/values-images.yaml
+```
+
+Hai key phải có **cùng tag** (hoặc tag green mới vừa build). Ghi lại:
+
+```bash
+TAG=$(grep -A3 '^frontend-green:' phase9-gitops-platform/gitops/values-images.yaml | grep 'tag:' | head -1 | awk '{print $2}' | tr -d '"')
+echo "TAG=$TAG"
+```
+
+**Nếu Jenkins chưa có `frontend-green`:** shared lib chưa push/reload — build tay:
+
+```bash
 REG=harbor-platform.apps.ocp01.npd.co/banking-demo
-TAG=9b04db8
+TAG=$(git -C banking-demo rev-parse --short HEAD)   # ví dụ
 cd banking-demo
-docker build -t $REG/frontend:$TAG ./frontend
 docker build -t $REG/frontend-green:$TAG ./frontend-green
-docker push $REG/frontend:$TAG
 docker push $REG/frontend-green:$TAG
+# Sửa tay values-images.yaml frontend-green.image.tag rồi commit push
 ```
 
-Catalog: `jenkins-shared-library` → `src/com/platform/Projects.groovy` (`banking-demo` services).  
-CI bump tag: `values-images.yaml` keys `frontend` / `frontend-green`.
-
-**Cần push repo `jenkins-shared-library` (nhánh main)** rồi reload library trên Jenkins trước khi BUILD_TARGET thấy `frontend-green`.
+**Cổng kiểm tra trước Phase 3:** image `frontend-green:$TAG` đã có trên Harbor.
 
 ---
 
-## Phase 3 — Deploy dual + edge
+## 3. Bật GitOps blue-green (mesh + Helm + Route)
 
-Thứ tự:
+Thứ tự sync **bắt buộc** (tránh Route trỏ `frontend-edge` khi Deploy chưa có).
 
-1. Push Git → sync **`mesh-workloads-banking`** (PA/Authz) trước hoặc cùng lúc.
-2. Sync **`banking-frontend`** (valueFile `values-frontend-bluegreen.yaml`).
-3. Sync Route app (Route → `frontend-edge`).
-4. Đợi pods Ready:
+### 3.1. Mesh policy (PA / Authz)
 
 ```bash
-oc -n npd-banking get deploy,svc -l 'app.kubernetes.io/component in (frontend,frontend-edge)'
-oc -n npd-banking get pods -l 'app in (frontend-blue,frontend-green,frontend-edge)' -o wide
-oc -n npd-banking get svc frontend -o yaml | grep -E 'use-waypoint|ClusterIP'
+argocd app sync mesh-workloads-banking --force
+# hoặc: oc apply -f phase9-gitops-platform/mesh/workloads/banking-peer-authentication.yaml
+#        oc apply -f phase9-gitops-platform/mesh/workloads/banking-authorization.yaml
+
+oc -n npd-banking get peerauthentication
+oc -n npd-banking get authorizationpolicy | grep -E 'frontend|edge'
 ```
 
-Kỳ vọng: 3 Deploy Ready; Svc `frontend` **không** có selector pod; label `istio.io/use-waypoint=waypoint`.
+Kỳ vọng có: `route-frontend-edge`, `allow-route-to-frontend-edge`, `allow-edge-to-frontend-blue`, `allow-edge-to-frontend-green`.
 
-**Rollback Helm:** `frontend.blueGreen.enabled: false` + Route lại `frontend` + sync.
+### 3.2. Helm dual + edge
 
-**Argo `prune: false`:** sau khi bật blue-green, xóa tay Deploy/Svc cũ nếu còn:
+File [`gitops/values-frontend-bluegreen.yaml`](../gitops/values-frontend-bluegreen.yaml) đã `blueGreen.enabled: true` và Argo `banking-frontend` đã khai báo valueFile này.
+
+```bash
+argocd app sync banking-frontend
+argocd app wait banking-frontend --health
+
+oc -n npd-banking get deploy frontend-blue frontend-green frontend-edge
+oc -n npd-banking get pods -l 'app in (frontend-blue,frontend-green,frontend-edge)'
+oc -n npd-banking get svc frontend frontend-blue frontend-green frontend-edge
+```
+
+**Kỳ vọng:**
+
+- 3 Deployment Ready (`1/1`)
+- Svc `frontend`: **không** có `selector` pod (chỉ VIP)
+- Label: `oc -n npd-banking get svc frontend -o jsonpath='{.metadata.labels}'` có `istio.io/use-waypoint=waypoint`
+
+Image green:
+
+```bash
+oc -n npd-banking get deploy frontend-green -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+# .../frontend-green:<TAG>
+```
+
+**Deploy cũ tên `frontend` còn sót** (Argo prune=false):
 
 ```bash
 oc -n npd-banking delete deploy frontend --ignore-not-found
-# Không xóa Svc frontend — VIP logic vẫn cần (Helm tạo lại không selector)
+# KHÔNG xóa svc/frontend
+```
+
+**Cổng kiểm tra:** 3 deploy Ready, chưa đổi Route vẫn có thể còn trỏ Service cũ — sang bước 3.3.
+
+### 3.3. Route → frontend-edge
+
+Manifest: [`routes/banking-route-frontend.yaml`](../environments/dev-ocp/ocp-values/routes/banking-route-frontend.yaml) → `to.name: frontend-edge`.
+
+```bash
+argocd app sync platform-routes-dev-ocp
+# nếu Route nằm app khác: argocd app list | grep -i route
+
+oc -n npd-banking get route npd-banking -o jsonpath='{.spec.to.name}{"\n"}'
+# Kỳ vọng: frontend-edge
+
+curl -sk -o /dev/null -w "%{http_code}\n" https://npd-banking.co/
+# Kỳ vọng: 200
+```
+
+**Rollback nhanh Route** (nếu 503):
+
+```bash
+oc -n npd-banking patch route npd-banking --type=merge -p '{"spec":{"to":{"name":"frontend-blue","weight":100}}}'
+# tạm thời; sau đó sửa Git + sync lại
 ```
 
 ---
 
-## Phase 4 — Waypoint + weight steps
+## 4. Waypoint + HTTPRoute (chia %)
+
+### 4.1. Sync mesh-waypoint (tay)
 
 ```bash
-# Một lần: đảm bảo Application tồn tại
-oc apply -f phase9-gitops-platform/gitops-platform/applications/mesh/waypoint.yaml
+# Application tồn tại?
+oc get application mesh-waypoint -n argocd || \
+  oc apply -f phase9-gitops-platform/gitops-platform/applications/mesh/waypoint.yaml
 
 argocd app sync mesh-waypoint
 # hoặc: oc apply -k phase9-gitops-platform/mesh/waypoint/
 
-oc -n npd-banking label svc/frontend istio.io/use-waypoint=waypoint --overwrite
 oc -n npd-banking get gateway waypoint
-oc -n npd-banking get httproute frontend-bluegreen -o yaml
+oc -n npd-banking get httproute frontend-bluegreen -o yaml | head -60
+oc -n npd-banking label svc/frontend istio.io/use-waypoint=waypoint --overwrite
 ```
 
-### Bảng weight (chỉ sửa [`banking-frontend-bluegreen.yaml`](waypoint/banking-frontend-bluegreen.yaml))
+HTTPRoute mặc định **B0 = blue 100 / green 0** ([`banking-frontend-bluegreen.yaml`](waypoint/banking-frontend-bluegreen.yaml)).
 
-Copy-paste sẵn: [`waypoint/FRONTEND-WEIGHT-STEPS.md`](waypoint/FRONTEND-WEIGHT-STEPS.md).
-
-| Bước | Blue | Green | Soak | Checkpoint |
-|------|------|-------|------|------------|
-| **B0** | 100 | 0 | 5–10 phút | 0 hit `GREEN v2`; Kiali chỉ blue |
-| **B1** | 70 | 30 | 10–15 phút | ~30% green |
-| **B2** | 50 | 50 | 10–15 phút | ~50% |
-| **B3** | 30 | 70 | 10–15 phút | đa số green |
-| **B4** | 0 | 100 | ổn định | 100% green |
-| **B5** | — | 100 | — | cleanup blue |
-
-Sau mỗi sửa weight:
+### 4.2. Verify B0 (100% UI cũ)
 
 ```bash
-argocd app sync mesh-waypoint
-# cập nhật annotation label banking-demo/traffic-step cho dễ audit
+n=30; g=0
+for i in $(seq 1 $n); do
+  curl -sk https://npd-banking.co/ | grep -q 'GREEN v2' && g=$((g+1)) || true
+done
+echo "green_hits=$g / $n"   # kỳ vọng 0
+
+for i in $(seq 1 20); do curl -sk https://npd-banking.co/variant.txt; echo; done | sort | uniq -c
+# kỳ vọng: toàn "blue"
 ```
 
-**Rollback weight:** set lại `100` / `0`, sync `mesh-waypoint`.
+Browser: `https://npd-banking.co/` — nền xám/xanh dương, **không** badge GREEN v2.
 
 ---
 
-## Phase 5 — Verify Kiali + curl (bắt buộc mỗi bước)
+## 5. Tăng dần weight (demo)
 
-### Browser
+Snippet copy-paste: [`waypoint/FRONTEND-WEIGHT-STEPS.md`](waypoint/FRONTEND-WEIGHT-STEPS.md).
 
-Hard-refresh `https://npd-banking.co/` nhiều lần — green = nền emerald + badge **GREEN v2**.
+### Cách đổi (mỗi bước)
 
-### Đếm tỷ lệ (bastion)
+1. Sửa `phase9-gitops-platform/mesh/waypoint/banking-frontend-bluegreen.yaml` — `weight` blue/green.
+2. (Tuỳ chọn) đổi label `banking-demo/traffic-step: B1-70-30`.
+3. Push Git **hoặc** apply trực tiếp lab:
 
 ```bash
-# 50 request — số lần thấy marker green trong HTML tĩnh
+# Lab nhanh (không chờ Git) — sau đó nhớ commit cho khớp GitOps
+oc apply -f phase9-gitops-platform/mesh/waypoint/banking-frontend-bluegreen.yaml
+# hoặc
+argocd app sync mesh-waypoint
+```
+
+4. Tạo traffic + đếm + xem Kiali (mục 6).
+
+| Bước | Blue | Green | Soak | `green_hits` / 50 (gần đúng) |
+|------|------|-------|------|------------------------------|
+| B0 | 100 | 0 | 5 phút | ~0 |
+| B1 | 70 | 30 | 10 phút | ~12–18 |
+| B2 | 50 | 50 | 10 phút | ~20–30 |
+| B3 | 30 | 70 | 10 phút | ~30–40 |
+| B4 | 0 | 100 | ổn định | ~50 |
+
+**Rollback % ngay:**
+
+```yaml
+# weight blue=100 green=0 rồi
+argocd app sync mesh-waypoint
+```
+
+---
+
+## 6. Quan sát Kiali + curl (mỗi bước weight)
+
+### 6.1. Curl / variant
+
+```bash
 n=50; g=0
 for i in $(seq 1 $n); do
   curl -sk https://npd-banking.co/ | grep -q 'GREEN v2' && g=$((g+1)) || true
 done
-echo "green_hits=$g / $n (expect ~ weight_green%)"
-```
+echo "green_hits=$g / $n"
 
-Hoặc `/variant.txt` (green trả `GREEN v2`, blue trả `blue`):
-
-```bash
 for i in $(seq 1 40); do curl -sk https://npd-banking.co/variant.txt; echo; done | sort | uniq -c
 ```
 
-### Kiali
-
-1. Namespace **`npd-banking`**, time range **5–15m**.
-2. Display: **TCP** (+ HTTP nếu waypoint đã emit).
-3. Topology kỳ vọng:
-   - `frontend-edge` → `frontend` / waypoint → **`frontend-blue`** và **`frontend-green`**
-   - Tỷ lệ cạnh gần weight (lab: chạy vòng `curl`/`hey` trong lúc xem).
-4. Workload labels: `version=blue` / `version=green`.
+### 6.2. Tạo traffic cho graph
 
 ```bash
-# Tạo traffic để graph có mũi tên
-hey -z 2m -c 4 https://npd-banking.co/ || \
+hey -z 2m -c 4 https://npd-banking.co/ 2>/dev/null || \
   for i in $(seq 1 200); do curl -sk https://npd-banking.co/ >/dev/null; done
 ```
 
-### Checklist từng bước
+### 6.3. Kiali
 
-- [ ] B0: `green_hits=0`; Kiali không (hoặc ~0) traffic green  
-- [ ] B1: green ~25–40%  
-- [ ] B2: green ~40–60%  
-- [ ] B3: green ~60–80%  
-- [ ] B4: green ~100%; UI luôn emerald  
-
----
-
-## Phase 6 — Cutover & dọn
-
-1. Soak B4 ổn.
-2. Đổi tag “canonical” / scale `frontend-blue` → 0 hoặc xóa Deploy blue.
-3. Cập nhật `values-images.yaml`; có thể giữ edge + HTTPRoute 0/100 hoặc rút gọn sau demo.
-4. `frontend.blueGreen.enabled: false` chỉ khi đã merge green thành single Deploy (và sửa Route).
+1. Mở Kiali → namespace **`npd-banking`**.
+2. Time range **5–15 minutes**.
+3. Display: bật **TCP** (Ambient); có waypoint thì thêm HTTP nếu hiện.
+4. Kỳ vọng topology:
+   - `frontend-edge` → (waypoint / `frontend`) → **`frontend-blue`** và **`frontend-green`**
+   - Tỷ lệ cạnh gần với weight đang set.
 
 ---
 
-## Troubleshooting
+## 7. Cutover & dọn (sau B4 ổn)
 
-| Triệu chứng | Xử lý |
-|-------------|--------|
-| Route 503 | `frontend-edge` Ready? Authz `allow-route-to-frontend-edge`? PA PERMISSIVE edge? |
-| Luôn blue dù weight green > 0 | HTTPRoute synced? `use-waypoint` trên Svc `frontend`? Waypoint Gateway Ready? |
-| 403/RBAC mesh | Authz cho SA `waypoint` + `frontend-edge` trên blue/green |
-| ImagePullBackOff green | Push tag `*-green`; khớp `values-frontend-bluegreen.yaml` |
-| Kiali không thấy FE | Pod ambient? UWM + ztunnel metrics (xem `mesh/README.md`) |
-| Edge OK nhưng /api lỗi | Proxy edge → frontend VIP → blue/green nginx vẫn proxy Kong — kiểm tra Kong |
+1. Giữ weight **0 / 100** đủ soak.
+2. Scale down blue (demo):
+
+```bash
+oc -n npd-banking scale deploy/frontend-blue --replicas=0
+```
+
+3. (Tuỳ chọn) sau demo: đưa UI green thành canonical — đổi image `frontend` = nội dung green, tắt `blueGreen.enabled`, Route lại đơn giản — **chỉ khi** kết thúc lab và cập nhật GitOps có chủ đích.
+
+4. Không tắt `blueGreen` khi vẫn đang demo split.
+
+---
+
+## 8. Checklist tổng (in / tick trên bastion)
+
+- [ ] Shared lib có `frontend-green`; Jenkins BUILD_TARGET hiện option
+- [ ] Harbor có `frontend-green:<tag>`
+- [ ] `values-images.yaml` có block `frontend-green` đúng tag
+- [ ] Sync `mesh-workloads-banking` — Authz/PA edge
+- [ ] Sync `banking-frontend` — 3 deploy Ready
+- [ ] Xóa deploy `frontend` cũ nếu sót
+- [ ] Route `to.name=frontend-edge`, HTTP 200
+- [ ] Sync `mesh-waypoint` — HTTPRoute + Gateway Ready
+- [ ] B0: 0% GREEN v2
+- [ ] B1→B4: % khớp + Kiali thấy 2 version
+- [ ] Rollback weight / Route đã thử một lần
+
+---
+
+## 9. Troubleshooting
+
+| Triệu chứng | Kiểm tra / sửa |
+|-------------|----------------|
+| Jenkins không có `frontend-green` | Push `jenkins-shared-library` main; reload library |
+| `ImagePullBackOff` green | Tag Harbor ≠ values; pull secret; đúng repo `frontend-green` |
+| Route 503 | `frontend-edge` Ready? PA PERMISSIVE edge? Authz `allow-route-to-frontend-edge`? |
+| Luôn blue dù weight green > 0 | HTTPRoute đã sync? `use-waypoint` trên svc/frontend? Waypoint pod Ready? |
+| 403 / empty từ edge | Authz cho SA `frontend-edge` + `waypoint` → blue/green |
+| Kiali không có mũi tên | UWM + ztunnel PodMonitor; tạo traffic curl/hey; xem `mesh/README.md` |
+| `/api` lỗi sau khi qua edge | Edge proxy cả `/` vào VIP; blue/green nginx vẫn proxy Kong — kiểm tra Kong + Route `/api` |
+| Deploy `frontend` và blue/green cùng lúc | `oc delete deploy frontend` — giữ svc VIP |
+
+---
+
+## 10. File quan trọng
+
+| Path | Việc |
+|------|------|
+| [`frontend/`](../../frontend/) | Code blue |
+| [`frontend-green/`](../../frontend-green/) | Code green |
+| [`gitops/values-images.yaml`](../gitops/values-images.yaml) | Tag CI bump |
+| [`gitops/values-frontend-bluegreen.yaml`](../gitops/values-frontend-bluegreen.yaml) | `blueGreen.enabled` |
+| Helm `templates/frontend-bluegreen.yaml` + `frontend-edge.yaml` | Deploy dual + edge |
+| [`routes/banking-route-frontend.yaml`](../environments/dev-ocp/ocp-values/routes/banking-route-frontend.yaml) | Route → edge |
+| [`workloads/banking-*.yaml`](workloads/) | PA / Authz |
+| [`waypoint/banking-frontend-bluegreen.yaml`](waypoint/banking-frontend-bluegreen.yaml) | Weights |
+| [`waypoint/FRONTEND-WEIGHT-STEPS.md`](waypoint/FRONTEND-WEIGHT-STEPS.md) | Snippet % |
+| `jenkins-shared-library/.../Projects.groovy` | Catalog Jenkins |
 
 ---
 
 ## Ngoài phạm vi
 
-Shop FE, transfer/auth blue-green, DestinationRule retry, thay Route bằng Gateway API public.
+Shop FE, blue-green `api-producer` / transfer, DestinationRule retry, thay Route bằng Gateway API public.
