@@ -268,6 +268,19 @@ HTML blue + CSS/JS green → file không tồn tại → nginx trả HTML → **
 3. `argocd app sync banking-frontend` (rollout edge) + `argocd app sync mesh-waypoint`
 4. Browser: **xóa cookie `fe_bg`** hoặc cửa sổ ẩn danh khi đo lại %
 
+**Vì sao browser “toàn green”?** Cookie sticky — đúng thiết kế SPA. Một phiên = một màu.  
+Đo 70/30 bằng curl **không gửi cookie** (sau khi sync edge dùng `$request_id`):
+
+```bash
+# Không dùng -c/-b (đừng lưu cookie)
+for i in $(seq 1 50); do
+  curl -skI https://npd-banking.co/ | tr -d '\r' | grep -i '^x-fe-version:' 
+done | sort | uniq -c
+# kỳ vọng ~35 blue / ~15 green (70/30)
+```
+
+Browser: mỗi lần đo % mới → xóa `fe_bg` hoặc Incognito; hard refresh nhiều lần trên **cùng** cookie sẽ luôn một version.
+
 Snippet HTTPRoute: [`waypoint/FRONTEND-WEIGHT-STEPS.md`](waypoint/FRONTEND-WEIGHT-STEPS.md).
 
 ### Cách đổi (mỗi bước)

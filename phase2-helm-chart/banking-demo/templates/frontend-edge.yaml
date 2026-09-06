@@ -38,8 +38,10 @@ data:
         keepalive 16;
     }
 
-    # Weight: blue {{ $wBlue }}% / green {{ $wGreen }}%
-    split_clients "${remote_addr}${http_user_agent}" $fe_rand {
+    # Weight khi CHƯA có cookie. Dùng $request_id — nếu chỉ hash IP+UA thì
+    # mọi curl/browser cùng máy luôn một màu (trông như 100% green).
+    # Có cookie fe_bg → sticky (SPA cần).
+    split_clients "$request_id" $fe_rand {
         {{ $wBlue }}%  "blue";
         *              "green";
     }
