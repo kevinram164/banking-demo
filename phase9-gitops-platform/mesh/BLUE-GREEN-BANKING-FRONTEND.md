@@ -374,6 +374,7 @@ oc -n npd-banking scale deploy/frontend-blue --replicas=0
 | Blue mãi `9b04db8` dù values-images đã bump | Pin tag trong `values-frontend-bluegreen.yaml` — **đã bỏ pin**; sync `banking-frontend` |
 | `/variant.txt` ra HTML | Blue thiếu file (image cũ). Green có file nhưng B0 = 100% blue → vẫn HTML. Rebuild/sync blue. |
 | **UI trần / mất CSS** (Sign in thô) | HTML một version, `/static/*` version kia. Sync edge sticky mới; xóa cookie `fe_bg`; hard refresh |
+| Edge **502** | Thường do `proxy_pass` biến thiếu resolver — dùng upstream cố định `@to_blue`/`@to_green`. Sync `banking-frontend`, xem `oc logs deploy/frontend-edge`. Kiểm tra Authz edge→blue/green + pod Ready |
 | Route 503 | `frontend-edge` Ready? PA PERMISSIVE edge? Authz `allow-route-to-frontend-edge`? |
 | Luôn blue dù weight green > 0 | HTTPRoute đã sync? `use-waypoint` trên svc/frontend? Waypoint pod Ready? |
 | 403 / empty từ edge | Authz cho SA `frontend-edge` + `waypoint` → blue/green |

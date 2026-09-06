@@ -7,6 +7,7 @@
 {{- $replicas := (((.Values.frontend.blueGreen).edge).replicas) | default 1 }}
 {{- $wBlue := ((.Values.frontend.blueGreen).weight).blue | default 70 }}
 {{- $wGreen := ((.Values.frontend.blueGreen).weight).green | default 30 }}
+{{- $port := .Values.frontend.service.port }}
 {{- $blueHost := printf "frontend-blue.%s.svc.cluster.local" $ns }}
 {{- $greenHost := printf "frontend-green.%s.svc.cluster.local" $ns }}
 ---
@@ -16,8 +17,7 @@ metadata:
   name: frontend-edge
   namespace: {{ $ns }}
 ---
-# SPA blue/green: PHẢI sticky — nếu HTML blue mà /static/* sang green → CSS/JS hash lệch → trang trần.
-# Cookie fe_bg giữ cùng version trong phiên; weight chỉ khi chưa có cookie.
+# Sticky cookie fe_bg — KHÔNG dùng proxy_pass biến (thiếu resolver → 502).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -29,8 +29,17 @@ metadata:
     banking-demo/traffic-step: "{{ $wBlue }}-{{ $wGreen }}"
 data:
   default.conf: |
-    # Weight lab: blue {{ $wBlue }}% / green {{ $wGreen }}% (đổi values-frontend-bluegreen.yaml)
-    split_clients "${remote_addr}${http_user_agent}${date_gmt}" $fe_rand {
+    upstream fe_blue {
+        server {{ $blueHost }}:{{ $port }};
+        keepalive 16;
+    }
+    upstream fe_green {
+        server {{ $greenHost }}:{{ $port }};
+        keepalive 16;
+    }
+
+    # Weight: blue {{ $wBlue }}% / green {{ $wGreen }}%
+    split_clients "${remote_addr}${http_user_agent}" $fe_rand {
         {{ $wBlue }}%  "blue";
         *              "green";
     }
@@ -39,11 +48,6 @@ data:
         blue     "blue";
         green    "green";
         default  $fe_rand;
-    }
-
-    map $fe_pick $fe_upstream {
-        blue   {{ $blueHost }};
-        green  {{ $greenHost }};
     }
 
     server {
@@ -57,16 +61,35 @@ data:
         }
 
         location / {
-            proxy_pass http://$fe_upstream:{{ .Values.frontend.service.port }};
+            error_page 418 = @to_blue;
+            error_page 419 = @to_green;
+            if ($fe_pick = blue) { return 418; }
+            if ($fe_pick = green) { return 419; }
+            return 418;
+        }
+
+        location @to_blue {
+            proxy_pass http://fe_blue;
             proxy_http_version 1.1;
-            proxy_set_header Host $fe_upstream;
+            proxy_set_header Connection "";
+            proxy_set_header Host {{ $blueHost }};
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
+            add_header Set-Cookie "fe_bg=blue; Path=/; Max-Age=86400; SameSite=Lax" always;
+            add_header X-FE-Version "blue" always;
+        }
+
+        location @to_green {
+            proxy_pass http://fe_green;
+            proxy_http_version 1.1;
             proxy_set_header Connection "";
-            # Sticky: HTML + /static/* cùng một version
-            add_header Set-Cookie "fe_bg=$fe_pick; Path=/; Max-Age=86400; SameSite=Lax" always;
-            add_header X-FE-Version $fe_pick always;
+            proxy_set_header Host {{ $greenHost }};
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            add_header Set-Cookie "fe_bg=green; Path=/; Max-Age=86400; SameSite=Lax" always;
+            add_header X-FE-Version "green" always;
         }
     }
 ---
@@ -92,8 +115,7 @@ spec:
         app.kubernetes.io/component: frontend-edge
         istio.io/dataplane-mode: ambient
       annotations:
-        # Đổi weight → đổi ConfigMap → restart edge để nginx load conf mới
-        checksum/config: {{ printf "%v-%v" $wBlue $wGreen | sha256sum }}
+        checksum/config: {{ printf "%v-%v-%s-%s" $wBlue $wGreen $blueHost $greenHost | sha256sum }}
     spec:
       {{- with .Values.frontend.securityContext.pod }}
       securityContext:
