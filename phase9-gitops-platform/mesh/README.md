@@ -144,4 +144,7 @@ Shop↔bank = **Kafka**. Movie cô lập. AIOps đọc Prometheus/Coroot.
 
 ## Đợt H — waypoint (không auto-sync)
 
-`gitops-platform/applications/mesh/waypoint.yaml` — Application `mesh-waypoint` **không** automated. HTTPRoute weight 0/100 trên `api-producer` (banking) và `order-service` (shop).
+`gitops-platform/applications/mesh/waypoint.yaml` — Application `mesh-waypoint` **không** automated.
+
+- HTTPRoute stub: `api-producer` (banking), `order-service` (shop).
+- **Blue-Green banking FE (Đợt H-FE):** runbook tách riêng → [`BLUE-GREEN-BANKING-FRONTEND.md`](BLUE-GREEN-BANKING-FRONTEND.md) (`frontend-edge` → VIP `frontend` → HTTPRoute weights blue/green).

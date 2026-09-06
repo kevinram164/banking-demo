@@ -1,0 +1,6 @@
+{
+  "short_name": "Banking",
+  "name": "Banking Demo",
+  "start_url": ".",
+  "display": "standalone"
+}

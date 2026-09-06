@@ -47,6 +47,13 @@ class PipelineConfig implements Serializable {
             // Không dùng full: npm tạo hàng chục nghìn file → snapshot cực chậm + stage treo
             snapshotMode: 'time',
         ],
+        'frontend-green': [
+            dockerfile  : 'Dockerfile',
+            context     : 'frontend-green',
+            helmKey     : 'frontend-green',
+            watchPath   : 'frontend-green',
+            snapshotMode: 'time',
+        ],
     ]
 
     static Map mergeDefaults(Map user) {

@@ -1,0 +1,127 @@
+{{- if and .Values.frontend.enabled (.Values.frontend.blueGreen).enabled }}
+{{- $ns := .Release.Namespace }}
+{{- $edgeImage := ((.Values.frontend.blueGreen).edge).image.repository | default .Values.frontend.image.repository }}
+{{- $edgeTag := ((.Values.frontend.blueGreen).edge).image.tag | default .Values.frontend.image.tag }}
+{{- $pullPolicy := .Values.frontend.image.pullPolicy }}
+{{- $pull := .Values.frontend.imagePullSecrets }}
+{{- $replicas := (((.Values.frontend.blueGreen).edge).replicas) | default 1 }}
+{{- $upstream := printf "frontend.%s.svc.cluster.local" $ns }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend-edge
+  namespace: {{ $ns }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-edge-nginx
+  namespace: {{ $ns }}
+  labels:
+    app: frontend-edge
+    app.kubernetes.io/component: frontend-edge
+data:
+  default.conf: |
+    server {
+        listen 8080;
+        server_name _;
+
+        location = /health {
+            access_log off;
+            default_type text/plain;
+            return 200 "ok\n";
+        }
+
+        # Proxy toàn bộ vào VIP frontend → waypoint HTTPRoute (blue/green).
+        location / {
+            proxy_pass http://{{ $upstream }}:{{ .Values.frontend.service.port }};
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Connection "";
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-edge
+  namespace: {{ $ns }}
+  labels:
+    app: frontend-edge
+    app.kubernetes.io/name: frontend-edge
+    app.kubernetes.io/component: frontend-edge
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app: frontend-edge
+  template:
+    metadata:
+      labels:
+        app: frontend-edge
+        app.kubernetes.io/name: frontend-edge
+        app.kubernetes.io/component: frontend-edge
+        istio.io/dataplane-mode: ambient
+    spec:
+      {{- with .Values.frontend.securityContext.pod }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $pull }}
+      imagePullSecrets:
+        {{- toYaml $pull | nindent 8 }}
+      {{- end }}
+      serviceAccountName: frontend-edge
+      containers:
+        - name: nginx
+          image: "{{ $edgeImage }}:{{ $edgeTag }}"
+          imagePullPolicy: {{ $pullPolicy }}
+          {{- with .Values.frontend.securityContext.container }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: edge-nginx
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            {{- $edgeRes := .Values.frontend.resources }}
+            {{- if and .Values.frontend.blueGreen.edge .Values.frontend.blueGreen.edge.resources }}
+            {{- $edgeRes = .Values.frontend.blueGreen.edge.resources }}
+            {{- end }}
+            {{- toYaml $edgeRes | nindent 12 }}
+      volumes:
+        - name: edge-nginx
+          configMap:
+            name: frontend-edge-nginx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-edge
+  namespace: {{ $ns }}
+  labels:
+    app: frontend-edge
+    app.kubernetes.io/name: frontend-edge
+    app.kubernetes.io/component: frontend-edge
+spec:
+  selector:
+    app: frontend-edge
+  ports:
+    - port: {{ .Values.frontend.service.port }}
+      targetPort: 8080
+      name: {{ .Values.frontend.service.portName }}
+{{- end }}

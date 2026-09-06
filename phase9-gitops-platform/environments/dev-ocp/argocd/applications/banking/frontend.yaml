@@ -22,6 +22,7 @@ spec:
         - charts/frontend/values.yaml
         - ../../phase9-gitops-platform/gitops/values-images.yaml
         - ../../phase9-gitops-platform/gitops/values-observability.yaml
+        - ../../phase9-gitops-platform/gitops/values-frontend-bluegreen.yaml
       parameters:
         - name: namespace.enabled
           value: "false"

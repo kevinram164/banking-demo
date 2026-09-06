@@ -1,4 +1,5 @@
-# Banking UI — npd-banking.co (custom domain, cần DNS/hosts trỏ OpenShift Router)
+# Banking UI — npd-banking.co → frontend-edge (ambient) → VIP frontend → waypoint blue/green
+# Xem mesh/BLUE-GREEN-BANKING-FRONTEND.md
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
@@ -15,7 +16,7 @@ spec:
   path: /
   to:
     kind: Service
-    name: frontend
+    name: frontend-edge
     weight: 100
   port:
     # Tên port trên Service (port 80 → pod 8080). Số 80 khiến Router thấy Endpoints: <none>

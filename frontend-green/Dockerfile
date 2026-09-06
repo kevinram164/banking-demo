@@ -1,4 +1,9 @@
-# ===== Stage 1: Build React =====
+# frontend-green — FE version mới (blue-green lab)
+# Context: banking-demo/frontend-green
+# Image: harbor-platform.../banking-demo/frontend-green:<tag>
+#
+# Không build từ folder frontend/ với ARG — tránh lẫn UI_VARIANT.
+
 FROM node:20-alpine AS build
 
 WORKDIR /app
@@ -8,9 +13,10 @@ RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
 COPY . .
 RUN npm run build \
-    && printf '%s\n' 'blue' > /app/build/variant.txt
+    && printf '%s\n' 'GREEN v2' > /app/build/variant.txt \
+    && sed -i 's/<title>Banking Demo<\/title>/<title>NPD Banking (Green)<\/title>/' /app/build/index.html \
+    && sed -i 's/<div id="root"><\/div>/<div id="root"><\/div><!-- GREEN v2 -->/' /app/build/index.html
 
-# ===== Stage 2: Nginx (OpenShift-friendly) =====
 FROM nginx:alpine
 
 COPY nginx-main.conf /etc/nginx/nginx.conf

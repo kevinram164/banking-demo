@@ -5,7 +5,23 @@ metadata:
   namespace: npd-banking
 spec: {}
 ---
-# Public UI (OpenShift Route, không SPIFFE)
+# Public UI — OpenShift Route → frontend-edge (Đợt H-FE blue-green)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-route-to-frontend-edge
+  namespace: npd-banking
+spec:
+  selector:
+    matchLabels:
+      app: frontend-edge
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            ports: ["80", "8080"]
+---
+# Legacy single-FE (blueGreen off) — Route → app: frontend
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
@@ -18,6 +34,52 @@ spec:
   action: ALLOW
   rules:
     - to:
+        - operation:
+            ports: ["80", "8080"]
+---
+# frontend-edge → VIP frontend → waypoint → blue/green
+# Sau waypoint, principal phía backend thường là SA waypoint (không còn edge).
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-edge-to-frontend-blue
+  namespace: npd-banking
+spec:
+  selector:
+    matchLabels:
+      app: frontend-blue
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/npd-banking/sa/frontend-edge
+              - cluster.local/ns/npd-banking/sa/waypoint
+        - source:
+            namespaces: ["npd-banking"]
+      to:
+        - operation:
+            ports: ["80", "8080"]
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-edge-to-frontend-green
+  namespace: npd-banking
+spec:
+  selector:
+    matchLabels:
+      app: frontend-green
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/npd-banking/sa/frontend-edge
+              - cluster.local/ns/npd-banking/sa/waypoint
+        - source:
+            namespaces: ["npd-banking"]
+      to:
         - operation:
             ports: ["80", "8080"]
 ---

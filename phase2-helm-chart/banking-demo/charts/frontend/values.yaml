@@ -8,6 +8,32 @@ frontend:
     pullPolicy: IfNotPresent
   imagePullSecrets: []
   replicas: 1
+  # Blue-Green (Đợt H-FE): dual Deploy + frontend-edge + VIP Service frontend
+  # Bật qua gitops/values-frontend-bluegreen.yaml — xem mesh/BLUE-GREEN-BANKING-FRONTEND.md
+  blueGreen:
+    enabled: false
+    replicas: 1
+    blue:
+      image:
+        tag: "" # default = frontend.image.tag (repo = frontend.image.repository)
+    green:
+      # Code: banking-demo/frontend-green/ — image Harbor riêng, không dùng UI_VARIANT
+      image:
+        repository: "" # default = <frontend.repository>-green
+        tag: "" # default = frontend.image.tag
+    edge:
+      replicas: 1
+      # Tái dùng image frontend (chỉ mount nginx conf proxy) — không cần image riêng
+      image:
+        repository: ""
+        tag: ""
+      resources:
+        requests:
+          memory: "32Mi"
+          cpu: "25m"
+        limits:
+          memory: "64Mi"
+          cpu: "100m"
   service:
     port: 80
     # Container listen 8080 (non-root OCP); Service :80 → pod :8080

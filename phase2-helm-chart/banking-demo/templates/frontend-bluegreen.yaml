@@ -1,0 +1,192 @@
+{{- if and .Values.frontend.enabled (.Values.frontend.blueGreen).enabled }}
+{{- $ns := .Release.Namespace }}
+{{- $port := .Values.frontend.service.port }}
+{{- $target := .Values.frontend.service.targetPort | default .Values.frontend.service.port }}
+{{- $portName := .Values.frontend.service.portName }}
+{{- $pull := .Values.frontend.imagePullSecrets }}
+{{- $repo := .Values.frontend.image.repository }}
+{{- $pullPolicy := .Values.frontend.image.pullPolicy }}
+{{- $blueTag := ((.Values.frontend.blueGreen).blue).image.tag | default .Values.frontend.image.tag }}
+{{- /* Ưu tiên top-level frontend-green (Jenkins bump values-images.yaml) */ -}}
+{{- $fg := index .Values "frontend-green" | default dict }}
+{{- $fgImg := $fg.image | default dict }}
+{{- $greenRepo := $fgImg.repository | default (((.Values.frontend.blueGreen).green).image.repository) | default (printf "%s-green" .Values.frontend.image.repository) }}
+{{- $greenTag := $fgImg.tag | default (((.Values.frontend.blueGreen).green).image.tag) | default .Values.frontend.image.tag }}
+{{- $greenPull := $fgImg.pullPolicy | default $pullPolicy }}
+{{- $replicas := (.Values.frontend.blueGreen).replicas | default .Values.frontend.replicas }}
+
+---
+# Logical VIP — edge gọi hostname này; waypoint HTTPRoute tách blue/green (không selector pod).
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: {{ $ns }}
+  labels:
+    app: frontend
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: banking-bluegreen
+    istio.io/use-waypoint: waypoint
+spec:
+  ports:
+    - port: {{ $port }}
+      targetPort: {{ $target }}
+      name: {{ $portName }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-blue
+  namespace: {{ $ns }}
+  labels:
+    app: frontend-blue
+    version: blue
+    app.kubernetes.io/name: frontend-blue
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app: frontend-blue
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: frontend-blue
+        version: blue
+        app.kubernetes.io/name: frontend-blue
+        app.kubernetes.io/component: frontend
+        istio.io/dataplane-mode: ambient
+    spec:
+      {{- with .Values.frontend.securityContext.pod }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $pull }}
+      imagePullSecrets:
+        {{- toYaml $pull | nindent 8 }}
+      {{- end }}
+      serviceAccountName: frontend
+      containers:
+        - name: frontend
+          image: "{{ $repo }}:{{ $blueTag }}"
+          imagePullPolicy: {{ $pullPolicy }}
+          {{- with .Values.frontend.securityContext.container }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: {{ $target }}
+              name: {{ $portName }}
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          {{- if .Values.frontend.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.frontend.readinessProbe.path }}
+              port: {{ .Values.frontend.readinessProbe.port }}
+            initialDelaySeconds: {{ .Values.frontend.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.frontend.readinessProbe.periodSeconds }}
+            {{- if .Values.frontend.readinessProbe.timeoutSeconds }}
+            timeoutSeconds: {{ .Values.frontend.readinessProbe.timeoutSeconds }}
+            {{- end }}
+          {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-blue
+  namespace: {{ $ns }}
+  labels:
+    app: frontend-blue
+    version: blue
+    app.kubernetes.io/name: frontend-blue
+    app.kubernetes.io/component: frontend
+spec:
+  selector:
+    app: frontend-blue
+    version: blue
+  ports:
+    - port: {{ $port }}
+      targetPort: {{ $target }}
+      name: {{ $portName }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-green
+  namespace: {{ $ns }}
+  labels:
+    app: frontend-green
+    version: green
+    app.kubernetes.io/name: frontend-green
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app: frontend-green
+      version: green
+  template:
+    metadata:
+      labels:
+        app: frontend-green
+        version: green
+        app.kubernetes.io/name: frontend-green
+        app.kubernetes.io/component: frontend
+        istio.io/dataplane-mode: ambient
+    spec:
+      {{- with .Values.frontend.securityContext.pod }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $pull }}
+      imagePullSecrets:
+        {{- toYaml $pull | nindent 8 }}
+      {{- end }}
+      serviceAccountName: frontend
+      containers:
+        - name: frontend
+          image: "{{ $greenRepo }}:{{ $greenTag }}"
+          imagePullPolicy: {{ $greenPull }}
+          {{- with .Values.frontend.securityContext.container }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: {{ $target }}
+              name: {{ $portName }}
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          {{- if .Values.frontend.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.frontend.readinessProbe.path }}
+              port: {{ .Values.frontend.readinessProbe.port }}
+            initialDelaySeconds: {{ .Values.frontend.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.frontend.readinessProbe.periodSeconds }}
+            {{- if .Values.frontend.readinessProbe.timeoutSeconds }}
+            timeoutSeconds: {{ .Values.frontend.readinessProbe.timeoutSeconds }}
+            {{- end }}
+          {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-green
+  namespace: {{ $ns }}
+  labels:
+    app: frontend-green
+    version: green
+    app.kubernetes.io/name: frontend-green
+    app.kubernetes.io/component: frontend
+spec:
+  selector:
+    app: frontend-green
+    version: green
+  ports:
+    - port: {{ $port }}
+      targetPort: {{ $target }}
+      name: {{ $portName }}
+{{- end }}

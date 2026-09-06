@@ -1,4 +1,4 @@
-{{- if .Values.frontend.enabled }}
+{{- if and .Values.frontend.enabled (not (.Values.frontend.blueGreen).enabled) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,7 +17,7 @@ spec:
       labels:
         app: {{ include "banking-demo.frontend.fullname" . }}
         {{- include "banking-demo.frontend.selectorLabels" . | nindent 8 }}
-        istio.io/dataplane-mode: none
+        istio.io/dataplane-mode: ambient
     spec:
       {{- with .Values.frontend.securityContext.pod }}
       securityContext:
