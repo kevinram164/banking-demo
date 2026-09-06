@@ -359,6 +359,8 @@ oc -n npd-banking scale deploy/frontend-blue --replicas=0
 |-------------|----------------|
 | Jenkins không có `frontend-green` | Push `jenkins-shared-library` main; reload library |
 | `ImagePullBackOff` green | Tag Harbor ≠ values; pull secret; đúng repo `frontend-green` |
+| Blue mãi `9b04db8` dù values-images đã bump | Pin tag trong `values-frontend-bluegreen.yaml` — **đã bỏ pin**; sync `banking-frontend` |
+| `/variant.txt` ra HTML | Blue thiếu file (image cũ). Green có file nhưng B0 = 100% blue → vẫn HTML. Rebuild/sync blue. |
 | Route 503 | `frontend-edge` Ready? PA PERMISSIVE edge? Authz `allow-route-to-frontend-edge`? |
 | Luôn blue dù weight green > 0 | HTTPRoute đã sync? `use-waypoint` trên svc/frontend? Waypoint pod Ready? |
 | 403 / empty từ edge | Authz cho SA `frontend-edge` + `waypoint` → blue/green |

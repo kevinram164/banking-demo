@@ -1,22 +1,17 @@
 # Blue-Green banking FE — dual Deploy + frontend-edge
 # Code tách folder:
 #   blue  → banking-demo/frontend/           → image .../frontend
-#   green → banking-demo/frontend-green/     → image .../frontend-green (tag bump qua values-images.yaml)
+#   green → banking-demo/frontend-green/     → image .../frontend-green
 #
-# Jenkins (shared lib platform@main → Projects.groovy):
-#   BUILD_TARGET=frontend       | auto khi đổi frontend/
-#   BUILD_TARGET=frontend-green | auto khi đổi frontend-green/
+# Tag image: chỉ bump trong values-images.yaml (Jenkins).
+#   frontend.image.tag       → Deploy frontend-blue
+#   frontend-green.image.tag → Deploy frontend-green
+# KHÔNG pin tag ở đây — sẽ khóa blue mãi ở bản cũ (mất variant.txt).
+#
+# Jenkins BUILD_TARGET=frontend | frontend-green | auto
 frontend:
   blueGreen:
     enabled: true
     replicas: 1
-    blue:
-      image:
-        tag: "9b04db8"
-    green:
-      # Fallback nếu chưa có key frontend-green trong values-images; CI ưu tiên values-images
-      image:
-        repository: harbor-platform.apps.ocp01.npd.co/banking-demo/frontend-green
-        tag: "9b04db8"
     edge:
       replicas: 1
