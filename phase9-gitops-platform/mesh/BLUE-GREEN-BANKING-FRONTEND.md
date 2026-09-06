@@ -233,12 +233,24 @@ for i in $(seq 1 $n); do
   curl -sk https://npd-banking.co/ | grep -q 'GREEN v2' && g=$((g+1)) || true
 done
 echo "green_hits=$g / $n"   # kỳ vọng 0
-
-for i in $(seq 1 20); do curl -sk https://npd-banking.co/variant.txt; echo; done | sort | uniq -c
-# kỳ vọng: toàn "blue"
 ```
 
-Browser: `https://npd-banking.co/` — nền xám/xanh dương, **không** badge GREEN v2.
+**OK nếu `green_hits=0`.** Browser: nền slate/xanh dương, không badge GREEN v2.
+
+#### `/variant.txt` (chỉ đúng sau khi rebuild image có file này)
+
+Image **cũ** (trước khi Dockerfile ghi `variant.txt`) → nginx SPA trả **cả trang HTML** thay vì chữ `blue`. Đó **không** phải lỗi weight.
+
+```bash
+# Kiểm tra image đang chạy có file không
+oc -n npd-banking exec deploy/frontend-blue -- ls -la /usr/share/nginx/html/variant.txt 2>&1
+
+# Sau rebuild frontend (+ frontend-green) có variant.txt:
+for i in $(seq 1 20); do curl -sk https://npd-banking.co/variant.txt; echo; done | sort | uniq -c
+# B0 kỳ vọng: 20 dòng "blue"
+```
+
+Thiếu file → Jenkins `BUILD_TARGET=frontend` (và `frontend-green`) rồi sync Argo, hoặc tạm bỏ qua `variant.txt`, chỉ dùng `GREEN v2` / mắt nhìn UI.
 
 ---
 
