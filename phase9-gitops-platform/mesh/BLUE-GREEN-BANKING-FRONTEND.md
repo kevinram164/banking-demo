@@ -2,6 +2,10 @@
 
 Runbook **tách riêng** — không thay INSTALL Ambient. Mục tiêu lab: hai bản UI (cũ/mới), Istio chia traffic 70/30 → 0/100, Kiali thấy rõ.
 
+![Blue-Green FE on Istio Ambient — traffic split 70/30](./assets/istio-ambient-bluegreen-fe.png)
+
+*Route → frontend-edge (sticky cookie) → frontend-blue / frontend-green. SPA giữ HTML + `/static/*` cùng một version.*
+
 ---
 
 ## 0. Thuật ngữ (đọc trước)
