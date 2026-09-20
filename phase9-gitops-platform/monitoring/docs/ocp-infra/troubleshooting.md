@@ -26,7 +26,29 @@ Target sketch (`worker-02` + `sdb`): use **Disk** dashboard for sdb numbers; Nod
 4. Control-plane panels: confirm `up{job="etcd"}`, `up{job="apiserver"}` via Explore. Job names differ by OCP version — matchers already allow both.
 5. `storage_operation_duration_seconds_count` may be absent — leave the panel empty; do not fake a metric.
 
-## Alerts duplicate / noisy
+## False positive: NPDInfraFilesystemReadOnly × N (RHCOS)
+
+Digest CRITICAL vì `severity=critical` trên alert này. Trên OpenShift **RHCOS**, `/usr`, `/boot`, `/sysroot`, ostree **luôn** read-only — không phải disk hỏng.
+
+Xem mount nào đang bắn:
+
+Grafana → Explore → Prometheus:
+
+```promql
+node_filesystem_readonly{job="node-exporter"} == 1
+```
+
+Legend: `{{instance}} {{mountpoint}} {{fstype}}`. Nếu toàn `/usr` `/boot` → bỏ qua, apply rule đã siết (chỉ `/var` `/home` `/tmp` `/opt`).
+
+Alert thật (I/O error remount-ro) chỉ đáng sợ khi **`/var`** hoặc **`/var/lib/kubelet`** thành RO:
+
+```bash
+oc get --raw /api/v1/namespaces/openshift-monitoring/services/prometheus-k8s:web/proxy/api/v1/query \
+  --data-urlencode 'query=node_filesystem_readonly{job="node-exporter",mountpoint=~"^(/var|/home).*"} == 1'
+```
+
+10 pods Failed (không làm digest CRITICAL): `oc get pods -A --field-selector=status.phase=Failed`
+
 
 | This pack | Already elsewhere |
 |-----------|-------------------|

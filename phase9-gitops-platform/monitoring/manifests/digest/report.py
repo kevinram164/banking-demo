@@ -115,9 +115,9 @@ def main() -> None:
     )
     disk = scalar(
         "max(100 * (1 - ("
-        'node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs"}'
+        'node_filesystem_avail_bytes{job="node-exporter",fstype=~"xfs|ext[234]|btrfs",mountpoint=~"^(/|/var|/home)$"}'
         " / "
-        'node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs"}'
+        'node_filesystem_size_bytes{job="node-exporter",fstype=~"xfs|ext[234]|btrfs",mountpoint=~"^(/|/var|/home)$"}'
         ")))"
     )
     run = scalar('sum(kube_pod_status_phase{phase="Running"})')

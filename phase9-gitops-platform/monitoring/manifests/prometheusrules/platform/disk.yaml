@@ -17,8 +17,8 @@ spec:
         - alert: NPDInfraFilesystemFilling
           expr: |
             100 * (1 - (
-              node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}
-              / node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}
+              node_filesystem_avail_bytes{job="node-exporter",fstype=~"xfs|ext[234]|btrfs",mountpoint=~"^(/|/var|/home)$"}
+              / node_filesystem_size_bytes{job="node-exporter",fstype=~"xfs|ext[234]|btrfs",mountpoint=~"^(/|/var|/home)$"}
             )) > 85
           for: 15m
           labels:
@@ -36,8 +36,8 @@ spec:
         - alert: NPDInfraFilesystemCritical
           expr: |
             100 * (1 - (
-              node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}
-              / node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}
+              node_filesystem_avail_bytes{job="node-exporter",fstype=~"xfs|ext[234]|btrfs",mountpoint=~"^(/|/var|/home)$"}
+              / node_filesystem_size_bytes{job="node-exporter",fstype=~"xfs|ext[234]|btrfs",mountpoint=~"^(/|/var|/home)$"}
             )) > 95
           for: 5m
           labels:
@@ -53,8 +53,8 @@ spec:
         - alert: NPDInfraInodesFilling
           expr: |
             100 * (1 - (
-              node_filesystem_files_free{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}
-              / clamp_min(node_filesystem_files{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}, 1)
+              node_filesystem_files_free{job="node-exporter",fstype=~"xfs|ext[234]|btrfs",mountpoint=~"^(/|/var|/home)$"}
+              / clamp_min(node_filesystem_files{job="node-exporter",fstype=~"xfs|ext[234]|btrfs",mountpoint=~"^(/|/var|/home)$"}, 1)
             )) > 90
           for: 15m
           labels:
@@ -69,7 +69,12 @@ spec:
 
         - alert: NPDInfraFilesystemReadOnly
           expr: |
-            node_filesystem_readonly{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs"} == 1
+            # RHCOS: /usr /boot /sysroot are read-only by design. Only data mounts.
+            node_filesystem_readonly{
+              job="node-exporter",
+              fstype=~"xfs|ext[234]|btrfs",
+              mountpoint=~"^(/var|/var/lib.*|/var/log.*|/home|/tmp|/opt)$"
+            } == 1
           for: 2m
           labels:
             severity: critical
@@ -77,8 +82,11 @@ spec:
             component: disk
           annotations:
             summary: "Filesystem read-only {{ $labels.instance }} {{ $labels.mountpoint }}"
-            description: "Often XFS/ext4 remounted ro after I/O errors. Check dmesg and storage path."
-            threshold: "readonly==1 for 2m (fast — this is already broken)."
+            description: >-
+              Unexpected remount-ro on a data volume (I/O error). Ignore /usr /boot —
+              those are always RO on RHCOS. Grafana Explore:
+              node_filesystem_readonly{fstype=~"xfs|ext4"} == 1
+            threshold: "readonly==1 for 2m, only /var /home /tmp /opt (not RHCOS /usr)."
             dashboard: "NPD OCP Infra / Disk Storage"
 
         - alert: NPDInfraDiskLatencyHigh
