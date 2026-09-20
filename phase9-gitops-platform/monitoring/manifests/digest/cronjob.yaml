@@ -1,0 +1,79 @@
+# Báo cáo tình trạng ocp01 → Telegram lúc 08:00, 15:00, 22:00 giờ VN.
+# Cần Secret alertmanager-telegram (bot-token) trong ns aiops-observability
+# (copy từ openshift-monitoring — xem DEPLOY.md).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: npd-status-digest
+  namespace: aiops-observability
+  labels:
+    app.kubernetes.io/name: npd-status-digest
+    app.kubernetes.io/part-of: npd-monitoring
+spec:
+  schedule: "0 8,15,22 * * *"
+  timeZone: Asia/Ho_Chi_Minh
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: npd-status-digest
+        spec:
+          serviceAccountName: npd-status-digest
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: digest
+              image: docker.io/library/python:3.12-alpine
+              imagePullPolicy: IfNotPresent
+              command: ["python3", "/digest/report.py"]
+              env:
+                - name: TELEGRAM_CHAT_ID
+                  value: "-1004489182185"
+                - name: TELEGRAM_BOT_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: alertmanager-telegram
+                      key: bot-token
+                - name: THANOS_URL
+                  value: https://thanos-querier.openshift-monitoring.svc:9091
+                - name: GRAFANA_URL
+                  value: https://grafana-aiops-observability.apps.ocp01.npd.co
+                - name: SA_TOKEN_FILE
+                  value: /var/run/secrets/npd-digest-token/token
+              securityContext:
+                allowPrivilegeEscalation: false
+                runAsNonRoot: true
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+              volumeMounts:
+                - name: script
+                  mountPath: /digest
+                  readOnly: true
+                - name: thanos-token
+                  mountPath: /var/run/secrets/npd-digest-token
+                  readOnly: true
+          volumes:
+            - name: script
+              configMap:
+                name: npd-status-digest-script
+            - name: thanos-token
+              secret:
+                secretName: npd-status-digest-token

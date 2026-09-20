@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: npd-status-digest
+  namespace: aiops-observability
+  labels:
+    app.kubernetes.io/name: npd-status-digest
+    app.kubernetes.io/part-of: npd-monitoring
+---
+# Token Secret — OCP 4.11+ không tự gắn token SA. Cùng pattern Grafana thanos-rbac.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: npd-status-digest-token
+  namespace: aiops-observability
+  labels:
+    app.kubernetes.io/name: npd-status-digest
+    app.kubernetes.io/part-of: npd-monitoring
+  annotations:
+    kubernetes.io/service-account.name: npd-status-digest
+type: kubernetes.io/service-account-token

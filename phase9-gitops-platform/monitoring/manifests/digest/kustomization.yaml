@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - sa.yaml
+  - rbac.yaml
+  - cronjob.yaml
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: npd-status-digest-script
+    namespace: aiops-observability
+    files:
+      - report.py

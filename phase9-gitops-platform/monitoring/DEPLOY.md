@@ -4,6 +4,7 @@ Tài liệu này mô tả **toàn bộ** những gì cần làm để:
 
 1. Xem dashboard metrics (banking, shop, infra, node OCP) trên Grafana AIOps  
 2. Cảnh báo qua kênh **Telegram** khi pod/node/infra lỗi  
+3. Báo cáo tình trạng hệ thống lúc **08:00 / 15:00 / 22:00** (giờ VN) qua Telegram 
 
 Đọc từ trên xuống, làm tuần tự. Mỗi bước có **kiểm tra** — xong mới sang bước sau.
 
@@ -34,7 +35,7 @@ Node / cluster metrics ◄──────┤  (đã có sẵn từ openshift-
 |------|---------|------------|
 | **Metrics + dashboard** | Grafana AIOps + OCP Prometheus | Không cài thêm kube-prometheus-stack |
 | **Log** | OpenSearch `logs-platform…` | Không nhầm với metrics |
-| **Alert chat** | Alertmanager → Telegram | |
+| **Alert chat** | Alertmanager → Telegram (khi lỗi) + CronJob digest 08:00/15:00/22:00 | |
 
 ### Cơ chế alert banking (3 tầng) — đọc kỹ
 
@@ -405,7 +406,7 @@ curl -sS "https://api.telegram.org/bot${BOT}/sendMessage" \
   --data-urlencode "chat_id=${CHAT}" \
   --data-urlencode "text=NPD Alertmanager smoke OK"
 
-for ns in npd-banking npd-shop openshift-monitoring postgres redis kafka kong rabbit; do
+for ns in npd-banking npd-shop openshift-monitoring postgres redis kafka kong rabbit aiops-observability; do
   oc -n "$ns" create secret generic alertmanager-telegram \
     --from-literal=bot-token="$BOT" \
     --dry-run=client -o yaml | oc apply -f -
@@ -430,6 +431,30 @@ oc -n openshift-monitoring get alertmanager main -o yaml | grep -A10 alertmanage
 ```
 
 Phải có `enableUserAlertmanagerConfig: true` (bước A).
+
+### 8.5 Báo cáo định kỳ 08:00 / 15:00 / 22:00 (giờ VN)
+
+Khác alert (chỉ bắn khi lỗi): CronJob query Thanos rồi gửi **một tin tổng** (nodes, CPU/RAM/disk max, pods, etcd, alert đang firing).
+
+```bash
+# Secret bot — thêm ns Grafana
+export BOT='123456:AA...'
+oc -n aiops-observability create secret generic alertmanager-telegram \
+  --from-literal=bot-token="$BOT" --dry-run=client -o yaml | oc apply -f -
+
+cd banking-demo
+oc apply -k phase9-gitops-platform/monitoring/manifests/digest
+
+# Thử ngay (không chờ lịch)
+oc -n aiops-observability create job npd-status-digest-now \
+  --from=cronjob/npd-status-digest
+oc -n aiops-observability logs -f job/npd-status-digest-now
+```
+
+Lịch: `0 8,15,22 * * *` + `timeZone: Asia/Ho_Chi_Minh`.  
+Nếu `oc apply` phàn nàn `timeZone` (OCP cũ): xóa field đó và đổi `schedule` thành `0 1,8,15 * * *` (UTC = 8/15/22 ICT).
+
+Chat ID mặc định `-1004489182185` (cùng channel alert). Đổi trong `manifests/digest/cronjob.yaml` nếu cần.
 
 ---
 
@@ -470,6 +495,7 @@ oc logs -n openshift-monitoring -l app.kubernetes.io/name=alertmanager --tail=80
 | Nodes OK, app No data | UWM chưa scrape; kiểm Targets User Workload |
 | Grafana toàn No data | Secret `grafana-thanos-token` + ClusterRoleBinding `cluster-monitoring-view` |
 | Alert firing nhưng không vào Tele | Sai `chatID`, bot chưa vào channel, Secret sai ns, hoặc `enableUserAlertmanagerConfig` |
+| Digest 8h/15h/22h không tới | Secret `alertmanager-telegram` thiếu ns `aiops-observability`; `oc get cronjob,jobs -n aiops-observability`; image python:3.12-alpine pull fail |
 | Rabbit `up=0` | Chưa bật metrics plugin — chấp nhận hoặc nâng cấp Rabbit |
 | Kafka lag trống | (1) Pod exporter chưa có → patch Kafka CR `spec.kafkaExporter`. (2) Pod có metrics nhưng **không có Service** → apply `PodMonitor` + optional Service trong `infra.yaml` (`strimzi.io/name=npd-kafka-kafka-exporter`, port `tcp-prometheus`/9404). Verify: `count(kafka_consumergroup_lag)` trong UWM. |
 | Transfer panel 0% / No data | Cùng bug `honorLabels`; sau fix: `count by (endpoint) (http_requests_total{namespace="npd-banking"})` phải thấy `/api/transfer/transfer` |
@@ -494,7 +520,8 @@ banking-demo/phase9-gitops-platform/monitoring/
 │   ├── servicemonitors/{banking,shop,infra}.yaml
 │   ├── prometheusrules/{banking,shop,infra,banking-kube-platform}.yaml
 │   ├── prometheusrules/platform/{nodes,disk,network,controlplane}.yaml
-│   └── alertmanager/telegram-*.yaml
+│   ├── alertmanager/telegram-*.yaml
+│   └── digest/                       ← CronJob Telegram 08:00/15:00/22:00 ICT
 └── docs/ocp-infra/
 └── (Argo tùy chọn) ../gitops-platform/applications/monitoring-apps.yaml
 
@@ -520,7 +547,7 @@ oc apply -k phase9-gitops-platform/monitoring/manifests/prometheusrules/platform
 
 # Telegram: sửa chatID trong YAML trước, rồi:
 export BOT='YOUR_BOT_TOKEN'
-for ns in npd-banking npd-shop openshift-monitoring postgres redis kafka kong rabbit; do
+for ns in npd-banking npd-shop openshift-monitoring postgres redis kafka kong rabbit aiops-observability; do
   oc -n "$ns" create secret generic alertmanager-telegram \
     --from-literal=bot-token="$BOT" --dry-run=client -o yaml | oc apply -f -
 done
@@ -528,6 +555,7 @@ oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-ba
 oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-shop.yaml
 oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-platform.yaml
 oc apply -f phase9-gitops-platform/monitoring/manifests/alertmanager/telegram-infra.yaml
+oc apply -k phase9-gitops-platform/monitoring/manifests/digest
 
 # === AIOps Grafana ===
 # git push Open-Source-AIOps-Platform → Argo sync grafana → mở folder NPD
