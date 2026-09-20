@@ -1,0 +1,150 @@
+# Node CPU / memory / Ready / kubelet pressure.
+# Namespace: openshift-monitoring so platform Prometheus evaluates these
+# (node-exporter and kube-state-metrics are NOT in User Workload Monitoring).
+#
+# Replaces the old 4-rule nodes.yaml in this folder's parent.
+# NPDNodeNotReady / NPDNodeHighCPU / NPDNodeMemoryPressure keep the same names
+# (Telegram). NPDNodeDiskPressure (root <15% free) → NPDInfraFilesystemFilling.
+# Do not delete CMO rules (KubeNodeNotReady, NodeFilesystem*).
+#
+# Thresholds: initial suggestions — tune in this file, see docs/metrics.md.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-ocp-node-alerts
+  namespace: openshift-monitoring
+  labels:
+    app.kubernetes.io/name: npd-ocp-infra
+    app.kubernetes.io/part-of: npd-monitoring
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+    - name: npd.nodes
+      rules:
+        - alert: NPDNodeNotReady
+          expr: |
+            kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            component: node
+          annotations:
+            summary: "Node {{ $labels.node }} NotReady"
+            description: >-
+              Node {{ $labels.node }} has Ready=false for 5m.
+              Check kubelet, network, and `oc describe node {{ $labels.node }}`.
+            threshold: "Ready != true for 5m (same idea as CMO; longer than a blip)."
+            dashboard: "NPD OCP Infra / Cluster Health"
+
+        - alert: NPDNodeHighCPU
+          expr: |
+            100 * (1 - avg by (instance) (
+              rate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[5m])
+            )) > 85
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            component: node
+          annotations:
+            summary: "Node CPU > 85% ({{ $labels.instance }})"
+            description: >-
+              CPU utilization {{ $value | humanize }}% on {{ $labels.instance }} for 10m.
+              Open Disk dashboard if iowait is also high — this may be storage, not compute.
+            threshold: "85% for 10m — tune down on small masters if they sit at 60% idle."
+            dashboard: "NPD OCP Infra / Node Overview"
+
+        - alert: NPDNodeMemoryPressure
+          expr: |
+            100 * (1 - (
+              node_memory_MemAvailable_bytes{job="node-exporter"}
+              / node_memory_MemTotal_bytes{job="node-exporter"}
+            )) > 90
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            component: node
+          annotations:
+            summary: "Node memory > 90% ({{ $labels.instance }})"
+            description: >-
+              MemAvailable-based utilization {{ $value | humanize }}% on {{ $labels.instance }}.
+              Cache is treated as available (Linux). Watch kube MemoryPressure next.
+            threshold: "90% for 10m — page cache is not counted as used."
+            dashboard: "NPD OCP Infra / Node Overview"
+
+        - alert: NPDNodeKubeMemoryPressure
+          expr: |
+            kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            component: node
+          annotations:
+            summary: "MemoryPressure on {{ $labels.node }}"
+            description: "Kubelet reports MemoryPressure. Evictions may start."
+            threshold: "condition=true for 5m (kubelet, not a % threshold)."
+            dashboard: "NPD OCP Infra / Cluster Health"
+
+        - alert: NPDNodeKubeDiskPressure
+          expr: |
+            kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            component: node
+          annotations:
+            summary: "DiskPressure on {{ $labels.node }}"
+            description: "Kubelet reports DiskPressure (imagefs/nodefs). Check filesystem dashboard."
+            threshold: "condition=true for 5m."
+            dashboard: "NPD OCP Infra / Cluster Health"
+
+        - alert: NPDNodePIDPressure
+          expr: |
+            kube_node_status_condition{condition="PIDPressure",status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            component: node
+          annotations:
+            summary: "PIDPressure on {{ $labels.node }}"
+            description: "Process table pressure. Unusual on OCP — inspect fork bombs / leaked processes."
+            threshold: "condition=true for 5m."
+            dashboard: "NPD OCP Infra / Cluster Health"
+
+        - alert: NPDNodeNetworkUnavailable
+          expr: |
+            kube_node_status_condition{condition="NetworkUnavailable",status="true"} == 1
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            component: node
+          annotations:
+            summary: "NetworkUnavailable on {{ $labels.node }}"
+            description: "CNI has not marked the node network ready."
+            threshold: "condition=true for 5m."
+            dashboard: "NPD OCP Infra / Cluster Health"
+
+        - alert: NPDNodeCPUIoWaitHigh
+          expr: |
+            100 * avg by (instance) (
+              rate(node_cpu_seconds_total{job="node-exporter",mode="iowait"}[5m])
+            ) > 20
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            component: node
+          annotations:
+            summary: "CPU I/O wait > 20% ({{ $labels.instance }})"
+            description: >-
+              Cores spend {{ $value | humanize }}% waiting on block I/O.
+              Open Disk dashboard for that node — likely storage latency or saturation, not CPU.
+            threshold: "20% for 10m — 20% is already severe on NVMe; tune to 10% for all-flash."
+            dashboard: "NPD OCP Infra / Disk Storage"

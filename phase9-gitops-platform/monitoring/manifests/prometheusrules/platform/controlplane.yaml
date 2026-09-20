@@ -1,0 +1,123 @@
+# Control-plane / etcd / kubelet. CMO already has a rich etcd and API burn-rate set.
+# These rules add a small, tunable extra layer — disable if CMO pages you first.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-ocp-controlplane-alerts
+  namespace: openshift-monitoring
+  labels:
+    app.kubernetes.io/name: npd-ocp-infra
+    app.kubernetes.io/part-of: npd-monitoring
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+    - name: npd.controlplane
+      rules:
+        - alert: NPDInfraEtcdNoLeader
+          expr: |
+            etcd_server_has_leader{job="etcd"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            team: platform
+            component: etcd
+          annotations:
+            summary: "etcd member has no leader ({{ $labels.instance }})"
+            description: >-
+              etcd_server_has_leader==0. Cluster writes will stall.
+              Overlaps CMO etcdNoLeader — keep the faster signal.
+            threshold: "has_leader==0 for 1m (etcd is already unhealthy)."
+            dashboard: "NPD OCP Infra / Control Plane etcd"
+
+        - alert: NPDInfraEtcdLeaderChanges
+          expr: |
+            increase(etcd_server_leader_changes_seen_total{job="etcd"}[15m]) > 3
+          for: 0m
+          labels:
+            severity: warning
+            team: platform
+            component: etcd
+          annotations:
+            summary: "etcd leader flapping ({{ $labels.instance }})"
+            description: >-
+              {{ $value }} leader changes in 15m. Often disk latency or network between masters.
+              Check WAL fsync p99 on the Control Plane dashboard.
+            threshold: "> 3 changes in 15m. Instant (for: 0) because increase() already windows."
+            dashboard: "NPD OCP Infra / Control Plane etcd"
+
+        - alert: NPDInfraEtcdDown
+          expr: |
+            up{job="etcd"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            team: platform
+            component: etcd
+          annotations:
+            summary: "etcd scrape target down ({{ $labels.instance }})"
+            description: "Platform Prometheus cannot scrape etcd. Member may be down or cert/endpoint broken."
+            threshold: "up==0 for 2m."
+            dashboard: "NPD OCP Infra / Control Plane etcd"
+
+        - alert: NPDInfraAPIServerHigh5xx
+          expr: |
+            (
+              sum(rate(apiserver_request_total{job=~"apiserver|kube-apiserver",code=~"5.."}[5m]))
+              /
+              clamp_min(sum(rate(apiserver_request_total{job=~"apiserver|kube-apiserver"}[5m])), 1e-9)
+            ) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            component: apiserver
+          annotations:
+            summary: "API server 5xx ratio > 5%"
+            description: >-
+              Error ratio {{ $value | humanizePercentage }}.
+              CMO APIService* burn-rate alerts are the SLO view; this is a simple ratio.
+            threshold: "5% of requests 5xx for 10m."
+            dashboard: "NPD OCP Infra / Control Plane etcd"
+
+        - alert: NPDInfraKubeletDown
+          expr: |
+            up{job="kubelet",metrics_path="/metrics"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            component: kubelet
+          annotations:
+            summary: "Kubelet metrics down ({{ $labels.instance }})"
+            description: "Kubelet /metrics scrape failed. Node may be NotReady soon."
+            threshold: "up==0 for 5m on job=kubelet path=/metrics."
+            dashboard: "NPD OCP Infra / Control Plane etcd"
+
+        - alert: NPDInfraSchedulerDown
+          expr: |
+            up{job=~"scheduler|kube-scheduler"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            component: scheduler
+          annotations:
+            summary: "Scheduler target down"
+            description: "New pods will stay Pending. OpenShift runs scheduler as static pod on masters."
+            threshold: "up==0 for 5m."
+            dashboard: "NPD OCP Infra / Control Plane etcd"
+
+        - alert: NPDInfraControllerManagerDown
+          expr: |
+            up{job=~"kube-controller-manager|controller-manager"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            component: controller-manager
+          annotations:
+            summary: "Controller manager target down"
+            description: "Deployments/ReplicaSets will stop reconciling."
+            threshold: "up==0 for 5m."
+            dashboard: "NPD OCP Infra / Control Plane etcd"

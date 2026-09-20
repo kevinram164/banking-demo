@@ -1,0 +1,126 @@
+# Filesystem space, inodes, disk latency, disk busy.
+# Does NOT invent hardware queue-depth alerts (node-exporter cannot measure QD).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-ocp-disk-alerts
+  namespace: openshift-monitoring
+  labels:
+    app.kubernetes.io/name: npd-ocp-infra
+    app.kubernetes.io/part-of: npd-monitoring
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+    - name: npd.disk
+      rules:
+        - alert: NPDInfraFilesystemFilling
+          expr: |
+            100 * (1 - (
+              node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}
+              / node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}
+            )) > 85
+          for: 15m
+          labels:
+            severity: warning
+            team: platform
+            component: disk
+          annotations:
+            summary: "Filesystem > 85% on {{ $labels.instance }} {{ $labels.mountpoint }}"
+            description: >-
+              {{ $labels.mountpoint }} ({{ $labels.fstype }}) is {{ $value | humanize }}% used.
+              CMO also ships NodeFilesystemSpaceFillingUp — keep both or disable one.
+            threshold: "85% used for 15m. Excludes tmpfs/overlay/squashfs/nsfs."
+            dashboard: "NPD OCP Infra / Disk Storage"
+
+        - alert: NPDInfraFilesystemCritical
+          expr: |
+            100 * (1 - (
+              node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}
+              / node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}
+            )) > 95
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            component: disk
+          annotations:
+            summary: "Filesystem > 95% on {{ $labels.instance }} {{ $labels.mountpoint }}"
+            description: "Critical free space. kubelet DiskPressure and etcd/WAL failures can follow on masters."
+            threshold: "95% used for 5m."
+            dashboard: "NPD OCP Infra / Disk Storage"
+
+        - alert: NPDInfraInodesFilling
+          expr: |
+            100 * (1 - (
+              node_filesystem_files_free{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}
+              / clamp_min(node_filesystem_files{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs|iso9660|autofs|devtmpfs"}, 1)
+            )) > 90
+          for: 15m
+          labels:
+            severity: warning
+            team: platform
+            component: disk
+          annotations:
+            summary: "Inodes > 90% on {{ $labels.instance }} {{ $labels.mountpoint }}"
+            description: "Free space can look fine while creates fail (many small files / leaked empty dirs)."
+            threshold: "90% inodes for 15m."
+            dashboard: "NPD OCP Infra / Disk Storage"
+
+        - alert: NPDInfraFilesystemReadOnly
+          expr: |
+            node_filesystem_readonly{job="node-exporter",fstype!~"tmpfs|overlay|squashfs|nsfs"} == 1
+          for: 2m
+          labels:
+            severity: critical
+            team: platform
+            component: disk
+          annotations:
+            summary: "Filesystem read-only {{ $labels.instance }} {{ $labels.mountpoint }}"
+            description: "Often XFS/ext4 remounted ro after I/O errors. Check dmesg and storage path."
+            threshold: "readonly==1 for 2m (fast — this is already broken)."
+            dashboard: "NPD OCP Infra / Disk Storage"
+
+        - alert: NPDInfraDiskLatencyHigh
+          expr: |
+            (
+              rate(node_disk_read_time_seconds_total{job="node-exporter",device!~"^(loop|ram|sr|fd).*"}[5m])
+              /
+              clamp_min(rate(node_disk_reads_completed_total{job="node-exporter",device!~"^(loop|ram|sr|fd).*"}[5m]), 1e-9)
+            ) > 0.05
+            or
+            (
+              rate(node_disk_write_time_seconds_total{job="node-exporter",device!~"^(loop|ram|sr|fd).*"}[5m])
+              /
+              clamp_min(rate(node_disk_writes_completed_total{job="node-exporter",device!~"^(loop|ram|sr|fd).*"}[5m]), 1e-9)
+            ) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            component: disk
+          annotations:
+            summary: "Disk latency > 50ms on {{ $labels.instance }} {{ $labels.device }}"
+            description: >-
+              Average service time {{ $value | humanizeDuration }} (read or write).
+              VMware/NFS/vSAN often sits 5–20ms; 50ms is a starting warning.
+              All-flash: consider 20ms. HDD: 50–80ms may be normal.
+            threshold: "50ms avg for 10m. clamp_min avoids divide-by-zero at idle."
+            dashboard: "NPD OCP Infra / Disk Storage"
+
+        - alert: NPDInfraDiskBusyHigh
+          expr: |
+            100 * rate(node_disk_io_time_seconds_total{job="node-exporter",device!~"^(loop|ram|sr|fd).*"}[5m]) > 80
+          for: 15m
+          labels:
+            severity: warning
+            team: platform
+            component: disk
+          annotations:
+            summary: "Disk busy > 80% on {{ $labels.instance }} {{ $labels.device }}"
+            description: >-
+              iostat %util analogue (rate of node_disk_io_time_seconds_total).
+              Device is busy most of the time — latency and iowait usually rise together.
+              This is NOT hardware queue depth.
+            threshold: "80% busy for 15m — long for: to avoid backup/scan spikes."
+            dashboard: "NPD OCP Infra / Disk Storage"

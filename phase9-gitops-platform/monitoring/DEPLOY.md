@@ -84,7 +84,7 @@ Người dùng / Shop gọi CK
 | Repo | Việc |
 |------|------|
 | `banking-demo` (nhánh `dev-ocp` / `main` tùy Argo) | ServiceMonitor, PrometheusRule, Alertmanager Telegram, UWM config |
-| `Open-Source-AIOps-Platform` | Grafana chart + 4 dashboard JSON folder **NPD** |
+| `Open-Source-AIOps-Platform` | Grafana chart: folder **NPD** (app) + **NPD OCP Infra** (node/disk/etcd) |
 
 **Máy làm việc:** bastion có `oc` + quyền **cluster-admin** (bước UWM + node alerts + Secret platform).
 
@@ -133,7 +133,9 @@ Nếu **label Service** trên cluster khác với manifest → scrape fail → p
 | `prometheusrules/banking-kube-platform.yaml` | 3 | replicas=0 / unavailable (openshift-monitoring) |
 | `prometheusrules/shop.yaml` | shop | Shop pod/scrape |
 | `prometheusrules/infra.yaml` | infra | Postgres/Redis/Kong/Kafka/Rabbit |
-| `prometheusrules/nodes.yaml` | platform | Node CPU/mem/disk |
+| `prometheusrules/platform/` | platform | Node / disk / network / etcd — `openshift-monitoring` |
+
+`platform/` thay `nodes.yaml` cũ (4 rule). Giữ tên `NPDNodeNotReady` / `NPDNodeHighCPU` / `NPDNodeMemoryPressure`. `NPDNodeDiskPressure` (root <15% free) → `NPDInfraFilesystemFilling`. `team: platform` → Telegram `telegram-platform.yaml`. Chi tiết: [docs/ocp-infra/](docs/ocp-infra/).
 
 App metric dùng label **`status`** (không phải `code`). Path transfer = label **`endpoint`**.
 
@@ -161,7 +163,15 @@ Dashboard **chi tiết** port từ Phase 3 (`banking-demo/phase3-monitoring-keda
 | **NPD Kong Gateway** | `grafana-dashboard-kong.yaml` | Kong nginx/datastore |
 | **NPD RabbitMQ** | `grafana-dashboard-rabbitmq.yaml` | queue/consumer (cần exporter) |
 | NPD Infra | overview scrape + Kafka lag | |
-| NPD OCP Nodes | CPU/mem/disk nodes | |
+| NPD OCP Nodes | CPU/mem/disk root — overview mỏng | |
+| **NPD OCP Infra /** (5 dashboard) | node / disk / network / cluster / etcd | file JSON trong **AIOps** `charts/grafana/dashboards/npd-ocp-infra-*.json` |
+
+Infra node sâu (chọn `worker-02` + `sdb`): folder Grafana **NPD OCP Infra**. Docs: [docs/ocp-infra/](docs/ocp-infra/).
+
+```bash
+# Script nằm banking-demo; file JSON ghi thẳng vào repo AIOps (không copy kép)
+python phase9-gitops-platform/monitoring/scripts/generate_ocp_infra_dashboards.py
+```
 
 Regenerate từ Phase 3 (sau khi sửa dashboard gốc):
 
@@ -282,14 +292,14 @@ oc -n rabbit get svc
 ```bash
 cd banking-demo
 oc apply -k phase9-gitops-platform/monitoring/manifests/prometheusrules
-oc apply -f phase9-gitops-platform/monitoring/manifests/prometheusrules/nodes.yaml
+oc apply -k phase9-gitops-platform/monitoring/manifests/prometheusrules/platform
 ```
 
 ### Kiểm tra
 
 ```bash
 oc get prometheusrule -A | grep npd
-# npd-banking-alerts, npd-shop-alerts, npd-infra-*, npd-ocp-node-alerts
+# npd-banking-alerts, npd-shop-alerts, npd-infra-*, npd-ocp-node-alerts, npd-ocp-disk-alerts, ...
 ```
 
 Alert **chưa** bắn Telegram cho đến khi xong bước E (AlertmanagerConfig + bot).
@@ -342,7 +352,7 @@ oc -n aiops-observability rollout status deploy/grafana
 
 1. https://grafana-aiops-observability.apps.ocp01.npd.co  
 2. Login (Vault/secret `grafana-admin`)  
-3. Menu **Dashboards** → folder **NPD**  
+3. Menu **Dashboards** → folder **NPD** (app) hoặc **NPD OCP Infra** (node/disk/etcd)  
 4. Ưu tiên mở **NPD Banking Services** (RPS / p95 / transfer — giống Phase 3)  
 5. Góc trên chọn datasource **Prometheus** (nếu panel hỏi)
 
@@ -482,8 +492,10 @@ banking-demo/phase9-gitops-platform/monitoring/
 ├── manifests/
 │   ├── uwm/user-workload-monitoring-config.yaml
 │   ├── servicemonitors/{banking,shop,infra}.yaml
-│   ├── prometheusrules/{banking,shop,infra,nodes}.yaml
+│   ├── prometheusrules/{banking,shop,infra,banking-kube-platform}.yaml
+│   ├── prometheusrules/platform/{nodes,disk,network,controlplane}.yaml
 │   └── alertmanager/telegram-*.yaml
+└── docs/ocp-infra/
 └── (Argo tùy chọn) ../gitops-platform/applications/monitoring-apps.yaml
 
 Open-Source-AIOps-Platform/
@@ -504,7 +516,7 @@ oc -n openshift-user-workload-monitoring get pods   # đợi Running
 
 oc apply -k phase9-gitops-platform/monitoring/manifests/servicemonitors
 oc apply -k phase9-gitops-platform/monitoring/manifests/prometheusrules
-oc apply -f phase9-gitops-platform/monitoring/manifests/prometheusrules/nodes.yaml
+oc apply -k phase9-gitops-platform/monitoring/manifests/prometheusrules/platform
 
 # Telegram: sửa chatID trong YAML trước, rồi:
 export BOT='YOUR_BOT_TOKEN'

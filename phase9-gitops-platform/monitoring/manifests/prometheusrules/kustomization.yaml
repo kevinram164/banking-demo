@@ -4,4 +4,7 @@ resources:
   - banking.yaml
   - shop.yaml
   - infra.yaml
-  # nodes.yaml + banking-kube-platform.yaml → openshift-monitoring (apply riêng, cần quyền)
+  # platform/ (nodes+disk+network+controlplane) + banking-kube-platform.yaml
+  # → openshift-monitoring — apply riêng, cần cluster-admin:
+  #   oc apply -k .../prometheusrules/platform
+  #   oc apply -f .../prometheusrules/banking-kube-platform.yaml

@@ -1,0 +1,55 @@
+# Network errors and drops on physical / br-ex interfaces.
+# Virtual interfaces excluded — veth drops during pod churn are noisy and not actionable.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: npd-ocp-network-alerts
+  namespace: openshift-monitoring
+  labels:
+    app.kubernetes.io/name: npd-ocp-infra
+    app.kubernetes.io/part-of: npd-monitoring
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+    - name: npd.network
+      rules:
+        - alert: NPDInfraNetworkErrors
+          expr: |
+            (
+              rate(node_network_receive_errs_total{job="node-exporter",device!~"lo|veth.*|cali.*|tunl.*|cni.*|flannel.*|br-int|genev.*|ovn-k8s-mp0|ovn-k8s-gw0|kube-ipvs0"}[5m])
+              +
+              rate(node_network_transmit_errs_total{job="node-exporter",device!~"lo|veth.*|cali.*|tunl.*|cni.*|flannel.*|br-int|genev.*|ovn-k8s-mp0|ovn-k8s-gw0|kube-ipvs0"}[5m])
+            ) > 1
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            component: network
+          annotations:
+            summary: "NIC errors on {{ $labels.instance }} {{ $labels.device }}"
+            description: >-
+              Combined RX+TX error rate {{ $value | humanize }} /s.
+              Check cable, duplex mismatch, VMXNET3 / vSwitch, or driver.
+            threshold: "> 1 error/s for 10m (not a single CRC blip)."
+            dashboard: "NPD OCP Infra / Network"
+
+        - alert: NPDInfraNetworkDrops
+          expr: |
+            (
+              rate(node_network_receive_drop_total{job="node-exporter",device!~"lo|veth.*|cali.*|tunl.*|cni.*|flannel.*|br-int|genev.*|ovn-k8s-mp0|ovn-k8s-gw0|kube-ipvs0"}[5m])
+              +
+              rate(node_network_transmit_drop_total{job="node-exporter",device!~"lo|veth.*|cali.*|tunl.*|cni.*|flannel.*|br-int|genev.*|ovn-k8s-mp0|ovn-k8s-gw0|kube-ipvs0"}[5m])
+            ) > 1
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            component: network
+          annotations:
+            summary: "NIC drops on {{ $labels.instance }} {{ $labels.device }}"
+            description: >-
+              Combined RX+TX drop rate {{ $value | humanize }} /s.
+              RX drops often mean CPU/softnet backlog; TX drops often mean queue full.
+            threshold: "> 1 drop/s for 10m — avoids noisy 1-packet blips."
+            dashboard: "NPD OCP Infra / Network"
