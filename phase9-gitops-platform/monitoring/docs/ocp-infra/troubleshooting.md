@@ -59,7 +59,7 @@ Wrong namespace (UWM) = silent no-op for node metrics.
 ## Grafana dashboards missing
 
 JSON lives in `Open-Source-AIOps-Platform/charts/grafana/dashboards/npd-ocp-infra-*.json`.
-They appear after Argo syncs the Grafana chart (folder **NPD OCP Infra**).
+They appear in Grafana folder **NPD** after Argo syncs the Grafana chart (`NPD OCP Infra / …`).
 
 ```bash
 python phase9-gitops-platform/monitoring/scripts/generate_ocp_infra_dashboards.py

@@ -64,7 +64,7 @@ Kube-state-metrics already has `node=`.
   (same pattern as the old `nodes.yaml` — platform Prometheus, cluster-admin).
 - `team: platform` → AlertmanagerConfig `npd-telegram-platform` (Telegram).
 - Grafana JSON: only in `Open-Source-AIOps-Platform/charts/grafana/dashboards/npd-ocp-infra-*.json`
-  (Helm folder **NPD OCP Infra**). Same pattern as `npd-banking.json`. Sync Argo app `grafana`.
+  (Helm folder **NPD**, titles `NPD OCP Infra / …`). Same pattern as `npd-banking.json`. Sync Argo app `grafana`.
 
 ## What we refuse to add
 

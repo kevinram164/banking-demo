@@ -84,7 +84,7 @@ Người dùng / Shop gọi CK
 | Repo | Việc |
 |------|------|
 | `banking-demo` (nhánh `dev-ocp` / `main` tùy Argo) | ServiceMonitor, PrometheusRule, Alertmanager Telegram, UWM config |
-| `Open-Source-AIOps-Platform` | Grafana chart: folder **NPD** (app) + **NPD OCP Infra** (node/disk/etcd) |
+| `Open-Source-AIOps-Platform` | Grafana chart folder **NPD** (app + 5 dashboard node/disk/etcd) |
 
 **Máy làm việc:** bastion có `oc` + quyền **cluster-admin** (bước UWM + node alerts + Secret platform).
 
@@ -166,7 +166,7 @@ Dashboard **chi tiết** port từ Phase 3 (`banking-demo/phase3-monitoring-keda
 | NPD OCP Nodes | CPU/mem/disk root — overview mỏng | |
 | **NPD OCP Infra /** (5 dashboard) | node / disk / network / cluster / etcd | file JSON trong **AIOps** `charts/grafana/dashboards/npd-ocp-infra-*.json` |
 
-Infra node sâu (chọn `worker-02` + `sdb`): folder Grafana **NPD OCP Infra**. Docs: [docs/ocp-infra/](docs/ocp-infra/).
+Infra node sâu (chọn `worker-02` + `sdb`): Grafana folder **NPD**, tên bắt đầu `NPD OCP Infra / …`.
 
 ```bash
 # Script nằm banking-demo; file JSON ghi thẳng vào repo AIOps (không copy kép)
@@ -352,7 +352,7 @@ oc -n aiops-observability rollout status deploy/grafana
 
 1. https://grafana-aiops-observability.apps.ocp01.npd.co  
 2. Login (Vault/secret `grafana-admin`)  
-3. Menu **Dashboards** → folder **NPD** (app) hoặc **NPD OCP Infra** (node/disk/etcd)  
+3. Menu **Dashboards** → folder **NPD** — app services và `NPD OCP Infra / …` (node/disk/etcd)  
 4. Ưu tiên mở **NPD Banking Services** (RPS / p95 / transfer — giống Phase 3)  
 5. Góc trên chọn datasource **Prometheus** (nếu panel hỏi)
 
