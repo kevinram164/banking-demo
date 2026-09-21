@@ -68,37 +68,25 @@ kubectl -n observability set env deploy/opentelemetry-collector --list | grep IN
 kubectl -n observability logs deploy/opentelemetry-collector --tail=80
 ```
 
-## 2. K8s infra — Instana OTel Collector (Argo)
+## 2. K8s infra — Instana OTel Collector
 
-Chart **bắt buộc** `instanaKey`. Trên OCP GitOps, multi-source **không** merge `valuesFrom` Secret vào `helm template` → key phải có trong `values-idot-ocp.yaml` (và/hoặc `helm.parameters` trên Application).
+**Key chỉ ở Vault** (`secret/platform/instana`). Không đưa vào `values-idot-ocp.yaml`.
 
-Vault `secret/platform/instana` vẫn dùng cho **shared collector** (`instana-otlp-credentials` ns observability).
-
-### 2a. Apply Application (có `parameters.instanaKey`)
+OCP GitOps multi-source **không** merge Secret/`valuesFrom` vào `helm template` → sau khi apply Application phải patch `helm.parameters` từ Secret ESO (đã sync Vault), hoặc cài bằng Helm CLI.
 
 ```bash
-oc apply -f phase9-gitops-platform/gitops-platform/applications/observability/instana-otel-collector.yaml
-oc -n argocd patch app observability-instana-otel-collector --type merge \
-  -p '{"operation":{"sync":{"syncStrategy":{"apply":{"force":true}}}}}'
-
-oc -n argocd get app observability-instana-otel-collector
-oc -n instana-otel-collector get ds,sts,pods
-```
-
-Push `values-idot-ocp.yaml` (có `instanaKey`) lên `origin/dev-ocp` để `$values` ref khớp lâu dài.
-
-### 2b. Shared collector secret (Vault → ESO)
-
-```bash
-oc apply -f phase9-gitops-platform/instana/externalsecret-otlp-credentials.yaml
+# ESO đã sync? (Vault → Secret)
 oc -n observability get secret instana-otlp-credentials
-```
 
-### 2c. Fallback — Helm CLI
+# Cách 1 — Argo: patch key từ Vault/ESO rồi sync
+oc apply -f phase9-gitops-platform/gitops-platform/applications/observability/instana-otel-collector.yaml
+chmod +x phase9-gitops-platform/instana/scripts/sync-idot-key-from-vault.sh
+./phase9-gitops-platform/instana/scripts/sync-idot-key-from-vault.sh
 
-```bash
-export INSTANA_KEY='WUinQgrHRCSVCdvntU5UhA'
+# Cách 2 — Helm CLI (không Argo), key cũng từ Vault/ESO
 ./phase9-gitops-platform/instana/scripts/install-idot.sh
+
+oc -n instana-otel-collector get ds,sts,pods
 ```
 
 ## 3. Verify trên Instana UI mới

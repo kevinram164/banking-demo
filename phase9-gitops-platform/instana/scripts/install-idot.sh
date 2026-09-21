@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Install Instana OTel Collector (IDOT) — đúng lệnh UI TechZone.
-# Usage:
-#   export INSTANA_KEY='<from UI --set instanaKey=...>'
-#   ./phase9-gitops-platform/instana/scripts/install-idot.sh
+# Install IDOT bằng Helm — key từ Vault/ESO Secret (không commit).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-KEY="${INSTANA_KEY:?set INSTANA_KEY from Instana UI Helm command}"
+KEY="${INSTANA_KEY:-}"
+if [[ -z "$KEY" ]]; then
+  KEY="$(oc -n observability get secret instana-otlp-credentials -o jsonpath='{.data.key}' | base64 -d)"
+fi
+[[ -n "$KEY" ]] || { echo "ERROR: set INSTANA_KEY or create observability/instana-otlp-credentials" >&2; exit 1; }
 
 helm upgrade --install instana-otel-collector \
   --repo https://instana.github.io/instana-otel-collector \
