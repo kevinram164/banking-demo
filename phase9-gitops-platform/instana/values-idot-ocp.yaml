@@ -2,15 +2,16 @@
 # clusterName=ocp01
 # instanaEndpoint=otlp-grpc.instana.apps.itz-tdl40p.infra01-lb.dal14.techzone.ibm.com:443
 #
-# instanaKey: inject qua --set / Helm parameter (không commit).
-# Argo: dùng helm.parameters từ ExternalSecret khó — ưu tiên install script
-# hoặc set key trong Application spec chỉ trên cluster (không push git).
+# NOTE: multi-source Argo trên OCP GitOps không merge secret valuesFrom vào helm template.
+# instanaKey phải có trong valueFiles (hoặc helm.parameters trên Application).
+# Cùng key với Vault secret/platform/instana — lab TechZone.
 
 clusterName: ocp01
 
 instanaEndpoint: otlp-grpc.instana.apps.itz-tdl40p.infra01-lb.dal14.techzone.ibm.com:443
 
-# OpenShift tweaks (chart auto-detect; bật rõ nếu cần)
+instanaKey: WUinQgrHRCSVCdvntU5UhA
+
 openshift:
   enabled: true
   autoDetect: true

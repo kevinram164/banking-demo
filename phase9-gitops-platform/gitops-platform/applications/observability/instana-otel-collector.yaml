@@ -1,5 +1,5 @@
 # Instana OTel Collector (IDOT) — K8s infra → TechZone
-# instanaKey: Secret argocd/instana-idot-helm-values (valuesFrom) — không commit key
+# instanaKey nằm trong values-idot-ocp.yaml (OCP GitOps multi-source bỏ qua valuesFrom)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -20,10 +20,10 @@ spec:
         releaseName: instana-otel-collector
         valueFiles:
           - $values/phase9-gitops-platform/instana/values-idot-ocp.yaml
-        valuesFrom:
-          - secretKeyRef:
-              name: instana-idot-helm-values
-              key: values.yaml
+        # Backup nếu valueFiles trên git chưa kịp pull
+        parameters:
+          - name: instanaKey
+            value: WUinQgrHRCSVCdvntU5UhA
     - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: dev-ocp
       ref: values

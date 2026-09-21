@@ -70,37 +70,34 @@ kubectl -n observability logs deploy/opentelemetry-collector --tail=80
 
 ## 2. K8s infra — Instana OTel Collector (Argo)
 
-Chart **bắt buộc** `instanaKey`. Flow: **Vault → ExternalSecret → Secret K8s** → Argo `valuesFrom` (không tạo Secret tay nếu đã seed Vault).
+Chart **bắt buộc** `instanaKey`. Trên OCP GitOps, multi-source **không** merge `valuesFrom` Secret vào `helm template` → key phải có trong `values-idot-ocp.yaml` (và/hoặc `helm.parameters` trên Application).
 
-### 2a. Sync từ Vault (đã `vault kv put secret/platform/instana`)
+Vault `secret/platform/instana` vẫn dùng cho **shared collector** (`instana-otlp-credentials` ns observability).
 
-```bash
-# Tạo ExternalSecret → Secret:
-#   observability/instana-otlp-credentials  (collector app)
-#   argocd/instana-idot-helm-values         (Argo helm valuesFrom)
-oc apply -f phase9-gitops-platform/instana/externalsecret-otlp-credentials.yaml
-
-# Đợi ESO sync
-oc -n argocd get externalsecret instana-idot-helm-values
-oc -n argocd get secret instana-idot-helm-values
-oc -n observability get secret instana-otlp-credentials
-
-# Lỗi sync? force
-oc -n argocd annotate externalsecret instana-idot-helm-values force-sync=$(date +%s) --overwrite
-```
-
-### 2b. Apply App + sync
+### 2a. Apply Application (có `parameters.instanaKey`)
 
 ```bash
-oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n argocd
 oc apply -f phase9-gitops-platform/gitops-platform/applications/observability/instana-otel-collector.yaml
-# Refresh trên Argo UI
+oc -n argocd patch app observability-instana-otel-collector --type merge \
+  -p '{"operation":{"sync":{"syncStrategy":{"apply":{"force":true}}}}}'
+
+oc -n argocd get app observability-instana-otel-collector
+oc -n instana-otel-collector get ds,sts,pods
 ```
 
-### 2c. Fallback — Helm CLI (không dùng Argo)
+Push `values-idot-ocp.yaml` (có `instanaKey`) lên `origin/dev-ocp` để `$values` ref khớp lâu dài.
+
+### 2b. Shared collector secret (Vault → ESO)
 
 ```bash
-export INSTANA_KEY='...'   # cùng giá trị trong Vault
+oc apply -f phase9-gitops-platform/instana/externalsecret-otlp-credentials.yaml
+oc -n observability get secret instana-otlp-credentials
+```
+
+### 2c. Fallback — Helm CLI
+
+```bash
+export INSTANA_KEY='WUinQgrHRCSVCdvntU5UhA'
 ./phase9-gitops-platform/instana/scripts/install-idot.sh
 ```
 
