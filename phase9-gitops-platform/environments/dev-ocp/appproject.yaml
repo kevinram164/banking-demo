@@ -26,6 +26,8 @@ spec:
     - https://kafbat.github.io/helm-charts
     - https://opensearch-project.github.io/helm-charts
     - https://fluent.github.io/helm-charts
+    - https://agents.instana.io/helm
+    - https://instana.github.io/instana-otel-collector
   destinations:
     # OCP lab app ns (không dùng ns "banking" cũ)
     - namespace: npd-banking
@@ -70,6 +72,10 @@ spec:
     - namespace: kiali
       server: https://kubernetes.default.svc
     - namespace: npd-shop
+      server: https://kubernetes.default.svc
+    - namespace: instana-agent
+      server: https://kubernetes.default.svc
+    - namespace: instana-otel-collector
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: ""

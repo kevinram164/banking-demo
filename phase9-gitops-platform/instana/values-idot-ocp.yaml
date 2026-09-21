@@ -1,0 +1,18 @@
+# Instana Distributed OTel Collector (IDOT) — đúng wizard UI TechZone
+# clusterName=ocp01
+# instanaEndpoint=otlp-grpc.instana.apps.itz-tdl40p.infra01-lb.dal14.techzone.ibm.com:443
+#
+# instanaKey: inject qua --set / Helm parameter (không commit).
+# Argo: dùng helm.parameters từ ExternalSecret khó — ưu tiên install script
+# hoặc set key trong Application spec chỉ trên cluster (không push git).
+
+clusterName: ocp01
+
+instanaEndpoint: otlp-grpc.instana.apps.itz-tdl40p.infra01-lb.dal14.techzone.ibm.com:443
+
+# OpenShift tweaks (chart auto-detect; bật rõ nếu cần)
+openshift:
+  enabled: true
+  autoDetect: true
+  daemonset:
+    usePrivilegedServiceAccount: true
