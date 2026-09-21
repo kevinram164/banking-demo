@@ -70,24 +70,23 @@ kubectl -n observability logs deploy/opentelemetry-collector --tail=80
 
 ## 2. K8s infra — Instana OTel Collector (Argo)
 
-Chart **bắt buộc** `instanaKey`. Đưa key vào Secret `argocd/instana-idot-helm-values` (không commit git).
+Chart **bắt buộc** `instanaKey`. Flow: **Vault → ExternalSecret → Secret K8s** → Argo `valuesFrom` (không tạo Secret tay nếu đã seed Vault).
 
-### 2a. Secret cho Argo (chọn một)
-
-**Nhanh (không Vault):**
+### 2a. Sync từ Vault (đã `vault kv put secret/platform/instana`)
 
 ```bash
-# values.yaml = nội dung Helm values chỉ có instanaKey
-oc -n argocd create secret generic instana-idot-helm-values \
-  --from-literal=values.yaml=$'instanaKey: WUinQgrHRCSVCdvntU5UhA\n' \
-  --dry-run=client -o yaml | oc apply -f -
-```
-
-**Vault + ESO** (sau khi đã `vault kv put secret/platform/instana key='...'`):
-
-```bash
+# Tạo ExternalSecret → Secret:
+#   observability/instana-otlp-credentials  (collector app)
+#   argocd/instana-idot-helm-values         (Argo helm valuesFrom)
 oc apply -f phase9-gitops-platform/instana/externalsecret-otlp-credentials.yaml
+
+# Đợi ESO sync
+oc -n argocd get externalsecret instana-idot-helm-values
 oc -n argocd get secret instana-idot-helm-values
+oc -n observability get secret instana-otlp-credentials
+
+# Lỗi sync? force
+oc -n argocd annotate externalsecret instana-idot-helm-values force-sync=$(date +%s) --overwrite
 ```
 
 ### 2b. Apply App + sync
@@ -98,10 +97,10 @@ oc apply -f phase9-gitops-platform/gitops-platform/applications/observability/in
 # Refresh trên Argo UI
 ```
 
-### 2c. Hoặc bỏ Argo — Helm CLI
+### 2c. Fallback — Helm CLI (không dùng Argo)
 
 ```bash
-export INSTANA_KEY='WUinQgrHRCSVCdvntU5UhA'
+export INSTANA_KEY='...'   # cùng giá trị trong Vault
 ./phase9-gitops-platform/instana/scripts/install-idot.sh
 ```
 
