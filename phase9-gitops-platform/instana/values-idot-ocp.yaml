@@ -1,10 +1,7 @@
-# Instana Distributed OTel Collector (IDOT) — TechZone
-# instanaKey: KHÔNG để đây — lấy từ Vault secret/platform/instana
-#   → ESO Secret observability/instana-otlp-credentials
-#   → install-idot.sh / patch Argo parameters (xem DEPLOY.md)
-#
-# clusterName=ocp01
-# instanaEndpoint=otlp-grpc.instana.apps.itz-tdl40p.infra01-lb.dal14.techzone.ibm.com:443
+# IDOT → TechZone
+# Symptom: otlp-grpc export fails with
+#   "missing selected ALPN property" (OpenShift/TechZone LB không ALPN h2)
+# Fix: GRPC_ENFORCE_ALPN_ENABLED=false (grpc-go) — giữ endpoint UI (otlp-grpc)
 
 clusterName: ocp01
 
@@ -15,3 +12,13 @@ openshift:
   autoDetect: true
   daemonset:
     usePrivilegedServiceAccount: true
+
+daemonset:
+  extraEnvs:
+    - name: GRPC_ENFORCE_ALPN_ENABLED
+      value: "false"
+
+statefulset:
+  extraEnvs:
+    - name: GRPC_ENFORCE_ALPN_ENABLED
+      value: "false"

@@ -79,16 +79,11 @@ config:
       tls:
         insecure: true
       compression: none
-    # Instana TechZone backend (thay local instana-agent)
+    # Host agent (đã Connected TechZone :443) — tránh OTLP acceptor TechZone 503
     otlp/instana:
-      endpoint: otlp-grpc.instana.apps.itz-tdl40p.infra01-lb.dal14.techzone.ibm.com:443
-      headers:
-        x-instana-key: ${env:INSTANA_KEY}
-        x-instana-host: ${env:K8S_NODE_NAME}
+      endpoint: instana-agent.instana-agent.svc.cluster.local:4317
       tls:
-        insecure: false
-        # TechZone UI "Not secure" — thường self-signed / internal CA
-        insecure_skip_verify: true
+        insecure: true
       compression: gzip
   service:
     extensions: [health_check]

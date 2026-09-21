@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Install Instana OTel Collector (IDOT). Key from ESO Secret (Vault).
-# Not Argo: OCP GitOps multi-source drops instanaKey during helm template.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 NS=instana-otel-collector
 RELEASE=instana-otel-collector
+LABEL="app.kubernetes.io/instance=${RELEASE}"
 
 KEY="${INSTANA_KEY:-}"
 if [ -z "$KEY" ]; then
@@ -16,16 +16,30 @@ if [ -z "$KEY" ]; then
   exit 1
 fi
 
-# Remove broken Argo app if still present
 if oc -n argocd get app observability-instana-otel-collector >/dev/null 2>&1; then
   oc -n argocd delete app observability-instana-otel-collector --wait=false || true
 fi
 
-# Orphaned resources from failed Argo sync block helm adopt — wipe ns and reinstall
+# Namespace leftovers
 if oc get ns "$NS" >/dev/null 2>&1; then
-  echo "Deleting namespace $NS (orphaned non-Helm resources)..."
+  echo "Deleting namespace $NS..."
   oc delete ns "$NS" --wait=true
 fi
+
+# Cluster-scoped leftovers from failed Argo sync (survive ns delete)
+echo "Cleaning cluster-scoped orphans named ${RELEASE}-* ..."
+for kind in clusterrole clusterrolebinding; do
+  oc get "$kind" -o name 2>/dev/null | grep -E "${RELEASE}|instana-otel-collector" | while read -r obj; do
+    echo "  delete $obj"
+    oc delete "$obj" --wait=false || true
+  done
+done
+# CRDs / operator leftovers if any
+oc get crd 2>/dev/null | awk '/instana|opentelemetry.io/ {print $1}' | while read -r crd; do
+  case "$crd" in
+    *idot*|*instana-otel*) oc delete crd "$crd" --wait=false || true ;;
+  esac
+done
 
 helm repo add instana-otel https://instana.github.io/instana-otel-collector 2>/dev/null || true
 helm repo update instana-otel >/dev/null
@@ -40,4 +54,3 @@ helm upgrade --install "$RELEASE" instana-otel/instana-otel-collector-chart \
 echo "---"
 oc -n "$NS" get ds,sts,pods
 echo "OK — key from ESO secret observability/instana-otlp-credentials"
-echo "UI: https://instana.apps.itz-tdl40p.infra01-lb.dal14.techzone.ibm.com/"

@@ -58,4 +58,7 @@ Script lấy key từ `secret/instana-otlp-credentials` (ESO ← Vault), `--set 
 ## Ghi chú
 
 - Browser "Not secure" → shared collector dùng `tls.insecure_skip_verify: true`
-- Host agent cũ: optional sau khi APM + IDOT OK
+- Host agent: xem **[TROUBLESHOOTING-HOST-AGENT.md](./TROUBLESHOOTING-HOST-AGENT.md)** (timeout 1443, 404 NR trên :443, sửa Core `acceptors.agent.port`)
+- **ALPN / Not Monitoring:** nếu log có `missing selected ALPN property` → LB TechZone
+  không negotiate HTTP/2 cho gRPC. Set `GRPC_ENFORCE_ALPN_ENABLED=false` trên DS/STS
+  (đã có trong `values-idot-ocp.yaml`) rồi `helm upgrade` lại.
