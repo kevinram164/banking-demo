@@ -29,7 +29,7 @@ spec:
         #   - name: instanaKey
         #     value: "<set-out-of-band>"
     - repoURL: https://github.com/kevinram164/banking-demo.git
-      targetRevision: main
+      targetRevision: dev-ocp
       ref: values
   destination:
     server: https://kubernetes.default.svc
