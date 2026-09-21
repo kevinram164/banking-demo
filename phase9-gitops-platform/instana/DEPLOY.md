@@ -10,18 +10,46 @@
 
 ## 0. Secret (không commit key vào git)
 
-Lấy key từ lệnh Helm trên UI (`--set instanaKey=...`).
+Lấy key từ lệnh Helm trên UI (`--set instanaKey=...`). Chọn **một** trong hai cách dưới.
+
+### Cách A — Vault + ExternalSecret (khuyến nghị)
+
+Path Vault: `secret/platform/instana` · property `key`  
+→ ESO tạo K8s Secret `instana-otlp-credentials` (ns `observability`).
 
 ```bash
-# Nhanh — ns observability (collector app)
-kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
-kubectl -n observability create secret generic instana-otlp-credentials \
-  --from-literal=key='<INSTANA_KEY_FROM_UI>' \
-  --dry-run=client -o yaml | kubectl apply -f -
+# 1) Seed key vào Vault (trong pod vault-0, token lab thường là root)
+oc exec -it vault-0 -n vault -- sh
 
-# Vault (khuyến nghị)
-# vault kv put secret/platform/instana key='<INSTANA_KEY_FROM_UI>'
-kubectl apply -f phase9-gitops-platform/instana/externalsecret-otlp-credentials.yaml
+vault kv put secret/platform/instana \
+  key='WUinQgrHRCSVCdvntU5UhA'
+
+# Kiểm tra
+vault kv get secret/platform/instana
+exit
+
+# 2) ExternalSecret → Secret K8s
+oc apply -f phase9-gitops-platform/instana/externalsecret-otlp-credentials.yaml
+
+# 3) Đợi sync
+oc -n observability get externalsecret instana-otlp-credentials
+oc -n observability get secret instana-otlp-credentials
+```
+
+Đổi key sau này: `vault kv put` lại → ESO refresh (tối đa `refreshInterval: 1h`) hoặc:
+
+```bash
+oc -n observability annotate externalsecret instana-otlp-credentials \
+  force-sync=$(date +%s) --overwrite
+```
+
+### Cách B — Secret K8s trực tiếp (lab nhanh, bỏ qua Vault)
+
+```bash
+oc create namespace observability --dry-run=client -o yaml | oc apply -f -
+oc -n observability create secret generic instana-otlp-credentials \
+  --from-literal=key='WUinQgrHRCSVCdvntU5UhA' \
+  --dry-run=client -o yaml | oc apply -f -
 ```
 
 ## 1. App APM — cập nhật shared OTEL collector
@@ -60,10 +88,16 @@ export INSTANA_KEY='...'
 ./phase9-gitops-platform/instana/scripts/install-idot.sh
 ```
 
-Argo (sau khi AppProject có repo `https://instana.github.io/instana-otel-collector`):
+Argo — `InvalidSpecError` vì AppProject trên cluster **chưa** có ns/repo mới (file local đã đủ, cần `oc apply`):
 
 ```bash
-kubectl apply -f phase9-gitops-platform/gitops-platform/applications/observability/instana-otel-collector.yaml
+oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n argocd
+
+# Xác nhận whitelist
+oc -n argocd get appproject banking-platform -o yaml | grep -E 'instana-otel|instana.github'
+
+# Sync lại app
+oc apply -f phase9-gitops-platform/gitops-platform/applications/observability/instana-otel-collector.yaml
 ```
 
 ## 3. Verify trên Instana UI mới
