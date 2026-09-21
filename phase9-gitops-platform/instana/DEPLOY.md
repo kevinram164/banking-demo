@@ -68,36 +68,41 @@ kubectl -n observability set env deploy/opentelemetry-collector --list | grep IN
 kubectl -n observability logs deploy/opentelemetry-collector --tail=80
 ```
 
-## 2. K8s infra — đúng lệnh UI (Instana OTel Collector)
+## 2. K8s infra — Instana OTel Collector (Argo)
+
+Chart **bắt buộc** `instanaKey`. Đưa key vào Secret `argocd/instana-idot-helm-values` (không commit git).
+
+### 2a. Secret cho Argo (chọn một)
+
+**Nhanh (không Vault):**
 
 ```bash
-helm upgrade --install instana-otel-collector \
-  --repo https://instana.github.io/instana-otel-collector \
-  instana-otel-collector-chart \
-  --namespace instana-otel-collector \
-  --create-namespace \
-  --set clusterName=ocp01 \
-  --set instanaEndpoint=otlp-grpc.instana.apps.itz-tdl40p.infra01-lb.dal14.techzone.ibm.com:443 \
-  --set instanaKey='<INSTANA_KEY_FROM_UI>'
+# values.yaml = nội dung Helm values chỉ có instanaKey
+oc -n argocd create secret generic instana-idot-helm-values \
+  --from-literal=values.yaml=$'instanaKey: WUinQgrHRCSVCdvntU5UhA\n' \
+  --dry-run=client -o yaml | oc apply -f -
 ```
 
-Hoặc values + script:
+**Vault + ESO** (sau khi đã `vault kv put secret/platform/instana key='...'`):
 
 ```bash
-export INSTANA_KEY='...'
-./phase9-gitops-platform/instana/scripts/install-idot.sh
+oc apply -f phase9-gitops-platform/instana/externalsecret-otlp-credentials.yaml
+oc -n argocd get secret instana-idot-helm-values
 ```
 
-Argo — `InvalidSpecError` vì AppProject trên cluster **chưa** có ns/repo mới (file local đã đủ, cần `oc apply`):
+### 2b. Apply App + sync
 
 ```bash
 oc apply -f phase9-gitops-platform/environments/dev-ocp/appproject.yaml -n argocd
-
-# Xác nhận whitelist
-oc -n argocd get appproject banking-platform -o yaml | grep -E 'instana-otel|instana.github'
-
-# Sync lại app
 oc apply -f phase9-gitops-platform/gitops-platform/applications/observability/instana-otel-collector.yaml
+# Refresh trên Argo UI
+```
+
+### 2c. Hoặc bỏ Argo — Helm CLI
+
+```bash
+export INSTANA_KEY='WUinQgrHRCSVCdvntU5UhA'
+./phase9-gitops-platform/instana/scripts/install-idot.sh
 ```
 
 ## 3. Verify trên Instana UI mới

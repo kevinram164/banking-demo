@@ -1,9 +1,5 @@
 # Instana OTel Collector (IDOT) — K8s infra → TechZone
-# Prerequisite: set instanaKey via Helm (Application ignoreDifferences / manual helm)
-# Prefer: ./instana/scripts/install-idot.sh với INSTANA_KEY
-#
-# Argo không chứa key trong git — sync sau khi secret/helm param đã set trên cluster,
-# hoặc dùng helm CLI script làm source of truth.
+# instanaKey: Secret argocd/instana-idot-helm-values (valuesFrom) — không commit key
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -24,10 +20,10 @@ spec:
         releaseName: instana-otel-collector
         valueFiles:
           - $values/phase9-gitops-platform/instana/values-idot-ocp.yaml
-        # Key: điền trên cluster / ExternalSecret workflow — KHÔNG commit
-        # parameters:
-        #   - name: instanaKey
-        #     value: "<set-out-of-band>"
+        valuesFrom:
+          - secretKeyRef:
+              name: instana-idot-helm-values
+              key: values.yaml
     - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: dev-ocp
       ref: values
@@ -38,7 +34,3 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
-    # Tắt auto cho đến khi instanaKey được inject ngoài band
-    # automated:
-    #   prune: false
-    #   selfHeal: true
