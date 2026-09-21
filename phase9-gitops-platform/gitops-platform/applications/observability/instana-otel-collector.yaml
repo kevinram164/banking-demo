@@ -1,7 +1,10 @@
-# Instana OTel Collector (IDOT) — K8s infra → TechZone
-# instanaKey KHÔNG commit — sau apply chạy:
-#   ./phase9-gitops-platform/instana/scripts/sync-idot-key-from-vault.sh
-# (đọc Secret ESO đã sync từ Vault, patch helm.parameters trên Application)
+# DEPRECATED cho OCP GitOps — chart bắt buộc instanaKey lúc helm template,
+# multi-source Application không inject Secret/parameters → ComparisonError mãi.
+#
+# Dùng Helm + ESO thay thế:
+#   ./phase9-gitops-platform/instana/scripts/install-idot.sh
+#
+# File giữ lại để tham khảo; không apply trên cluster.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -22,7 +25,6 @@ spec:
         releaseName: instana-otel-collector
         valueFiles:
           - $values/phase9-gitops-platform/instana/values-idot-ocp.yaml
-        # parameters.instanaKey được script sync-idot-key-from-vault.sh patch vào (live trên cluster)
     - repoURL: https://github.com/kevinram164/banking-demo.git
       targetRevision: dev-ocp
       ref: values
@@ -32,7 +34,3 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
-    automated:
-      prune: false
-      selfHeal: true
