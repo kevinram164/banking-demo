@@ -16,12 +16,12 @@ Dùng **k6** để tạo tải lên API banking (qua Ingress hoặc port-forward
 | `VUS` | Số virtual users (song song) | `10` |
 | `DURATION` | Thời gian chạy mỗi kịch bản | `2m` |
 
-**Khi gọi bằng IP:** Ingress route theo `Host`. Nếu `BASE_URL=http://10.100.1.100` thì phải set `HOST_HEADER=banking-npd.co` (đúng với `ingress.host` trong phase2) thì mới không bị 404.
+**Khi gọi bằng IP:** Ingress route theo `Host`. Nếu `BASE_URL=http://10.100.1.100` thì phải set `HOST_HEADER=npd-banking.co` (đúng với `ingress.host` trong phase2) thì mới không bị 404.
 
 Ví dụ:
 
 ```bash
-export BASE_URL="https://banking-npd.co"
+export BASE_URL="https://npd-banking.co"
 export VUS=20
 export DURATION=3m
 ```
@@ -29,7 +29,7 @@ export DURATION=3m
 Gọi bằng IP (jump-host, cùng mạng):
 
 ```bash
-BASE_URL="http://10.100.1.100" HOST_HEADER="banking-npd.co" VUS=20 DURATION=3m k6 run k6-transfer.js
+BASE_URL="http://10.100.1.100" HOST_HEADER="npd-banking.co" VUS=20 DURATION=3m k6 run k6-transfer.js
 ```
 
 ## Kịch bản
@@ -44,7 +44,7 @@ BASE_URL="http://10.100.1.100" HOST_HEADER="banking-npd.co" VUS=20 DURATION=3m k
 ```bash
 k6 run --vus 10 --duration 2m k6-auth.js
 # hoặc
-BASE_URL=https://banking-npd.co VUS=20 DURATION=3m k6 run k6-auth.js
+BASE_URL=https://npd-banking.co VUS=20 DURATION=3m k6 run k6-auth.js
 ```
 
 ### 2. `k6-account.js` — Tải lên Account service
@@ -68,7 +68,7 @@ Script sẽ chạy lần lượt auth → account → transfer (hoặc theo th�
 **Windows:** Dùng Git Bash hoặc WSL để chạy `run-scenarios.sh`. Hoặc chạy từng kịch bản thủ công:
 
 ```powershell
-k6 run --vus 10 --duration 2m -e BASE_URL=https://banking-npd.co k6-auth.js
+k6 run --vus 10 --duration 2m -e BASE_URL=https://npd-banking.co k6-auth.js
 ```
 
 ## Kiểm tra KEDA khi chạy load test

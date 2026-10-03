@@ -8,7 +8,7 @@ GitOps cho ứng dụng banking trên cụm kubeadm NPD. Platform và infra (Vau
 |-----------|----------|
 | `argocd/appproject.yaml` | AppProject `banking` (chỉ repo này, ns `npd-banking`) |
 | `argocd/app-of-apps.yaml` | Root `banking-root-dev-k8s` |
-| `argocd/applications/` | namespace, 6 service, frontend, ingress (`banking-npd.co`, class `haproxy`) |
+| `argocd/applications/` | namespace, 6 service, frontend, ingress (`npd-banking.co`, class `haproxy`) |
 | `values/values-images.yaml` | Repository + tag image Harbor — Jenkins bump `tag` |
 | `values/values-observability.yaml` | OTEL → collector ns `observability` |
 | `values/values-kafka.yaml`, `values-ecosystem.yaml` | Shop-bridge ↔ Strimzi Kafka |
@@ -35,7 +35,7 @@ Shop-bridge vẫn đọc mật khẩu KafkaUser từ Secret `npd-banking-kafka-u
 1. Infra trong `cloud-native-platform` đã Healthy.
 2. Vault đã seed `secret/banking/db`, `secret/banking/rabbitmq` và chạy `vault-setup-k8s-auth.sh` (role `banking-app`).
 3. Secret `harbor-pull-creds` trong `npd-banking` (`create-harbor-pull-secret.sh`).
-4. Image đã có trên `harbor-npd.co/banking-demo` (Jenkins pipeline nhánh `dev-k8s`).
+4. Image đã có trên `npd-harbor.co/banking-demo` (Jenkins pipeline nhánh `dev-k8s`).
 
 ```bash
 kubectl apply -f deploy/dev-k8s/argocd/appproject.yaml
