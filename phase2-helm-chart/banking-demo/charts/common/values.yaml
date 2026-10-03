@@ -6,6 +6,13 @@ global:
   imagePullSecrets:
     dockerhub: dockerhub-registry
     gitlab: gitlab-registry
+  # Vault Agent Injector: agent render /vault/secrets/env (export KEY='...'), container source trước khi exec.
+  # Khi enabled, bỏ secretKeyRef DATABASE_URL / REDIS_URL / RABBITMQ_URL.
+  vault:
+    enabled: false
+    role: banking-app
+    dbPath: secret/data/banking/db
+    rabbitmqPath: secret/data/banking/rabbitmq
 
 namespace:
   enabled: true

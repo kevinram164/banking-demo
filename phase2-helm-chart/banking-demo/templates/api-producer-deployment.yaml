@@ -1,4 +1,5 @@
 {{- $svc := index .Values "api-producer" }}
+{{- $vault := include "banking-demo.vault.enabled" . }}
 {{- if $svc.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -18,17 +19,28 @@ spec:
       labels:
         app: {{ include "banking-demo.api-producer.fullname" . }}
         {{- include "banking-demo.api-producer.selectorLabels" . | nindent 8 }}
-        istio.io/dataplane-mode: ambient
+      {{- if $vault }}
+      annotations:
+        {{- include "banking-demo.vault.podAnnotations" . | nindent 8 }}
+      {{- end }}
     spec:
+      {{- if $svc.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml $svc.imagePullSecrets | nindent 8 }}
+      {{- end }}
       serviceAccountName: api-producer
       containers:
         - name: api-producer
           image: "{{ $svc.image.repository }}:{{ $svc.image.tag }}"
           imagePullPolicy: {{ $svc.image.pullPolicy }}
+          {{- if $vault }}
+          {{- include "banking-demo.vault.command" (dict "port" $svc.service.port) | nindent 10 }}
+          {{- end }}
           ports:
             - containerPort: {{ $svc.service.port }}
               name: {{ $svc.service.portName }}
           env:
+            {{- if not $vault }}
             - name: REDIS_URL
               valueFrom:
                 secretKeyRef:
@@ -40,6 +52,7 @@ spec:
                 secretKeyRef:
                   name: {{ $svc.rabbitmqSecretRef.name }}
                   key: {{ $svc.rabbitmqSecretRef.key }}
+            {{- end }}
             {{- end }}
             {{- range $k, $v := $svc.extraEnv }}
             - name: {{ $k }}

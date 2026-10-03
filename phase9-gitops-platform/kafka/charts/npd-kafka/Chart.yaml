@@ -1,6 +1,0 @@
-apiVersion: v2
-name: npd-kafka
-description: Shared Strimzi Kafka cluster (CRDs) — platform infra for banking, shop, …
-type: application
-version: 0.1.0
-appVersion: "3.9.0"

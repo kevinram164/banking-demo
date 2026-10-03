@@ -1,0 +1,10 @@
+# Vault Agent Injector (Vault ns vault, cấu hình bởi repo cloud-native-platform)
+# Role banking-app bind các SA auth/account/transfer/notification/api-producer trong npd-banking.
+# Vault KV v2: secret/banking/db {DATABASE_URL, REDIS_URL}, secret/banking/rabbitmq {RABBITMQ_URL}
+
+global:
+  vault:
+    enabled: true
+    role: banking-app
+    dbPath: secret/data/banking/db
+    rabbitmqPath: secret/data/banking/rabbitmq

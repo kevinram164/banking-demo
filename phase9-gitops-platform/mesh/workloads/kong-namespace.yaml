@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: kong
-  labels:
-    # Không enroll Ambient — chỉ đăng ký pod với istiod để authz nhận source ns `kong`
-    istio-discovery: enabled

@@ -57,7 +57,6 @@ spec:
         version: blue
         app.kubernetes.io/name: frontend-blue
         app.kubernetes.io/component: frontend
-        istio.io/dataplane-mode: ambient
     spec:
       {{- with .Values.frontend.securityContext.pod }}
       securityContext:
@@ -135,7 +134,6 @@ spec:
         version: green
         app.kubernetes.io/name: frontend-green
         app.kubernetes.io/component: frontend
-        istio.io/dataplane-mode: ambient
     spec:
       {{- with .Values.frontend.securityContext.pod }}
       securityContext:

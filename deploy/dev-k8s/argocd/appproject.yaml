@@ -1,0 +1,22 @@
+# AppProject banking — chỉ ứng dụng banking (ns npd-banking).
+# Platform + infra (Postgres, Redis, RabbitMQ, Kong, Kafka) thuộc project platform ở repo cloud-native-platform.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: banking
+  namespace: argocd
+spec:
+  description: Banking demo applications (dev-k8s)
+  sourceRepos:
+    - https://github.com/kevinram164/banking-demo.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: npd-banking
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

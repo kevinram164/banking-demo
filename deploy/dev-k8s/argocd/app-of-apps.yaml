@@ -1,0 +1,20 @@
+# Root banking (dev-k8s): kubectl apply -f deploy/dev-k8s/argocd/appproject.yaml -f deploy/dev-k8s/argocd/app-of-apps.yaml
+# Yêu cầu: platform + infra (repo cloud-native-platform) đã Healthy, Vault đã seed secret/banking/*.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banking-root-dev-k8s
+  namespace: argocd
+spec:
+  project: banking
+  source:
+    repoURL: https://github.com/kevinram164/banking-demo.git
+    targetRevision: dev-k8s
+    path: deploy/dev-k8s/argocd/applications
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

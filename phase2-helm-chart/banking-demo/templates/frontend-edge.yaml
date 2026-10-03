@@ -115,7 +115,6 @@ spec:
         app: frontend-edge
         app.kubernetes.io/name: frontend-edge
         app.kubernetes.io/component: frontend-edge
-        istio.io/dataplane-mode: ambient
       annotations:
         checksum/config: {{ printf "%v-%v-%s-%s" $wBlue $wGreen $blueHost $greenHost | sha256sum }}
     spec:

@@ -147,3 +147,34 @@ app.kubernetes.io/component: frontend
 app.kubernetes.io/name: {{ include "banking-demo.frontend.fullname" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
+
+{{- define "banking-demo.vault.enabled" -}}
+{{- $g := .Values.global | default dict -}}
+{{- $v := $g.vault | default dict -}}
+{{- if $v.enabled }}true{{ end -}}
+{{- end -}}
+
+{{/* Vault template syntax is wrapped in backticks so Helm leaves it for the agent. */}}
+{{- define "banking-demo.vault.podAnnotations" -}}
+{{- $v := .Values.global.vault -}}
+vault.hashicorp.com/agent-inject: "true"
+vault.hashicorp.com/agent-init-first: "true"
+vault.hashicorp.com/agent-pre-populate-only: "true"
+vault.hashicorp.com/role: {{ $v.role | quote }}
+vault.hashicorp.com/agent-inject-secret-env: {{ $v.dbPath | quote }}
+vault.hashicorp.com/agent-inject-template-env: |
+  {{`{{ with secret "`}}{{ $v.dbPath }}{{`" }}`}}
+  export DATABASE_URL='{{`{{ .Data.data.DATABASE_URL }}`}}'
+  export REDIS_URL='{{`{{ .Data.data.REDIS_URL }}`}}'
+  {{`{{ end }}`}}
+  {{`{{ with secret "`}}{{ $v.rabbitmqPath }}{{`" }}`}}
+  export RABBITMQ_URL='{{`{{ .Data.data.RABBITMQ_URL }}`}}'
+  {{`{{ end }}`}}
+{{- end -}}
+
+{{/* Usage: include "banking-demo.vault.command" (dict "port" $svc.service.port) */}}
+{{- define "banking-demo.vault.command" -}}
+command: ["/bin/sh", "-c"]
+args:
+  - . /vault/secrets/env && exec /app/venv/bin/uvicorn main:app --host 0.0.0.0 --port {{ .port }} --no-access-log
+{{- end -}}
