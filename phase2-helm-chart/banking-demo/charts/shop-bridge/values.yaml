@@ -29,6 +29,10 @@ shop-bridge:
       cpu: "500m"
   securityContext:
     pod:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
       seccompProfile:
         type: RuntimeDefault
     container:
@@ -36,3 +40,6 @@ shop-bridge:
       capabilities:
         drop: ["ALL"]
       runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+

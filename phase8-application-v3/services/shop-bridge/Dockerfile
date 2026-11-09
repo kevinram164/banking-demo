@@ -30,7 +30,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 WORKDIR /app
 
 COPY --from=builder /app /app
-RUN chmod -R a+rX /app/venv && test -x /app/venv/bin/uvicorn
+RUN chmod -R a+rX /app/venv && test -x /app/venv/bin/uvicorn \
+    && useradd --create-home --uid 1000 --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+
+USER 1000
 
 EXPOSE 8010
 CMD ["/app/venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8010", "--no-access-log"]
