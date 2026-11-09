@@ -1,0 +1,31 @@
+%% Kiến trúc mới (dev-k8s): Vault Agent Injector (source for vault-injector-overview.png)
+flowchart TB
+  ARGO["ArgoCD / kubectl apply<br/>Pod có annotation <b>vault.hashicorp.com/agent-inject: true</b>"]
+
+  subgraph cp["Control plane"]
+    direction LR
+    API["kube-apiserver"]
+    MWH{{"MutatingWebhookConfiguration<br/>vault-agent-injector-cfg"}}
+    INJ["vault-agent-injector<br/>(ns vault)"]
+    API -->|"① AdmissionReview<br/>Pod CREATE"| MWH --> INJ
+    INJ -->|"② JSONPatch<br/>+ init container<br/>+ volume /vault/secrets"| API
+  end
+
+  subgraph pod["Pod movie-api — SA movie-api, ns npd-movie"]
+    direction LR
+    INIT["initContainer<br/><b>vault-agent-init</b>"]
+    VOL[["emptyDir medium: Memory<br/>/vault/secrets/env"]]
+    APP["container movie-api<br/>. /vault/secrets/env && exec uvicorn"]
+    INIT -->|"⑤ render template"| VOL -->|"⑥ đọc file"| APP
+  end
+
+  VAULT[("Vault (ns vault)<br/>auth/kubernetes role <b>cinehome-app</b><br/>→ policy: read secret/data/cinehome/app")]
+
+  ARGO --> API
+  API -->|"kubelet chạy Pod đã patch"| INIT
+  INIT -->|"③ login role=cinehome-app<br/>jwt = ServiceAccount token"| VAULT
+  VAULT -.->|"TokenReview: JWT của SA nào?"| API
+  VAULT -->|"④ Vault token ttl 1h<br/>+ dữ liệu secret"| INIT
+
+  classDef good fill:#e6f7e6,stroke:#2a2,color:#000
+  class VOL good

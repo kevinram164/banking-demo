@@ -1,0 +1,30 @@
+%% Kiến trúc cũ (dev-ocp): Vault + External Secrets Operator (source for vault-eso-before.png)
+flowchart LR
+  subgraph vaultns["ns vault"]
+    VAULT[("HashiCorp Vault<br/>KV v2 <b>secret/</b>")]
+  end
+
+  subgraph esons["ns external-secrets"]
+    TOK["Secret <b>vault-token</b><br/>token=root"]
+    CSS["ClusterSecretStore<br/><b>vault-backend</b><br/>auth: tokenSecretRef"]
+    ESO["ESO controller"]
+    TOK -.-> CSS
+    CSS --> ESO
+  end
+
+  subgraph appns["ns npd-movie"]
+    ES["ExternalSecret<br/>refreshInterval: 1h"]
+    SEC["K8s Secret<br/><b>cinehome-app</b>"]
+    POD["Pod movie-api<br/>env ← secretKeyRef"]
+    ES -->|"③ tạo / cập nhật"| SEC
+    SEC -->|"④ kubelet inject env"| POD
+  end
+
+  ETCD[("etcd<br/>base64, đọc được bởi ai có<br/><i>get secrets</i> trong ns")]
+
+  ESO -->|"① watch"| ES
+  ESO -->|"② GET secret/data/cinehome/app<br/>bằng 1 token chung"| VAULT
+  SEC === ETCD
+
+  classDef risk fill:#ffe5e5,stroke:#d33,color:#000
+  class TOK,ETCD risk

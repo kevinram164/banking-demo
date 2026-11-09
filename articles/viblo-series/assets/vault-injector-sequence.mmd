@@ -1,0 +1,28 @@
+%% Trình tự từ lúc tạo Pod tới lúc app có secret (source for vault-injector-sequence.png)
+sequenceDiagram
+  autonumber
+  participant U as ArgoCD
+  participant API as kube-apiserver
+  participant INJ as vault-agent-injector
+  participant K as kubelet
+  participant AG as vault-agent-init
+  participant V as Vault
+  participant APP as movie-api
+
+  U->>API: apply Deployment (annotation agent-inject=true)
+  API->>INJ: AdmissionReview (Pod CREATE)
+  INJ-->>API: JSONPatch (+init container, +volume /vault/secrets, +env cấu hình agent)
+  API->>K: schedule Pod đã mutate
+  K->>AG: chạy init container (agent-init-first)
+  AG->>AG: đọc SA token /var/run/secrets/kubernetes.io/serviceaccount/token
+  AG->>V: POST auth/kubernetes/login {role: cinehome-app, jwt}
+  V->>API: TokenReview (JWT có hợp lệ? SA/ns nào?)
+  API-->>V: authenticated: movie-api @ npd-movie
+  V->>V: so khớp bound_service_account_names / namespaces
+  V-->>AG: client token (policy cinehome-app, ttl 1h)
+  AG->>V: GET secret/data/cinehome/app
+  V-->>AG: {DATABASE_URL, JWT_SECRET, ...}
+  AG->>AG: render template → /vault/secrets/env (tmpfs)
+  AG-->>K: exit 0 (pre-populate-only: không để lại sidecar)
+  K->>APP: start container
+  APP->>APP: . /vault/secrets/env && exec uvicorn

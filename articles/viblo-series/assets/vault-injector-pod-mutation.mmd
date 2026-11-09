@@ -1,0 +1,21 @@
+%% Pod trước và sau khi webhook mutate (source for vault-injector-pod-mutation.png)
+flowchart LR
+  subgraph before["Pod spec trong Git"]
+    direction TB
+    B_ANN["annotations:<br/>agent-inject: true<br/>role: cinehome-app<br/>agent-inject-secret-env: secret/data/cinehome/app<br/>agent-inject-template-env: ..."]
+    B_APP["containers:<br/>• movie-api"]
+    B_ANN ~~~ B_APP
+  end
+
+  subgraph after["Pod chạy thật trên cluster"]
+    direction TB
+    A_INIT["initContainers:<br/>• <b>vault-agent-init</b> (thêm vào, chạy đầu tiên)<br/>• ...init container gốc"]
+    A_APP["containers:<br/>• movie-api<br/>  volumeMount /vault/secrets<br/>• <i>vault-agent</i> (chỉ khi KHÔNG pre-populate-only)"]
+    A_VOL["volumes:<br/>• <b>vault-secrets</b> emptyDir medium: Memory<br/>• home-init / home-sidecar"]
+    A_INIT ~~~ A_APP ~~~ A_VOL
+  end
+
+  before ==>|"mutating webhook<br/>vault-agent-injector"| after
+
+  classDef added fill:#e6f0ff,stroke:#36c,color:#000
+  class A_INIT,A_VOL added
