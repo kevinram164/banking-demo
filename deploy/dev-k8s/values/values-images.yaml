@@ -55,7 +55,7 @@ frontend:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: npd-harbor.co/banking-demo/frontend
-    tag: 9fe02bf
+    tag: 0398c1f
     pullPolicy: Always
 
 # Blue-Green FE v2 — Jenkins BUILD_TARGET=frontend-green (folder frontend-green/)
@@ -63,5 +63,5 @@ frontend-green:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: npd-harbor.co/banking-demo/frontend-green
-    tag: 9fe02bf
+    tag: 0398c1f
     pullPolicy: Always
