@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 
 from common.kafka_bus import publish_json
 from common.logging_utils import log_event, get_json_logger
+from common.observability import instrument_fastapi
 
 SERVICE = "shop-bridge"
 log = logging.getLogger(SERVICE)
@@ -155,6 +156,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=SERVICE, lifespan=lifespan)
+instrument_fastapi(app, SERVICE)
 
 
 class ConfirmPaymentIn(BaseModel):
