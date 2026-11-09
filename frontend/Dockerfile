@@ -22,6 +22,8 @@ RUN chown -R nginx:0 /etc/nginx/conf.d /usr/share/nginx/html \
     && chmod -R g+rwX /etc/nginx/conf.d /usr/share/nginx/html \
     && chmod -R g+w /etc/nginx
 
+USER nginx
+
 EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]

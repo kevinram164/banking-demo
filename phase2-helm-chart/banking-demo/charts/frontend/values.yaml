@@ -59,9 +59,17 @@ frontend:
       cpu: "200m"
   securityContext:
     pod:
+      runAsNonRoot: true
+      runAsUser: 101
+      runAsGroup: 101
+      fsGroup: 101
       seccompProfile:
         type: RuntimeDefault
     container:
       allowPrivilegeEscalation: false
-      # OCP arbitrary UID; image đã chmod g+rwX group 0
+      # nginx:alpine UID 101 — bắt buộc trên kubeadm (OCP arbitrary UID không gán nếu có runAsUser)
       runAsNonRoot: true
+      runAsUser: 101
+      runAsGroup: 101
+      capabilities:
+        drop: ["ALL"]
