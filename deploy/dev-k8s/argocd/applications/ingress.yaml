@@ -18,8 +18,8 @@ spec:
     helm:
       releaseName: banking-ingress
       valueFiles:
+        # ingress + kongExternalService nằm trong common (không có charts/ingress/)
         - charts/common/values.yaml
-        - charts/ingress/values.yaml
       parameters:
         - name: namespace.enabled
           value: "false"
