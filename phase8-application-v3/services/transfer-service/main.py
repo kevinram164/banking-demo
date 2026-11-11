@@ -50,6 +50,18 @@ SHOP_NOTE_PREFIX = os.getenv("SHOP_TRANSFER_NOTE_PREFIX", "NOLI").strip().upper(
 HOLD_TTL_SECONDS = int(os.getenv("HOLD_TTL_SECONDS", "300"))
 EXPIRE_POLL_SECONDS = int(os.getenv("HOLD_EXPIRE_POLL_SECONDS", "30"))
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "banking-admin-2025")
+# Nghiệp vụ: hạn mức CK P2P / ngày / user (VND).
+# Demo Commit A (bug): P2P_DAILY_LIMIT_STRICT_DEFAULT=true + thiếu/sai P2P_DAILY_LIMIT_VND → limit=0 → reject mọi P2P.
+# Fix Commit B: STRICT_DEFAULT=false (thiếu config = không chặn) + set P2P_DAILY_LIMIT_VND hợp lệ.
+P2P_DAILY_LIMIT_ENABLED = os.getenv("P2P_DAILY_LIMIT_ENABLED", "true").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+P2P_DAILY_LIMIT_STRICT_DEFAULT = os.getenv(
+    "P2P_DAILY_LIMIT_STRICT_DEFAULT", "true"
+).strip().lower() in ("1", "true", "yes", "on")
 
 TXN_TYPES = frozenset({"P2P", "DISBURSEMENT", "REPAYMENT", "BILL_PAY", "FEE", "MERCHANT_PAY"})
 
@@ -84,6 +96,81 @@ def _biz_fields(body: dict) -> dict:
     channel = (body.get("channel") or "mobile").strip()[:32] or "mobile"
     client_ref = (body.get("client_ref") or "").strip()[:64]
     return {"txn_type": txn_type, "purpose": purpose, "channel": channel, "client_ref": client_ref}
+
+
+def _p2p_daily_limit_vnd() -> int | None:
+    """Hạn mức P2P/ngày (VND). None = không enforce.
+
+    STRICT_DEFAULT=true (bản demo lỗi): thiếu/invalid env → 0 → mọi P2P bị chặn.
+    STRICT_DEFAULT=false (fix): thiếu/invalid → None.
+    """
+    if not P2P_DAILY_LIMIT_ENABLED:
+        return None
+    raw = os.getenv("P2P_DAILY_LIMIT_VND", "").strip()
+    if not raw:
+        return 0 if P2P_DAILY_LIMIT_STRICT_DEFAULT else None
+    try:
+        value = int(raw)
+    except ValueError:
+        return 0 if P2P_DAILY_LIMIT_STRICT_DEFAULT else None
+    if value < 0:
+        return 0 if P2P_DAILY_LIMIT_STRICT_DEFAULT else None
+    return value
+
+
+def _p2p_spent_today(db, user_id: int, now: datetime) -> int:
+    start = now.astimezone(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    start_db = start.replace(tzinfo=None)
+    spent = db.execute(
+        select(func.coalesce(func.sum(Transfer.amount), 0)).where(
+            Transfer.from_user == user_id,
+            Transfer.txn_type == "P2P",
+            Transfer.status.in_(("SUCCESS", "PENDING")),
+            Transfer.created_at >= start_db,
+        )
+    ).scalar_one()
+    return int(spent or 0)
+
+
+async def _notify_user_reject(
+    user_id: int | None,
+    *,
+    error_code: str,
+    detail: str,
+    txn_type: str = "P2P",
+) -> None:
+    """Chuông / WebSocket — user biết không chuyển được tiền."""
+    if not user_id:
+        return
+    msg = f"REJECTED [{txn_type}]: không thể chuyển tiền — {detail} ({error_code})"[:255]
+    db = SessionLocal()
+    try:
+        db.add(Notification(user_id=user_id, message=msg))
+        db.commit()
+    except Exception as exc:
+        log_error_event(
+            logger,
+            "notify_reject_persist_failed",
+            exc=exc,
+            user_id=user_id,
+            error_code=error_code,
+            service="transfer-service",
+        )
+        db.rollback()
+    finally:
+        db.close()
+    if redis is not None:
+        try:
+            await publish_notify(redis, user_id, msg)
+        except Exception as exc:
+            log_error_event(
+                logger,
+                "notify_reject_publish_failed",
+                exc=exc,
+                user_id=user_id,
+                error_code=error_code,
+                service="transfer-service",
+            )
 
 
 def _log_transfer_json(event: str, **fields) -> None:
@@ -356,7 +443,7 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
 
         avail = _available(sender)
         if avail < amount:
-            return _reject(
+            rejected = _reject(
                 status=400,
                 error_code="INSUFFICIENT_FUNDS",
                 detail="Insufficient available balance",
@@ -370,8 +457,42 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
                 available=avail,
                 **common_extra,
             )
+            await _notify_user_reject(
+                sender.id,
+                error_code="INSUFFICIENT_FUNDS",
+                detail="Số dư khả dụng không đủ",
+                txn_type=biz["txn_type"],
+            )
+            return rejected
 
         now = datetime.now(timezone.utc)
+        # Hạn mức CK P2P theo ngày (nghiệp vụ mới). MERCHANT_PAY / FEE / … không áp dụng.
+        if biz["txn_type"] == "P2P":
+            limit = _p2p_daily_limit_vnd()
+            if limit is not None:
+                spent = _p2p_spent_today(db, sender.id, now)
+                if spent + amount > limit:
+                    rejected = _reject(
+                        status=503,
+                        error_code="TRANSFER_DAILY_LIMIT_EXCEEDED",
+                        detail="Đã vượt hạn mức chuyển khoản P2P trong ngày",
+                        correlation_id=correlation_id,
+                        path=path,
+                        action=action,
+                        reason="daily_limit",
+                        from_user=sender.id,
+                        amount=amount,
+                        spent_today=spent,
+                        daily_limit=limit,
+                        **common_extra,
+                    )
+                    await _notify_user_reject(
+                        sender.id,
+                        error_code="TRANSFER_DAILY_LIMIT_EXCEEDED",
+                        detail="Đã vượt hạn mức chuyển khoản P2P trong ngày",
+                        txn_type="P2P",
+                    )
+                    return rejected
         hold_until = now + timedelta(seconds=HOLD_TTL_SECONDS)
         # Store naive UTC for Postgres TIMESTAMP without tz
         hold_until_db = hold_until.replace(tzinfo=None)
