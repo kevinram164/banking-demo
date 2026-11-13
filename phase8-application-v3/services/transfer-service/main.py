@@ -39,9 +39,6 @@ from common.observability import (
     set_transfers_pending,
 )
 
-Base.metadata.create_all(bind=engine)
-ensure_schema()
-
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
 SHOP_BRIDGE_URL = os.getenv("SHOP_BRIDGE_URL", "http://shop-bridge:8010").rstrip("/")
@@ -51,8 +48,8 @@ HOLD_TTL_SECONDS = int(os.getenv("HOLD_TTL_SECONDS", "300"))
 EXPIRE_POLL_SECONDS = int(os.getenv("HOLD_EXPIRE_POLL_SECONDS", "30"))
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "banking-admin-2025")
 # Nghiệp vụ: hạn mức CK P2P / ngày / user (VND).
-# Demo Commit A (bug): P2P_DAILY_LIMIT_STRICT_DEFAULT=true + thiếu/sai P2P_DAILY_LIMIT_VND → limit=0 → reject mọi P2P.
-# Fix Commit B: STRICT_DEFAULT=false (thiếu config = không chặn) + set P2P_DAILY_LIMIT_VND hợp lệ.
+# Demo Commit A (bug): values STRICT=true + thiếu P2P_DAILY_LIMIT_VND → limit=0 → reject mọi P2P.
+# Fix Commit B: STRICT=false + P2P_DAILY_LIMIT_VND hợp lệ. Default code = false (an toàn khi thiếu env).
 P2P_DAILY_LIMIT_ENABLED = os.getenv("P2P_DAILY_LIMIT_ENABLED", "true").strip().lower() in (
     "1",
     "true",
@@ -60,8 +57,15 @@ P2P_DAILY_LIMIT_ENABLED = os.getenv("P2P_DAILY_LIMIT_ENABLED", "true").strip().l
     "on",
 )
 P2P_DAILY_LIMIT_STRICT_DEFAULT = os.getenv(
-    "P2P_DAILY_LIMIT_STRICT_DEFAULT", "true"
+    "P2P_DAILY_LIMIT_STRICT_DEFAULT", "false"
 ).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _init_db() -> None:
+    """Schema init — không để ở import (chặn uvicorn bind → readiness connection refused)."""
+    Base.metadata.create_all(bind=engine)
+    ensure_schema()
+
 
 TXN_TYPES = frozenset({"P2P", "DISBURSEMENT", "REPAYMENT", "BILL_PAY", "FEE", "MERCHANT_PAY"})
 
@@ -1330,6 +1334,8 @@ async def consume():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global redis
+    # DB trước — lỗi schema/connect sẽ hiện trong log lifespan, không treo lúc import
+    await asyncio.to_thread(_init_db)
     redis = await create_redis_client(REDIS_URL, logger=logger)
     log_db_pool_status(logger)
     await asyncio.to_thread(sync_pending_gauge)
@@ -1349,6 +1355,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Transfer Service", lifespan=lifespan)
 instrument_fastapi(app, "transfer-service")
+
+
+@app.get("/live")
+async def live():
+    """Probe nhẹ — process đã load module (không phụ thuộc DB/Redis)."""
+    return {"status": "ok", "service": "transfer-service"}
 
 
 @app.get("/health")

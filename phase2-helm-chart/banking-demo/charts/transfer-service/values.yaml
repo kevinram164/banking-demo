@@ -26,11 +26,13 @@ transfer-service:
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.monitoring.svc.cluster.local:4317"
   readinessProbe:
     enabled: true
-    path: /health
+    # /live: không chờ DB/Redis (tránh false Unhealthy khi lifespan đang init)
+    path: /live
     port: 8003
-    initialDelaySeconds: 10
-    periodSeconds: 15
-    timeoutSeconds: 1
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 12
   resources:
     requests:
       memory: "128Mi"

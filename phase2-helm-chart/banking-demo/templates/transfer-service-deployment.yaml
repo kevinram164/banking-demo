@@ -85,5 +85,8 @@ spec:
             {{- if $svc.readinessProbe.timeoutSeconds }}
             timeoutSeconds: {{ $svc.readinessProbe.timeoutSeconds }}
             {{- end }}
+            {{- if $svc.readinessProbe.failureThreshold }}
+            failureThreshold: {{ $svc.readinessProbe.failureThreshold }}
+            {{- end }}
           {{- end }}
 {{- end }}
