@@ -34,7 +34,7 @@ transfer-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: npd-harbor.co/banking-demo/transfer-service
-    tag: 2579a2f
+    tag: c23929c
     pullPolicy: Always
 
 notification-service:
