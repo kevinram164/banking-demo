@@ -42,7 +42,11 @@ class Base(DeclarativeBase):
 
 
 def ensure_schema() -> None:
-    """Additive schema fixes for existing Postgres (create_all không ALTER)."""
+    """Additive schema fixes for existing Postgres (create_all không ALTER).
+
+    Dùng lock_timeout ngắn — tránh startup treo forever khi có idle-in-transaction
+    giữ AccessShareLock trên transfers (probe → connection refused).
+    """
     from sqlalchemy import text
 
     stmts = [
@@ -59,9 +63,13 @@ def ensure_schema() -> None:
         "CREATE INDEX IF NOT EXISTS ix_transfers_status ON transfers (status)",
     ]
     with engine.begin() as conn:
+        try:
+            conn.execute(text("SET LOCAL lock_timeout = '3s'"))
+        except Exception:
+            pass
         for sql in stmts:
             try:
                 conn.execute(text(sql))
             except Exception:
-                # SQLite / non-Postgres: ignore
+                # SQLite / non-Postgres / lock_timeout: ignore — app vẫn start
                 pass

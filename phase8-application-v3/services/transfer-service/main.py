@@ -461,11 +461,15 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
                 available=avail,
                 **common_extra,
             )
+            notify_uid = sender.id
+            notify_txn = biz["txn_type"]
+            # Nhả FOR UPDATE trước await — tránh idle-in-transaction khóa transfers/users.
+            db.rollback()
             await _notify_user_reject(
-                sender.id,
+                notify_uid,
                 error_code="INSUFFICIENT_FUNDS",
                 detail="Số dư khả dụng không đủ",
-                txn_type=biz["txn_type"],
+                txn_type=notify_txn,
             )
             return rejected
 
@@ -490,8 +494,11 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
                         daily_limit=limit,
                         **common_extra,
                     )
+                    notify_uid = sender.id
+                    # Nhả FOR UPDATE + AccessShareLock trước await notify.
+                    db.rollback()
                     await _notify_user_reject(
-                        sender.id,
+                        notify_uid,
                         error_code="TRANSFER_DAILY_LIMIT_EXCEEDED",
                         detail="Đã vượt hạn mức chuyển khoản P2P trong ngày",
                         txn_type="P2P",
