@@ -28,11 +28,10 @@ transfer-service:
     # STK Nguyễn Hương Ly (seed ecosystem)
     SHOP_MERCHANT_ACCOUNT_NUMBER: "638607571915"
     SHOP_TRANSFER_NOTE_PREFIX: "NOLI"
-    # Demo AIOps — hạn mức P2P/ngày (Commit A = bản lỗi: STRICT + thiếu LIMIT → reject mọi P2P)
+    # Hạn mức P2P/ngày — Commit B (fix): không chặn khi thiếu config + limit 50tr
     P2P_DAILY_LIMIT_ENABLED: "true"
-    P2P_DAILY_LIMIT_STRICT_DEFAULT: "true"
-    # Cố ý không set P2P_DAILY_LIMIT_VND → limit=0 → TRANSFER_DAILY_LIMIT_EXCEEDED
-    # Fix sau rollback: STRICT_DEFAULT=false + P2P_DAILY_LIMIT_VND: "50000000"
+    P2P_DAILY_LIMIT_STRICT_DEFAULT: "false"
+    P2P_DAILY_LIMIT_VND: "50000000"
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
     OTEL_SERVICE_NAME: "transfer-service"
