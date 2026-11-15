@@ -13,42 +13,42 @@ api-producer:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: npd-harbor.co/banking-demo/api-producer
-    tag: 3b94789
+    tag: 074ae0d
     pullPolicy: Always
 
 auth-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: npd-harbor.co/banking-demo/auth-service
-    tag: 3b94789
+    tag: 074ae0d
     pullPolicy: Always
 
 account-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: npd-harbor.co/banking-demo/account-service
-    tag: 3b94789
+    tag: 074ae0d
     pullPolicy: Always
 
 transfer-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: npd-harbor.co/banking-demo/transfer-service
-    tag: 3b94789
+    tag: 074ae0d
     pullPolicy: Always
 
 notification-service:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: npd-harbor.co/banking-demo/notification-service
-    tag: 3b94789
+    tag: 074ae0d
     pullPolicy: Always
 
 shop-bridge:
   imagePullSecrets: *harborPullSecrets
   image:
     repository: npd-harbor.co/banking-demo/shop-bridge
-    tag: 3b94789
+    tag: 074ae0d
     pullPolicy: Always
 
 frontend:
