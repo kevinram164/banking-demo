@@ -138,12 +138,30 @@ async def process_message(message: IncomingMessage):
         try:
             body = json.loads(message.body.decode())
             correlation_id = body.get("correlation_id")
+            request_id = body.get("request_id") or (message.headers or {}).get("request_id")
             action = body.get("action", "")
             payload = body.get("payload", {})
             tracer = get_tracer("auth-service")
-            with consumer_span(tracer, "auth.process", {"action": action, "correlation_id": str(correlation_id or "")}):
+            with consumer_span(
+                tracer,
+                "auth.process",
+                {
+                    "action": action,
+                    "correlation_id": str(correlation_id or ""),
+                    "request_id": str(request_id or ""),
+                    "messaging.destination": "auth.requests",
+                },
+                carrier=message.headers,
+            ):
                 if should_log_request_flow():
-                    log_event(logger, "rmq_message_received", queue="auth.requests", correlation_id=correlation_id, action=action)
+                    log_event(
+                        logger,
+                        "rmq_message_received",
+                        queue="auth.requests",
+                        correlation_id=correlation_id,
+                        request_id=request_id,
+                        action=action,
+                    )
                 if action == "health":
                     result = {"status": 200, "body": {"status": "healthy", "service": "auth", "database": "ok", "redis": "ok"}}
                 elif action == "register":

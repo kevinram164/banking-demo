@@ -123,12 +123,25 @@ def get_json_logger(service_name: str) -> logging.Logger:
     return logger
 
 
+def _enrich_trace_fields(payload: Dict[str, Any]) -> None:
+    """Attach OTel trace.id/span.id when inside an active span (Kibana log↔APM)."""
+    if payload.get("trace.id"):
+        return
+    try:
+        from common.observability import current_trace_fields
+
+        payload.update(current_trace_fields())
+    except Exception:
+        pass
+
+
 def log_event(logger: logging.Logger, event: str, **fields: Any) -> None:
     payload: Dict[str, Any] = {
         "ts": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
         "event": event,
         **fields,
     }
+    _enrich_trace_fields(payload)
     logger.info(json.dumps(payload, ensure_ascii=False))
 
 
@@ -145,6 +158,7 @@ def log_error_event(logger: logging.Logger, event: str, exc: Exception | None = 
         payload["error_type"] = type(exc).__name__
         tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
         payload["traceback"] = "".join(tb).replace("\n", "\\n")
+    _enrich_trace_fields(payload)
     logger.error(json.dumps(payload, ensure_ascii=False))
 
 
@@ -160,6 +174,7 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         start = time.perf_counter()
         request_id = request.headers.get("X-Request-Id") or str(uuid.uuid4())
+        request.state.request_id = request_id
         response = await call_next(request)
         duration_ms = (time.perf_counter() - start) * 1000
         payload = {
@@ -175,6 +190,8 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
         }
         if corr_id := response.headers.get("X-Correlation-Id"):
             payload["correlation_id"] = corr_id
+        if trace_id := response.headers.get("X-Trace-Id"):
+            payload["trace.id"] = trace_id
         self.logger.info(json.dumps(payload, ensure_ascii=False))
         response.headers.setdefault("X-Request-Id", request_id)
         return response
@@ -195,6 +212,8 @@ def setup_exception_logging(app, logger: logging.Logger, service_name: str):
             "error": str(exc),
             "error_type": type(exc).__name__,
             "traceback": "".join(tb).replace("\n", "\\n"),
+            "request_id": getattr(request.state, "request_id", None),
         }
+        _enrich_trace_fields(payload)
         logger.error(json.dumps(payload, ensure_ascii=False))
         return JSONResponse(status_code=500, content={"detail": "Internal server error"})

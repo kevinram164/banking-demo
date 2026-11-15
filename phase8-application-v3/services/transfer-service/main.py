@@ -37,6 +37,7 @@ from common.observability import (
     inc_transfer_outcome,
     adjust_transfers_pending,
     set_transfers_pending,
+    set_span_attributes,
 )
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
@@ -194,6 +195,14 @@ def _reject(
     **extra,
 ) -> dict:
     txn_type = extra.get("txn_type") or "P2P"
+    set_span_attributes(
+        **{
+            "transfer.status": "REJECTED",
+            "transfer.txn_type": txn_type,
+            "error.type": error_code,
+            "correlation_id": correlation_id,
+        }
+    )
     log_transfer(
         logger,
         outcome="REJECTED",
@@ -542,6 +551,14 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
             )
             db.commit()
             db.refresh(transfer)
+            set_span_attributes(
+                **{
+                    "transfer.id": transfer.id,
+                    "transfer.status": "SUCCESS",
+                    "transfer.txn_type": biz["txn_type"],
+                    "correlation_id": correlation_id,
+                }
+            )
             log_transfer(
                 logger,
                 outcome="SUCCESS",
@@ -610,6 +627,14 @@ async def handle_create(payload: dict, headers: dict, trace: dict) -> dict:
         )
         db.commit()
         db.refresh(transfer)
+        set_span_attributes(
+            **{
+                "transfer.id": transfer.id,
+                "transfer.status": "PENDING",
+                "transfer.txn_type": biz["txn_type"],
+                "correlation_id": correlation_id,
+            }
+        )
 
         log_transfer(
             logger,
@@ -1234,6 +1259,7 @@ async def process_message(message: IncomingMessage):
         try:
             body = json.loads(message.body.decode())
             correlation_id = body.get("correlation_id", "")
+            request_id = body.get("request_id") or (message.headers or {}).get("request_id")
             path = body.get("path", "")
             action = body.get("action", "")
             payload = body.get("payload", {})
@@ -1241,13 +1267,25 @@ async def process_message(message: IncomingMessage):
             published_at = body.get("published_at")
 
             tracer = get_tracer("transfer-service")
-            with consumer_span(tracer, "transfer.process", {"action": action, "correlation_id": str(correlation_id or "")}):
+            with consumer_span(
+                tracer,
+                "transfer.process",
+                {
+                    "action": action,
+                    "correlation_id": str(correlation_id or ""),
+                    "request_id": str(request_id or ""),
+                    "messaging.destination": "transfer.requests",
+                    "http.route": path or "",
+                },
+                carrier=message.headers,
+            ):
                 if should_log_request_flow() and action != "health":
                     log_event(
                         logger,
                         "rmq_message_received",
                         queue="transfer.requests",
                         correlation_id=correlation_id,
+                        request_id=request_id,
                         action=action,
                         path=path,
                         published_at=published_at,

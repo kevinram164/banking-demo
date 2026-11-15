@@ -14,7 +14,7 @@ from redis.asyncio import Redis
 from common.rabbitmq_utils import path_to_queue, publish_and_wait
 from common.redis_utils import create_redis_client
 from common.logging_utils import get_json_logger, log_event, log_error_event, setup_exception_logging, RequestLogMiddleware
-from common.observability import instrument_fastapi
+from common.observability import current_trace_fields, instrument_fastapi
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
@@ -93,6 +93,7 @@ async def proxy_to_queue(request: Request, path: str):
     # Determine action from path (e.g. /api/auth/register -> register)
     parts = full_path.rstrip("/").split("/")
     action = parts[-1] if parts else ""
+    request_id = getattr(request.state, "request_id", None) or request.headers.get("X-Request-Id")
 
     payload = {
         "action": action,
@@ -100,6 +101,7 @@ async def proxy_to_queue(request: Request, path: str):
         "method": request.method,
         "payload": body,
         "headers": headers,
+        "request_id": request_id,
     }
 
     try:
@@ -107,20 +109,35 @@ async def proxy_to_queue(request: Request, path: str):
             result = await publish_and_wait(redis, channel, queue_name, payload, headers, logger=logger)
     except TimeoutError as e:
         # Consumer không trả lời (down / treo) → 503 Service Unavailable (không dùng 504).
-        log_error_event(logger, "downstream_unavailable", exc=e, path=full_path, service="api-producer", queue=queue_name)
+        log_error_event(
+            logger,
+            "downstream_unavailable",
+            exc=e,
+            path=full_path,
+            service="api-producer",
+            queue=queue_name,
+            request_id=request_id,
+        )
         return JSONResponse(
             status_code=503,
             content={"detail": f"Service unavailable: no response from {queue_name} within timeout"},
         )
     except Exception as e:
-        log_error_event(logger, "producer_error", exc=e, path=full_path, service="api-producer")
+        log_error_event(
+            logger, "producer_error", exc=e, path=full_path, service="api-producer", request_id=request_id
+        )
         return JSONResponse(status_code=502, content={"detail": str(e)})
 
     # Result format: { "status": 200, "body": {...} } or { "status": 401, "body": {"detail": "..."} }
     status = result.get("status", 200)
     resp_body = result.get("body", result)
     correlation_id = result.pop("_correlation_id", None)
+    trace_id = result.pop("_trace_id", None) or current_trace_fields().get("trace.id")
     response = JSONResponse(status_code=status, content=resp_body)
     if correlation_id:
         response.headers["X-Correlation-Id"] = correlation_id
+    if trace_id:
+        response.headers["X-Trace-Id"] = trace_id
+    if request_id:
+        response.headers.setdefault("X-Request-Id", request_id)
     return response

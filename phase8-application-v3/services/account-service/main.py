@@ -388,14 +388,34 @@ async def process_message(message: IncomingMessage):
         try:
             body = json.loads(message.body.decode())
             correlation_id = body.get("correlation_id")
+            request_id = body.get("request_id") or (message.headers or {}).get("request_id")
             path = body.get("path", "")
             action = body.get("action", "")
             payload = body.get("payload", {})
             headers = body.get("headers", {})
             tracer = get_tracer("account-service")
-            with consumer_span(tracer, "account.process", {"action": action, "correlation_id": str(correlation_id or "")}):
+            with consumer_span(
+                tracer,
+                "account.process",
+                {
+                    "action": action,
+                    "correlation_id": str(correlation_id or ""),
+                    "request_id": str(request_id or ""),
+                    "messaging.destination": "account.requests",
+                    "http.route": path or "",
+                },
+                carrier=message.headers,
+            ):
                 if should_log_request_flow():
-                    log_event(logger, "rmq_message_received", queue="account.requests", correlation_id=correlation_id, action=action, path=path)
+                    log_event(
+                        logger,
+                        "rmq_message_received",
+                        queue="account.requests",
+                        correlation_id=correlation_id,
+                        request_id=request_id,
+                        action=action,
+                        path=path,
+                    )
                 if action != "health" and is_message_stale(body.get("published_at")):
                     log_event(
                         logger,

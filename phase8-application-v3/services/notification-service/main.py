@@ -52,13 +52,31 @@ async def process_message(message):
         try:
             body = json.loads(message.body.decode())
             correlation_id = body.get("correlation_id")
+            request_id = body.get("request_id") or (message.headers or {}).get("request_id")
             action = body.get("action", "")
             payload = body.get("payload", {})
             headers = body.get("headers", {})
             tracer = get_tracer("notification-service")
-            with consumer_span(tracer, "notification.process", {"action": action, "correlation_id": str(correlation_id or "")}):
+            with consumer_span(
+                tracer,
+                "notification.process",
+                {
+                    "action": action,
+                    "correlation_id": str(correlation_id or ""),
+                    "request_id": str(request_id or ""),
+                    "messaging.destination": "notification.requests",
+                },
+                carrier=message.headers,
+            ):
                 if should_log_request_flow():
-                    log_event(logger, "rmq_message_received", queue="notification.requests", correlation_id=correlation_id, action=action)
+                    log_event(
+                        logger,
+                        "rmq_message_received",
+                        queue="notification.requests",
+                        correlation_id=correlation_id,
+                        request_id=request_id,
+                        action=action,
+                    )
                 if action == "health":
                     result = {"status": 200, "body": {"status": "healthy", "service": "notification", "database": "ok", "redis": "ok"}}
                 else:
