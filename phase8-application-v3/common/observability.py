@@ -1,12 +1,13 @@
 """
-Observability: OpenTelemetry tracing + Prometheus metrics.
-- Tracing: OTLP export to collector (optional via OTEL_EXPORTER_OTLP_ENDPOINT).
+Observability: OpenTelemetry tracing + logs + Prometheus metrics.
+- Tracing/Logs: OTLP export to collector (optional via OTEL_EXPORTER_OTLP_ENDPOINT).
 - Metrics: Prometheus /metrics endpoint.
 - Heartbeat: periodic SERVER span so services stay visible without traffic.
 - RMQ: W3C tracecontext inject/extract so producer → consumer = one APM trace.
 """
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -21,11 +22,36 @@ _request_latency: Histogram | None = None
 _transfer_outcomes: Counter | None = None
 _transfers_pending: Gauge | None = None
 _heartbeat_started: set[str] = set()
+_otel_resource_cache = None
+_logs_provider = None
+_tracing_ready = False
+
+
+def _otel_endpoint() -> str:
+    return os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
+
+
+def _otel_service_name(service_name: str) -> str:
+    return os.getenv("OTEL_SERVICE_NAME", service_name).strip() or service_name
+
+
+def _get_otel_resource(service_name: str):
+    """Shared Resource for traces + logs (honours OTEL_RESOURCE_ATTRIBUTES)."""
+    global _otel_resource_cache
+    if _otel_resource_cache is not None:
+        return _otel_resource_cache
+    from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+
+    _otel_resource_cache = Resource.create({SERVICE_NAME: _otel_service_name(service_name)})
+    return _otel_resource_cache
 
 
 def init_tracing(service_name: str) -> None:
     """Initialize OpenTelemetry tracer; export to OTLP if OTEL_EXPORTER_OTLP_ENDPOINT is set."""
-    endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
+    global _tracing_ready
+    if _tracing_ready:
+        return
+    endpoint = _otel_endpoint()
     if not endpoint:
         return
     try:
@@ -33,20 +59,18 @@ def init_tracing(service_name: str) -> None:
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-        from opentelemetry.sdk.resources import Resource, SERVICE_NAME
         from opentelemetry.propagate import set_global_textmap
         from opentelemetry.propagators.composite import CompositePropagator
         from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
         from opentelemetry.baggage.propagation import W3CBaggagePropagator
 
-        name = os.getenv("OTEL_SERVICE_NAME", service_name).strip() or service_name
-        resource = Resource.create({SERVICE_NAME: name})
-        provider = TracerProvider(resource=resource)
+        provider = TracerProvider(resource=_get_otel_resource(service_name))
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(insecure=True)))
         trace.set_tracer_provider(provider)
         set_global_textmap(
             CompositePropagator([TraceContextTextMapPropagator(), W3CBaggagePropagator()])
         )
+        _tracing_ready = True
 
         try:
             from opentelemetry.instrumentation.redis import RedisInstrumentor
@@ -61,6 +85,52 @@ def init_tracing(service_name: str) -> None:
                 SQLAlchemyInstrumentor().instrument(engine=db.engine)
         except Exception:
             pass
+    except Exception:
+        pass
+
+
+def init_logging(service_name: str) -> None:
+    """
+    OTLP logs → collector → Instana/APM (all levels the app logger emits).
+    Disable: OTEL_LOGS=0. Logger level: LOG_LEVEL (default INFO → INFO/WARN/ERROR/CRITICAL;
+    set LOG_LEVEL=DEBUG for DEBUG too).
+    """
+    global _logs_provider
+    if _logs_provider is not None:
+        return
+    if not _otel_endpoint():
+        return
+    if os.getenv("OTEL_LOGS", "1").strip().lower() in ("0", "false", "no", "off"):
+        return
+    try:
+        from opentelemetry._logs import set_logger_provider
+        from opentelemetry.sdk._logs import LoggerProvider
+        from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+        from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+
+        provider = LoggerProvider(resource=_get_otel_resource(service_name))
+        provider.add_log_record_processor(
+            BatchLogRecordProcessor(OTLPLogExporter(insecure=True))
+        )
+        set_logger_provider(provider)
+        _logs_provider = provider
+    except Exception:
+        _logs_provider = None
+
+
+def attach_otlp_log_handler(logger: logging.Logger) -> None:
+    """Forward every record accepted by `logger` to OTLP (no extra level filter)."""
+    if _logs_provider is None:
+        return
+    if any(getattr(h, "_otel_otlp_logs", False) for h in logger.handlers):
+        return
+    try:
+        from opentelemetry.sdk._logs import LoggingHandler
+
+        # NOTSET = do not filter; logger.setLevel(LOG_LEVEL) decides which levels flow.
+        handler = LoggingHandler(level=logging.NOTSET, logger_provider=_logs_provider)
+        handler._otel_otlp_logs = True  # type: ignore[attr-defined]
+        logger.addHandler(handler)
     except Exception:
         pass
 
@@ -298,10 +368,13 @@ def get_metrics_content() -> bytes:
 
 
 def instrument_fastapi(app, service_name: str) -> None:
-    from common.logging_utils import silence_http_probe_logs
+    from common.logging_utils import get_json_logger, silence_http_probe_logs
 
     silence_http_probe_logs()
     init_tracing(service_name)
+    init_logging(service_name)
+    # Ensure OTLP log handler even if get_json_logger ran before init_logging.
+    attach_otlp_log_handler(get_json_logger(service_name))
     setup_metrics(service_name)
     start_heartbeat(service_name)
     try:

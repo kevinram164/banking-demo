@@ -112,14 +112,27 @@ def log_transfer(
 
 
 def get_json_logger(service_name: str) -> logging.Logger:
+    """
+    JSON stdout logger + optional OTLP → Instana (all levels >= LOG_LEVEL).
+    LOG_LEVEL default INFO (INFO/WARNING/ERROR/CRITICAL). Use DEBUG for mọi level.
+    """
     logger = logging.getLogger(service_name)
-    if logger.handlers:
-        return logger
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(message)s"))
-    logger.addHandler(handler)
-    logger.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
-    logger.propagate = False
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+        try:
+            logger.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
+        except ValueError:
+            logger.setLevel(logging.INFO)
+        logger.propagate = False
+    try:
+        from common.observability import attach_otlp_log_handler, init_logging
+
+        init_logging(service_name)
+        attach_otlp_log_handler(logger)
+    except Exception:
+        pass
     return logger
 
 
@@ -143,6 +156,18 @@ def log_event(logger: logging.Logger, event: str, **fields: Any) -> None:
     }
     _enrich_trace_fields(payload)
     logger.info(json.dumps(payload, ensure_ascii=False))
+
+
+def log_warning_event(logger: logging.Logger, event: str, **fields: Any) -> None:
+    """Log at WARNING level (stdout + OTLP/Instana when enabled)."""
+    payload: Dict[str, Any] = {
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
+        "event": event,
+        "level": "warning",
+        **fields,
+    }
+    _enrich_trace_fields(payload)
+    logger.warning(json.dumps(payload, ensure_ascii=False))
 
 
 def log_error_event(logger: logging.Logger, event: str, exc: Exception | None = None, **fields: Any) -> None:
